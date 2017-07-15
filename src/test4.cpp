@@ -7,7 +7,12 @@
 #include "test4_chr.hpp"
 #include "test4_stg.hpp"
 
+#define D_KEY_F1 20
+#define D_KEY_F2 21
+
 static struct TEST4_WK {
+	KEY_CTRL* pKeys;
+
 	CAM_INFO camInfo[10];
 	int camNum;
 	GEX_CAM* pCam;
@@ -18,6 +23,8 @@ static struct TEST4_WK {
 	cStage4 stg;
 
 	cTest4Panda panda;
+
+	bool tessFlg;
 
 	SH_COEFS envSH;
 	GEX_OBJ* pSHObj;
@@ -37,9 +44,33 @@ static struct TEST4_WK {
 			}
 		}
 	}
+
+	void clear() {
+		pKeys = nullptr;
+		pCam = nullptr;
+		tessFlg = true;
+	}
 } WK;
 
+
+void set_obj_tess(GEX_OBJ* pObj) {
+	if (!pObj) return;
+	if (WK.tessFlg) {
+		obj_tesselation(*pObj, GEX_TESS_MODE::PNTRI, 8.0f);
+	} else {
+		obj_tesselation(*pObj, GEX_TESS_MODE::NONE, 0.0f);
+	}
+}
+
 void test4_init() {
+	WK.clear();
+
+	static struct KEY_INFO keys[] = {
+		{ "[F1]", D_KEY_F1 },
+		{ "[F2]", D_KEY_F2 }
+	};
+	WK.pKeys = keyCreate(keys, XD_ARY_LEN(keys));
+
 	WK.pCam = gexCamCreate("test4_camera");
 	WK.reset_cam_info();
 	sxData* pData = nxData::load(DATA_PATH("test4_cams.xval"));
@@ -148,6 +179,14 @@ void cam_ctrl() {
 }
 
 void test4_loop() {
+	keyUpdate(WK.pKeys);
+	if (keyCkTrg(WK.pKeys, D_KEY_F2)) {
+		WK.tessFlg ^= true;
+		::printf("Tesselation: %s\n", WK.tessFlg ? "ON" : "OFF");
+	}
+	set_obj_tess(WK.chr.get_obj());
+	set_obj_tess(WK.panda.get_obj());
+
 	gexClearTarget(cxColor(0.44f, 0.55f, 0.66f));
 	gexClearDepth();
 
@@ -174,4 +213,6 @@ void test4_end() {
 	WK.panda.destroy();
 	gexObjDestroy(WK.pSHObj);
 	gexCamDestroy(WK.pCam);
+	keyDestroy(WK.pKeys);
+	WK.clear();
 }

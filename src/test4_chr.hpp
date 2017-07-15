@@ -59,6 +59,7 @@ public:
 	void disp(GEX_LIT* pLit = nullptr);
 
 	cxVec get_world_pos() const { return mWorldPos; }
+	GEX_OBJ* get_obj() const { return mpObj; }
 };
 
 
@@ -108,5 +109,7 @@ public:
 
 	void update();
 	void disp(GEX_LIT* pLit = nullptr);
+
+	GEX_OBJ* get_obj() const { return mpObj; }
 };
 

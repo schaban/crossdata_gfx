@@ -59,7 +59,7 @@ void cTest4Character::create() {
 		sxValuesData* pMtlVals = pData->as<sxValuesData>();
 		if (pMtlVals && pObj) {
 			init_materials(*pObj, *pMtlVals);
-			obj_tesselation(*pObj, GEX_TESS_MODE::PNTRI, 8.0f);
+			//obj_tesselation(*pObj, GEX_TESS_MODE::PNTRI, 8.0f);
 			int nmtl = gexObjMtlNum(pObj);
 			for (int i = 0; i < nmtl; ++i) {
 				GEX_MTL* pMtl = gexObjMaterial(pObj, i);
@@ -381,7 +381,7 @@ void cTest4Panda::create() {
 		sxValuesData* pMtlVals = pData->as<sxValuesData>();
 		if (pMtlVals && mpObj) {
 			init_materials(*mpObj, *pMtlVals);
-			obj_tesselation(*mpObj, GEX_TESS_MODE::PNTRI, 8.0f);
+			//obj_tesselation(*mpObj, GEX_TESS_MODE::PNTRI, 8.0f);
 			int nmtl = gexObjMtlNum(mpObj);
 			for (int i = 0; i < nmtl; ++i) {
 				GEX_MTL* pMtl = gexObjMaterial(mpObj, i);
