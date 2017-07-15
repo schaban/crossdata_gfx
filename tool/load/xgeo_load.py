@@ -7,7 +7,14 @@ import inspect
 from math import *
 from array import array
 
-def defNodeName(id): return 'nd_%(#)02d' % {"#":id}
+try: xrange
+except: xrange = range
+
+def dbgmsg(msg):
+	sys.stdout.write(str(msg) + "\n")
+
+def defNodeName(id):
+	return 'nd_%(#)02d' % {"#":id}
 
 def vecPad(v, n, pad = 0.0):
 	l = len(v)
@@ -57,7 +64,7 @@ class StrList:
 					data.pop()
 					break
 				i += 1
-			s = data.tostring()
+			s = data.tostring().decode()
 			self.add(s)
 
 class Poly:
@@ -230,8 +237,9 @@ class XGeo:
 		# common
 		head = f.read(0x20)
 		(kind, flg, fsize, hsize, soffs, nameId, pathId) = struct.unpack("<4sIIIIhh", head[:0x18])
+		kind = kind.decode()
 		if kind != kindStr:
-			print "!" + kindStr
+			dbgmsg("!" + kindStr)
 			return
 		self.flags = flg
 		self.fileSize = fsize
@@ -467,6 +475,7 @@ class XGeo:
 		npol = self.polNum
 		nmtl = self.mtlNum
 		mtlFlg = useMtls and (nmtl > 0)
+		f.write('// ' + str(sys.version_info) + '\n')
 		f.write('main {\n')
 		f.write('editbegin();\n')
 		clrFlg = self.findPntAttrIdx("Cd") >= 0
@@ -538,18 +547,19 @@ class XGeo:
 
 def test():
 	exePath = os.path.dirname(os.path.abspath(inspect.getframeinfo(inspect.currentframe()).filename))
-	print exePath
+	dbgmsg("exe path: {}".format(exePath))
 	fpath = exePath + "/../_test.xgeo"
 	xgeo = XGeo()
 	xgeo.load(fpath)
-	print xgeo.getName()
-	print xgeo.getPath()
-	print xgeo.mtlNum, "mtls"
+	if not xgeo.isLoaded(): return
+	dbgmsg("name: {}".format(xgeo.getName()))
+	dbgmsg("path: {}".format(xgeo.getPath()))
+	dbgmsg("#mtl: {}".format(xgeo.mtlNum))
 	npol = xgeo.polNum
 	for i in xrange(npol):
 		nvtx = xgeo.pols[i].vtxNum
 		vlst = xgeo.pols[i].vtxLst
-		#print i, ":", nvtx, vlst
+		#dbgmsg("pol[{}], {} vtx: {}".format(i, nvtx, vlst))
 	xgeo.saveLS(exePath + "/_xgeo.ls");
 
 if __name__=="__main__":
