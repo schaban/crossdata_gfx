@@ -4,13 +4,55 @@
 #include "task.hpp"
 
 #include <atomic>
-
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <new>
 
 using namespace std;
+
+
+struct TSK_LOCK {
+	mutex mMutex;
+};
+
+TSK_LOCK* tskLockCreate() {
+	TSK_LOCK* pLock = (TSK_LOCK*)nxCore::mem_alloc(sizeof(TSK_LOCK), XD_FOURCC('l', 'o', 'c', 'k'));
+	if (pLock) {
+		::new ((void*)pLock) TSK_LOCK;
+	}
+	return pLock;
+}
+
+void tskLockDestroy(TSK_LOCK* pLock) {
+	if (pLock) {
+		pLock->~TSK_LOCK();
+		nxCore::mem_free(pLock);
+	}
+}
+
+bool tskLockAcquire(TSK_LOCK* pLock) {
+	bool res = false;
+	if (pLock) {
+		try {
+			pLock->mMutex.lock();
+			res = true;
+		} catch (...) {
+			res = false;
+		}
+	}
+	return res;
+}
+
+bool tskLockRelease(TSK_LOCK* pLock) {
+	bool res = false;
+	if (pLock) {
+		pLock->mMutex.unlock();
+		res = true;
+	}
+	return res;
+}
+
 
 struct TSK_SIGNAL {
 	mutex mMutex;
@@ -335,4 +377,3 @@ int tskQueueJobsCount(TSK_QUEUE* pQue) {
 	}
 	return n;
 }
-

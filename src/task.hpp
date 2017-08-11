@@ -1,5 +1,6 @@
 // Author: Sergey Chaban <sergey.chaban@gmail.com>
 
+struct TSK_LOCK;
 struct TSK_SIGNAL;
 struct TSK_WORKER;
 struct TSK_BRIGADE;
@@ -23,6 +24,11 @@ struct TSK_CONTEXT {
 	int mWrkId;
 	int mJobCount;
 };
+
+TSK_LOCK* tskLockCreate();
+void tskLockDestroy(TSK_LOCK* pLock);
+bool tskLockAcquire(TSK_LOCK* pLock);
+bool tskLockRelease(TSK_LOCK* pLock);
 
 TSK_SIGNAL* tskSignalCreate();
 void tskSignalDestroy(TSK_SIGNAL* pSig);
@@ -49,5 +55,4 @@ void tskQueueAdd(TSK_QUEUE* pQue, TSK_JOB* pJob);
 void tskQueuePurge(TSK_QUEUE* pQue);
 void tskQueueExec(TSK_QUEUE* pQue, TSK_BRIGADE* pBgd);
 int tskQueueJobsCount(TSK_QUEUE* pQue);
-
 
