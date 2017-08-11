@@ -309,7 +309,7 @@ TSK_QUEUE* tskQueueCreate(int nslots) {
 		pQue = (TSK_QUEUE*)nxCore::mem_alloc(sizeof(TSK_QUEUE), XD_FOURCC('t', 'q', 'u', 'e'));
 		if (pQue) {
 			size_t memSize = nslots * sizeof(TSK_JOB*);
-			TSK_JOB** pSlots = (TSK_JOB**)nxCore::mem_alloc(memSize, XD_FOURCC('j', 'o', 'b', 's'));
+			TSK_JOB** pSlots = (TSK_JOB**)nxCore::mem_alloc(memSize, XD_FOURCC('s', 'l', 'o', 't'));
 			if (pSlots) {
 				::memset(pSlots, 0, memSize);
 				pQue->mSlotsNum = nslots;
@@ -338,6 +338,7 @@ void tskQueueAdd(TSK_QUEUE* pQue, TSK_JOB* pJob) {
 	if (pQue->mpJobSlots) {
 		if (pQue->mPutIdx < pQue->mSlotsNum) {
 			pQue->mpJobSlots[pQue->mPutIdx] = pJob;
+			pJob->mId = pQue->mPutIdx;
 			++pQue->mPutIdx;
 		}
 	}
@@ -377,3 +378,22 @@ int tskQueueJobsCount(TSK_QUEUE* pQue) {
 	}
 	return n;
 }
+
+TSK_JOB* tskJobsAlloc(int n) {
+	TSK_JOB* pJobs = nullptr;
+	if (n > 0) {
+		size_t memSize = n * sizeof(TSK_JOB);
+		pJobs = (TSK_JOB*)nxCore::mem_alloc(memSize, XD_FOURCC('j', 'o', 'b', 's'));
+		if (pJobs) {
+			::memset(pJobs, 0, memSize);
+		}
+	}
+	return pJobs;
+}
+
+void tskJobsFree(TSK_JOB* pJobs) {
+	if (pJobs) {
+		nxCore::mem_free(pJobs);
+	}
+}
+

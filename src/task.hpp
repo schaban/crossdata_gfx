@@ -14,8 +14,8 @@ typedef void(*TSK_JOB_FUNC)(TSK_CONTEXT*);
 struct TSK_JOB {
 	TSK_JOB_FUNC mFunc;
 	void* mpData;
+	int32_t mId;
 	uint8_t mState[4];
-	uint16_t mCouter;
 };
 
 struct TSK_CONTEXT {
@@ -55,4 +55,7 @@ void tskQueueAdd(TSK_QUEUE* pQue, TSK_JOB* pJob);
 void tskQueuePurge(TSK_QUEUE* pQue);
 void tskQueueExec(TSK_QUEUE* pQue, TSK_BRIGADE* pBgd);
 int tskQueueJobsCount(TSK_QUEUE* pQue);
+
+TSK_JOB* tskJobsAlloc(int n);
+void tskJobsFree(TSK_JOB* pJobs);
 
