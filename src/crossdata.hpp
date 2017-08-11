@@ -1981,6 +1981,7 @@ struct sxKeyframesData : public sxData {
 		Node mNodes[1];
 
 		int16_t* get_rig_map() const { return mRigMapOffs ? (int16_t*)XD_INCR_PTR(this, mRigMapOffs) : nullptr; }
+		bool ck_node_idx(int idx) const { return (uint32_t)idx < (uint32_t)mNodeNum; }
 	};
 
 	bool has_node_info() const;
@@ -2005,6 +2006,7 @@ struct sxKeyframesData : public sxData {
 	const char* get_fcv_node_path(int idx) const { return ck_fcv_idx(idx) ? get_str(get_fcv_info(idx)->mNodePathId) : nullptr; }
 	const char* get_fcv_chan_name(int idx) const { return ck_fcv_idx(idx) ? get_str(get_fcv_info(idx)->mChanNameId) : nullptr; }
 	RigLink* make_rig_link(const sxRigData& rig) const;
+	void eval_rig_link_node(RigLink* pLink, int nodeIdx, float frm, const sxRigData* pRig = nullptr, cxMtx* pRigLocalMtx = nullptr) const;
 	void eval_rig_link(RigLink* pLink, float frm, const sxRigData* pRig = nullptr, cxMtx* pRigLocalMtx = nullptr) const;
 
 	void dump_clip(FILE* pOut) const;

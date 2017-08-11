@@ -4463,101 +4463,107 @@ sxKeyframesData::RigLink* sxKeyframesData::make_rig_link(const sxRigData& rig) c
 	return pLink;
 }
 
+void sxKeyframesData::eval_rig_link_node(RigLink* pLink, int nodeIdx, float frm, const sxRigData* pRig, cxMtx* pRigLocalMtx) const {
+	if (!pLink) return;
+	if (!pLink->ck_node_idx(nodeIdx)) return;
+	const int POS_MASK = 1 << 0;
+	const int ROT_MASK = 1 << 1;
+	const int SCL_MASK = 1 << 2;
+	int xformMask = 0;
+	RigLink::Node* pNode = &pLink->mNodes[nodeIdx];
+	RigLink::Val* pPosVal = pNode->get_pos_val();
+	if (pPosVal) {
+		for (int j = 0; j < 3; ++j) {
+			int fcvId = pPosVal->fcvId[j];
+			if (ck_fcv_idx(fcvId)) {
+				xformMask |= POS_MASK;
+				FCurve fcv = get_fcv(fcvId);
+				if (fcv.is_valid()) {
+					pPosVal->f3[j] = fcv.eval(frm);
+				}
+			}
+		}
+	}
+	RigLink::Val* pRotVal = pNode->get_rot_val();
+	if (pRotVal) {
+		int ifrm = (int)frm;
+		if (pNode->mUseSlerp && frm != (float)ifrm) {
+			cxVec rot0(0.0f);
+			cxVec rot1(0.0f);
+			for (int j = 0; j < 3; ++j) {
+				int fcvId = pRotVal->fcvId[j];
+				if (ck_fcv_idx(fcvId)) {
+					xformMask |= ROT_MASK;
+					FCurve fcv = get_fcv(fcvId);
+					if (fcv.is_valid()) {
+						rot0.set_at(j, fcv.eval((float)ifrm));
+						rot1.set_at(j, fcv.eval((float)(ifrm + 1)));
+					}
+				}
+			}
+			cxQuat q0;
+			q0.set_rot_degrees(rot0, pNode->mRotOrd);
+			cxQuat q1;
+			q1.set_rot_degrees(rot1, pNode->mRotOrd);
+			cxQuat qr = nxQuat::slerp(q0, q1, frm - (float)ifrm);
+			cxVec rv = qr.get_rot_degrees(pNode->mRotOrd);
+			pRotVal->set_vec(rv);
+		} else {
+			for (int j = 0; j < 3; ++j) {
+				int fcvId = pRotVal->fcvId[j];
+				if (ck_fcv_idx(fcvId)) {
+					xformMask |= ROT_MASK;
+					FCurve fcv = get_fcv(fcvId);
+					if (fcv.is_valid()) {
+						pRotVal->f3[j] = fcv.eval(frm);
+					}
+				}
+			}
+		}
+	}
+	RigLink::Val* pSclVal = pNode->get_scl_val();
+	if (pSclVal) {
+		for (int j = 0; j < 3; ++j) {
+			int fcvId = pSclVal->fcvId[j];
+			if (ck_fcv_idx(fcvId)) {
+				xformMask |= SCL_MASK;
+				FCurve fcv = get_fcv(fcvId);
+				if (fcv.is_valid()) {
+					pSclVal->f3[j] = fcv.eval(frm);
+				}
+			}
+		}
+	}
+	if (xformMask && pRig && pRigLocalMtx) {
+		cxMtx sm;
+		cxMtx rm;
+		cxMtx tm;
+		exRotOrd rord = pNode->mRotOrd;
+		exTransformOrd xord = pNode->mXformOrd;
+		if (xformMask & SCL_MASK) {
+			sm.mk_scl(pSclVal->get_vec());
+		} else {
+			sm.mk_scl(pRig->get_lscl(pNode->mRigNodeId));
+		}
+		if (xformMask & ROT_MASK) {
+			rm.set_rot_degrees(pRotVal->get_vec(), rord);
+		} else {
+			rm.set_rot_degrees(pRig->get_lrot(pNode->mRigNodeId));
+		}
+		if (xformMask & POS_MASK) {
+			tm.mk_translation(pPosVal->get_vec());
+		} else {
+			tm.mk_translation(pRig->get_lpos(pNode->mRigNodeId));
+		}
+		pRigLocalMtx[pNode->mRigNodeId].calc_xform(tm, rm, sm, xord);
+	}
+}
+
 void sxKeyframesData::eval_rig_link(RigLink* pLink, float frm, const sxRigData* pRig, cxMtx* pRigLocalMtx) const {
 	if (!pLink) return;
-	const int POS_MASK = 1<<0;
-	const int ROT_MASK = 1<<1;
-	const int SCL_MASK = 1<<2;
 	int n = pLink->mNodeNum;
 	for (int i = 0; i < n; ++i) {
-		int xformMask = 0;
-		RigLink::Node* pNode = &pLink->mNodes[i];
-		RigLink::Val* pPosVal = pNode->get_pos_val();
-		if (pPosVal) {
-			for (int j = 0; j < 3; ++j) {
-				int fcvId = pPosVal->fcvId[j];
-				if (ck_fcv_idx(fcvId)) {
-					xformMask |= POS_MASK;
-					FCurve fcv = get_fcv(fcvId);
-					if (fcv.is_valid()) {
-						pPosVal->f3[j] = fcv.eval(frm);
-					}
-				}
-			}
-		}
-		RigLink::Val* pRotVal = pNode->get_rot_val();
-		if (pRotVal) {
-			int ifrm = (int)frm;
-			if (pNode->mUseSlerp && frm != (float)ifrm) {
-				cxVec rot0(0.0f);
-				cxVec rot1(0.0f);
-				for (int j = 0; j < 3; ++j) {
-					int fcvId = pRotVal->fcvId[j];
-					if (ck_fcv_idx(fcvId)) {
-						xformMask |= ROT_MASK;
-						FCurve fcv = get_fcv(fcvId);
-						if (fcv.is_valid()) {
-							rot0.set_at(j, fcv.eval((float)ifrm));
-							rot1.set_at(j, fcv.eval((float)(ifrm+1)));
-						}
-					}
-				}
-				cxQuat q0;
-				q0.set_rot_degrees(rot0, pNode->mRotOrd);
-				cxQuat q1;
-				q1.set_rot_degrees(rot1, pNode->mRotOrd);
-				cxQuat qr = nxQuat::slerp(q0, q1, frm - (float)ifrm);
-				cxVec rv = qr.get_rot_degrees(pNode->mRotOrd);
-				pRotVal->set_vec(rv);
-			} else {
-				for (int j = 0; j < 3; ++j) {
-					int fcvId = pRotVal->fcvId[j];
-					if (ck_fcv_idx(fcvId)) {
-						xformMask |= ROT_MASK;
-						FCurve fcv = get_fcv(fcvId);
-						if (fcv.is_valid()) {
-							pRotVal->f3[j] = fcv.eval(frm);
-						}
-					}
-				}
-			}
-		}
-		RigLink::Val* pSclVal = pNode->get_scl_val();
-		if (pSclVal) {
-			for (int j = 0; j < 3; ++j) {
-				int fcvId = pSclVal->fcvId[j];
-				if (ck_fcv_idx(fcvId)) {
-					xformMask |= SCL_MASK;
-					FCurve fcv = get_fcv(fcvId);
-					if (fcv.is_valid()) {
-						pSclVal->f3[j] = fcv.eval(frm);
-					}
-				}
-			}
-		}
-		if (xformMask && pRig && pRigLocalMtx) {
-			cxMtx sm;
-			cxMtx rm;
-			cxMtx tm;
-			exRotOrd rord = pNode->mRotOrd;
-			exTransformOrd xord = pNode->mXformOrd;
-			if (xformMask & SCL_MASK) {
-				sm.mk_scl(pSclVal->get_vec());
-			} else {
-				sm.mk_scl(pRig->get_lscl(pNode->mRigNodeId));
-			}
-			if (xformMask & ROT_MASK) {
-				rm.set_rot_degrees(pRotVal->get_vec(), rord);
-			} else {
-				rm.set_rot_degrees(pRig->get_lrot(pNode->mRigNodeId));
-			}
-			if (xformMask & POS_MASK) {
-				tm.mk_translation(pPosVal->get_vec());
-			} else {
-				tm.mk_translation(pRig->get_lpos(pNode->mRigNodeId));
-			}
-			pRigLocalMtx[pNode->mRigNodeId].calc_xform(tm, rm, sm, xord);
-		}
+		eval_rig_link_node(pLink, i, frm, pRig, pRigLocalMtx);
 	}
 }
 
