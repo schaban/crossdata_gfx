@@ -103,7 +103,7 @@ void cTest4Character::create() {
 		if (mpRigMtxW) {
 			mpRigMtxW[i] = mpRig->get_wmtx(i);
 		}
-		if (mpBlendMtxL) {
+		if (mpBlendMtxL && mpRigMtxL) {
 			mpBlendMtxL[i] = mpRigMtxL[i];
 		}
 	}

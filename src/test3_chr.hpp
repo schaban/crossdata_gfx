@@ -14,6 +14,10 @@ float get_anim_speed();
 bool stg_hit_ck(const cxVec& pos0, const cxVec& pos1, cxVec* pHitPos, cxVec* pHitNrm);
 sxGeometryData* get_stg_obst_geo();
 
+struct TSK_QUEUE;
+struct TSK_JOB;
+struct TSK_CONTEXT;
+
 class cCharacter3 {
 protected:
 	enum class STATE : uint8_t {
@@ -57,6 +61,12 @@ protected:
 	cxVec mWorldPos;
 	cxVec mWorldRot;
 
+	TSK_JOB* mpMotEvalJobs;
+	TSK_QUEUE* mpMotEvalQueue;
+	sxKeyframesData::RigLink* mpMotEvalLink;
+	sxKeyframesData* mpMotEvalKfr;
+	float mMotEvalFrame;
+
 	bool mInitFlg;
 
 	STATE mStateMain;
@@ -98,12 +108,15 @@ protected:
 
 	bool prop_adj();
 
+	static void mot_node_eval_job(TSK_CONTEXT* pCtx);
+
 public:
 	cCharacter3()
 	: mInitFlg(false),
 	mpObj(nullptr), mpTexB(nullptr), mpTexS(nullptr), mpTexN(nullptr), mpRig(nullptr),
 	mpRigMtxL(nullptr), mpRigMtxW(nullptr), mpObjMtxW(nullptr), mpBlendMtxL(nullptr), mpObjToRig(nullptr),
 	mSkinNodesNum(0), mRigNodesNum(0), mRootNodeId(-1), mMovementNodeId(-1),
+	mpMotEvalJobs(nullptr), mpMotEvalQueue(nullptr), mpMotEvalLink(nullptr), mpMotEvalKfr(nullptr), mMotEvalFrame(0.0f),
 	mStateMain(STATE::DANCE_LOOP), mStateSub(0),
 	mMotFrame(0.0f), mBlendDuration(0.0f), mBlendCount(0.0f), mMotVel(0.0f),
 	mPrevWorldPos(0.0f), mWorldPos(0.0f), mWorldRot(0.0f)

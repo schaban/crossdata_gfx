@@ -243,7 +243,7 @@ const void lamp_ctrl() {
 		}
 	}
 
-	::printf("#Lamps visible: %d\n", lidx - 1);
+	//::printf("#Lamps visible: %d\n", lidx - 1);
 
 	gexLitUpdate(pLit);
 }
@@ -279,7 +279,7 @@ void test3_loop() {
 
 	int64_t t1 = get_timestamp();
 	double dt = (double)(t1 - t0);
-	::printf("dt = %.0f\n", dt);
+	//::printf("dt = %.0f\n", dt);
 
 	gexSwap();
 }
