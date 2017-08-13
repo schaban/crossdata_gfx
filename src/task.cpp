@@ -103,7 +103,7 @@ bool tskSignalSet(TSK_SIGNAL* pSig) {
 	pSig->mState = true;
 	if (pSig->mState) {
 		pSig->mMutex.unlock();
-		pSig->mCndVar.notify_all();
+		pSig->mCndVar.notify_one();
 	}
 	return true;
 }
@@ -130,7 +130,7 @@ static void workerFunc(TSK_WORKER* pWrk) {
 	tskSignalSet(pWrk->mpSigDone);
 	while (!pWrk->mEndFlg) {
 		if (tskSignalWait(pWrk->mpSigExec)) {
-			tskSignalReset(pWrk->mpSigExec);
+			//tskSignalReset(pWrk->mpSigExec);
 			if (!pWrk->mEndFlg && pWrk->mFunc) {
 				pWrk->mFunc(pWrk->mpData);
 			}
@@ -215,6 +215,7 @@ struct TSK_BRIGADE {
 	TSK_WORKER** mpWrkPtrs;
 	TSK_CONTEXT* mpCtx;
 	int mWrkNum;
+	int mActiveWrkNum;
 };
 
 static void brigadeWrkFunc(void* pMem) {
@@ -231,7 +232,7 @@ static void brigadeWrkFunc(void* pMem) {
 		if (pJob->mFunc) {
 			pJob->mFunc(pCtx);
 		}
-		++pCtx->mJobCount;
+		++pCtx->mJobsDone;
 	}
 }
 
@@ -243,6 +244,7 @@ TSK_BRIGADE* tskBrigadeCreate(int wrkNum) {
 	if (pBgd) {
 		::memset(pBgd, 0, memSize);
 		pBgd->mWrkNum = wrkNum;
+		pBgd->mActiveWrkNum = wrkNum;
 		pBgd->mpWrkPtrs = (TSK_WORKER**)(pBgd + 1);
 		pBgd->mpCtx = (TSK_CONTEXT*)(pBgd->mpWrkPtrs + wrkNum);
 		for (int i = 0; i < wrkNum; ++i) {
@@ -271,9 +273,9 @@ void tskBrigadeExec(TSK_BRIGADE* pBgd, TSK_QUEUE* pQue) {
 	if (!pQue) return;
 	pQue->resetCursor();
 	pBgd->mpQue = pQue;
-	int wrkNum = pBgd->mWrkNum;
+	int wrkNum = pBgd->mActiveWrkNum;
 	for (int i = 0; i < wrkNum; ++i) {
-		pBgd->mpCtx[i].mJobCount = 0;
+		pBgd->mpCtx[i].mJobsDone = 0;
 	}
 	for (int i = 0; i < wrkNum; ++i) {
 		tskWorkerExec(pBgd->mpWrkPtrs[i]);
@@ -283,7 +285,7 @@ void tskBrigadeExec(TSK_BRIGADE* pBgd, TSK_QUEUE* pQue) {
 void tskBrigadeWait(TSK_BRIGADE* pBgd) {
 	if (!pBgd) return;
 	if (!pBgd->mpQue) return;
-	int wrkNum = pBgd->mWrkNum;
+	int wrkNum = pBgd->mActiveWrkNum;
 	for (int i = 0; i < wrkNum; ++i) {
 		tskWorkerWait(pBgd->mpWrkPtrs[i]);
 	}
@@ -292,6 +294,29 @@ void tskBrigadeWait(TSK_BRIGADE* pBgd) {
 
 bool tskBrigadeCkWrkId(TSK_BRIGADE* pBgd, int wrkId) {
 	return pBgd && ((unsigned)wrkId < (unsigned)pBgd->mWrkNum);
+}
+
+void tskBrigadeSetActiveWorkers(TSK_BRIGADE* pBgd, int num) {
+	if (pBgd) {
+		pBgd->mActiveWrkNum = nxCalc::clamp(num, 1, pBgd->mWrkNum);
+	}
+}
+
+void tskBrigadeResetActiveWorkers(TSK_BRIGADE* pBgd) {
+	if (pBgd) {
+		pBgd->mActiveWrkNum = pBgd->mWrkNum;
+		for (int i = 0; i < pBgd->mWrkNum; ++i) {
+			pBgd->mpCtx[i].mJobsDone = 0;
+		}
+	}
+}
+
+int tskBrigadeGetNumActiveWorkers(TSK_BRIGADE* pBgd) {
+	return pBgd ? pBgd->mActiveWrkNum : 0;
+}
+
+int tskBrigadeGetNumWorkers(TSK_BRIGADE* pBgd) {
+	return pBgd ? pBgd->mWrkNum : 0;
 }
 
 TSK_CONTEXT* tskBrigadeGetContext(TSK_BRIGADE* pBgd, int wrkId) {
@@ -344,6 +369,12 @@ void tskQueueAdd(TSK_QUEUE* pQue, TSK_JOB* pJob) {
 	}
 }
 
+void tskQueueAdjust(TSK_QUEUE* pQue, int count) {
+	if (pQue && count <= pQue->mSlotsNum) {
+		pQue->mPutIdx = count;
+	}
+}
+
 void tskQueuePurge(TSK_QUEUE* pQue) {
 	if (pQue) {
 		pQue->mPutIdx = 0;
@@ -359,7 +390,7 @@ void tskQueueExec(TSK_QUEUE* pQue, TSK_BRIGADE* pBgd) {
 		TSK_CONTEXT ctx;
 		ctx.mWrkId = -1;
 		ctx.mpBrigade = nullptr;
-		ctx.mJobCount = 0;
+		ctx.mJobsDone = 0;
 		int n = tskQueueJobsCount(pQue);
 		for (int i = 0; i < n; ++i) {
 			TSK_JOB* pJob = pQue->mpJobSlots[i];

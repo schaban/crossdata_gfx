@@ -276,7 +276,7 @@ void* bin_load(const char* pPath, size_t* pSize, bool appendPath) {
 			size = nxSys::fread(fh, pData, fsize);
 		}
 		nxSys::fclose(fh);
-		if (appendPath) {
+		if (pData && appendPath) {
 			nxSys::x_strcpy(&((char*)pData)[fsize], pathLen + 1, pPath);
 		}
 	}
@@ -301,6 +301,7 @@ void bin_save(const char* pPath, const void* pMem, size_t size) {
 
 // http://www.isthe.com/chongo/tech/comp/fnv/index.html
 uint32_t str_hash32(const char* pStr) {
+	if (!pStr) return 0;
 	uint32_t h = 2166136261;
 	while (true) {
 		uint8_t c = *pStr++;
@@ -2752,7 +2753,9 @@ cxMtx sxRigData::calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx) 
 			parentMtx.mul(pMtxLocal[pNode->mSelfIdx]);
 			pNode = get_node_ptr(pNode->mParentIdx);
 		}
-		parentMtx.mul(pMtxLocal[pNode->mSelfIdx]);
+		if (pNode) {
+			parentMtx.mul(pMtxLocal[pNode->mSelfIdx]);
+		}
 		mtx.mul(parentMtx);
 	}
 	if (pParentWMtx) {

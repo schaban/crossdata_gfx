@@ -104,6 +104,10 @@ float get_wheel_val();
 
 int64_t get_timestamp();
 int get_test_mode();
+int get_max_workers();
+
+struct TSK_BRIGADE;
+TSK_BRIGADE* get_brigade();
 
 template<typename T> inline T approach(const T& val, const T& dst, int time) {
 	float flen = (float)(time < 1 ? 1 : time);

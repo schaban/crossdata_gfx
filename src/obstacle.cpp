@@ -72,7 +72,7 @@ struct sObstPolyWk {
 		int next = get_next_lst();
 		cxVec nrm = get_normal();
 		for (int i = 0; i < n; ++i) {
-			cxVec v = mVtx[next & 0xF] - mVtx[i];
+			cxVec v = mVtx[next & 3] - mVtx[i];
 			cxVec p = pnt - mVtx[i];
 			cxVec t = nxVec::cross(v, p);
 			if (t.dot(nrm) < 0.0f) return false;
@@ -188,7 +188,7 @@ void sObstBallWk::adjust(sObstPolyWk& poly, float margin) {
 				}
 				flg = true;
 			}
-			cxVec nv = poly.mVtx[next & 0xF] - vtx;
+			cxVec nv = poly.mVtx[next & 3] - vtx;
 			dist2 = nv.mag2();
 			if (dist2 > eps) {
 				float nd = ev.dot(nv);

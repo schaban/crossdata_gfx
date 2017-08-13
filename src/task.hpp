@@ -22,7 +22,7 @@ struct TSK_CONTEXT {
 	TSK_JOB* mpJob;
 	TSK_BRIGADE* mpBrigade;
 	int mWrkId;
-	int mJobCount;
+	int mJobsDone;
 };
 
 TSK_LOCK* tskLockCreate();
@@ -47,11 +47,16 @@ void tskBrigadeDestroy(TSK_BRIGADE* pBgd);
 void tskBrigadeExec(TSK_BRIGADE* pBgd, TSK_QUEUE* pQue);
 void tskBrigadeWait(TSK_BRIGADE* pBgd);
 bool tskBrigadeCkWrkId(TSK_BRIGADE* pBgd, int wrkId);
+void tskBrigadeSetActiveWorkers(TSK_BRIGADE* pBgd, int num);
+void tskBrigadeResetActiveWorkers(TSK_BRIGADE* pBgd);
+int tskBrigadeGetNumActiveWorkers(TSK_BRIGADE* pBgd);
+int tskBrigadeGetNumWorkers(TSK_BRIGADE* pBgd);
 TSK_CONTEXT* tskBrigadeGetContext(TSK_BRIGADE* pBgd, int wrkId);
 
 TSK_QUEUE* tskQueueCreate(int nslots);
 void tskQueueDestroy(TSK_QUEUE* pQue);
 void tskQueueAdd(TSK_QUEUE* pQue, TSK_JOB* pJob);
+void tskQueueAdjust(TSK_QUEUE* pQue, int count);
 void tskQueuePurge(TSK_QUEUE* pQue);
 void tskQueueExec(TSK_QUEUE* pQue, TSK_BRIGADE* pBgd);
 int tskQueueJobsCount(TSK_QUEUE* pQue);

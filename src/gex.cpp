@@ -48,20 +48,20 @@
 
 #define D_GEX_MTL_TAG XD_FOURCC('G', 'M', 'T', 'L')
 
-void gexStoreTMtx(xt_mtx* pMtxDst, const cxMtx& mtxSrc) {
+static void gexStoreTMtx(xt_mtx* pMtxDst, const cxMtx& mtxSrc) {
 	if (!pMtxDst) return;
 	cxMtx tm = mtxSrc.get_transposed();
 	::memcpy(pMtxDst, &tm, sizeof(xt_mtx));
 }
 
-cxMtx gexLoadTMtx(const xt_mtx& tm) {
+static cxMtx gexLoadTMtx(const xt_mtx& tm) {
 	cxMtx m;
 	m.from_mem(tm);
 	m.transpose();
 	return m;
 }
 
-void gexStoreWMtx(xt_wmtx* pWmtxDst, const cxMtx& mtxSrc) {
+static void gexStoreWMtx(xt_wmtx* pWmtxDst, const cxMtx& mtxSrc) {
 	if (!pWmtxDst) return;
 #if D_GEX_CPU > D_GEX_CPU_STD
 	float* pSrc = (float*)&mtxSrc;
@@ -83,27 +83,27 @@ void gexStoreWMtx(xt_wmtx* pWmtxDst, const cxMtx& mtxSrc) {
 #endif
 }
 
-void gexStoreVec(xt_float3* pVec, const cxVec& vec) {
+static void gexStoreVec(xt_float3* pVec, const cxVec& vec) {
 	if (!pVec) return;
 	::memcpy(pVec, &vec, sizeof(xt_float3));
 }
 
-void gexStoreVecAsF4(xt_float4* pVec, const cxVec& vec) {
+static void gexStoreVecAsF4(xt_float4* pVec, const cxVec& vec) {
 	if (!pVec) return;
 	pVec->set(vec.x, vec.y, vec.z, 0.0f);
 }
 
-void gexStoreRGB(xt_float3* pRGB, const cxColor& clr) {
+static void gexStoreRGB(xt_float3* pRGB, const cxColor& clr) {
 	if (!pRGB) return;
 	pRGB->set(clr.r, clr.g, clr.b);
 }
 
-void gexStoreRGBA(xt_float4* pRGBA, const cxColor& clr) {
+static void gexStoreRGBA(xt_float4* pRGBA, const cxColor& clr) {
 	if (!pRGBA) return;
 	pRGBA->set(clr.r, clr.g, clr.b, clr.a);
 }
 
-void gexEncodeHalf4(xt_half4* pDst, const xt_float4& src) {
+static void gexEncodeHalf4(xt_half4* pDst, const xt_float4& src) {
 	if (!pDst) return;
 #if D_GEX_CPU >= D_GEX_CPU_AVX
 	__m128 c128 = _mm_loadu_ps(src);
@@ -1702,7 +1702,7 @@ void gexTexDestroy(GEX_TEX* pTex) {
 }
 
 const char* gexTexName(const GEX_TEX* pTex) {
-	const char* pName;
+	const char* pName = nullptr;
 	if (pTex) {
 		pName = pTex->mpName;
 	}
@@ -3380,7 +3380,7 @@ void gexCalcShadowMtxPersp() {
 	projPos = mtxViewProj.apply(projPos);
 	float zfar = nxCalc::min(nxCalc::div0(projPos.z, projPos.w), 1.0f);
 
-	xt_float4 box[8];
+	xt_float4 box[8] = {};
 	box[0].set(-1.0f, -1.0f, znear, 1.0f);
 	box[1].set(1.0f, -1.0f, znear, 1.0f);
 	box[2].set(-1.0f, 1.0f, znear, 1.0f);

@@ -3,21 +3,21 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>test=4;mode=0;msaa=1</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>test=3;mode=1;msaa=1;maxwrk=$(NUMBER_OF_PROCESSORS)</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>test=4;mode=0;msaa=1</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>test=3;mode=1;msaa=1;maxwrk=$(NUMBER_OF_PROCESSORS)</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>test=4;mode=0;msaa=1</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>test=3;mode=1;msaa=1;maxwrk=$(NUMBER_OF_PROCESSORS)</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LocalDebuggerWorkingDirectory>$(OutDir)</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>test=4;mode=0;msaa=1</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>test=3;mode=1;msaa=1;maxwrk=$(NUMBER_OF_PROCESSORS)</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>
