@@ -552,3 +552,86 @@ void mtl_sort_bias(const GEX_OBJ& obj, const char* pMtlName, float absBias, floa
 	if (!pMtl) return;
 	gexMtlSortBias(pMtl, absBias, relBias);
 }
+
+
+void dump_riglink_info(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLink, FILE* pOut) {
+	if (!pKfr) return;
+	if (!pLink) return;
+	if (!pOut) {
+		pOut = stdout;
+	}
+	::fprintf(pOut, "#frames = %d\n", pKfr->get_frame_count());
+	int nnodes = pLink->mNodeNum;
+	for (int i = 0; i < nnodes; ++i) {
+		sxKeyframesData::RigLink::Node* pNode = &pLink->mNodes[i];
+		int nodeId = pNode->mKfrNodeId;
+		const char* pNodeName = pKfr->get_node_name(nodeId);
+		sxKeyframesData::RigLink::Val* pPosVal = pNode->get_pos_val();
+		int nchPos = 0;
+		int nchKeyPos = 0;
+		int nkfPos[3] = {};
+		if (pPosVal) {
+			for (int i = 0; i < 3; ++i) {
+				if (pKfr->ck_fcv_idx(pPosVal->fcvId[i])) {
+					++nchPos;
+					sxKeyframesData::FCurve fcv = pKfr->get_fcv(pPosVal->fcvId[i]);
+					nkfPos[i] = fcv.get_key_num();
+					if (!fcv.is_const()) {
+						++nchKeyPos;
+					}
+				} else {
+					nkfPos[i] = 0;
+				}
+			}
+		}
+		sxKeyframesData::RigLink::Val* pRotVal = pNode->get_rot_val();
+		int nchRot = 0;
+		int nchKeyRot = 0;
+		int nkfRot[3] = {};
+		if (pRotVal) {
+			for (int i = 0; i < 3; ++i) {
+				if (pKfr->ck_fcv_idx(pRotVal->fcvId[i])) {
+					++nchRot;
+					sxKeyframesData::FCurve fcv = pKfr->get_fcv(pRotVal->fcvId[i]);
+					nkfRot[i] = fcv.get_key_num();
+					if (!fcv.is_const()) {
+						++nchKeyRot;
+					}
+				} else {
+					nkfRot[i] = 0;
+				}
+			}
+		}
+		sxKeyframesData::RigLink::Val* pSclVal = pNode->get_scl_val();
+		int nchScl = 0;
+		int nchKeyScl = 0;
+		int nkfScl[3] = {};
+		if (pSclVal) {
+			for (int i = 0; i < 3; ++i) {
+				if (pKfr->ck_fcv_idx(pSclVal->fcvId[i])) {
+					++nchScl;
+					sxKeyframesData::FCurve fcv = pKfr->get_fcv(pSclVal->fcvId[i]);
+					nkfScl[i] = fcv.get_key_num();
+					if (!fcv.is_const()) {
+						++nchKeyScl;
+					}
+				} else {
+					nkfScl[i] = 0;
+				}
+			}
+		}
+		::fprintf(pOut, "[%d] %s\n", i, pNodeName);
+		::fprintf(pOut, " # channels: %d pos, %d rot, %d scl, total = %d\n", nchPos, nchRot, nchScl, nchPos + nchRot + nchScl);
+		::fprintf(pOut, " # non-const: %d pos, %d rot, %d scl, total = %d\n", nchKeyPos, nchKeyRot, nchKeyScl, nchKeyPos + nchKeyRot + nchKeyScl);
+		if (pPosVal) {
+			::fprintf(pOut, " # pos keys: %d %d %d\n", nkfPos[0], nkfPos[1], nkfPos[2]);
+		}
+		if (pRotVal) {
+			::fprintf(pOut, " # rot keys: %d %d %d\n", nkfRot[0], nkfRot[1], nkfRot[2]);
+		}
+		if (pSclVal) {
+			::fprintf(pOut, " # scl keys: %d %d %d\n", nkfScl[0], nkfScl[1], nkfScl[2]);
+		}
+	}
+}
+

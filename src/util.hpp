@@ -135,3 +135,4 @@ void obj_sort_bias(const GEX_OBJ& obj, float absBias, float relBias);
 void mtl_sort_mode(const GEX_OBJ& obj, const char* pMtlName, GEX_SORT_MODE mode);
 void mtl_sort_bias(const GEX_OBJ& obj, const char* pMtlName, float absBias, float relBias);
 
+void dump_riglink_info(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLink, FILE* pOut = nullptr);

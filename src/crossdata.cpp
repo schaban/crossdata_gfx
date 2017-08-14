@@ -4293,6 +4293,15 @@ float sxKeyframesData::FCurve::eval(float frm, bool extrapolate) const {
 	return val;
 }
 
+const char* sxKeyframesData::get_node_name(int idx) const {
+	const char* pName = nullptr;
+	NodeInfo* pInfo = get_node_info_ptr(idx);
+	if (pInfo) {
+		pName = get_str(pInfo->mNameId);
+	}
+	return pName;
+}
+
 int sxKeyframesData::find_fcv_idx(const char* pNodeName, const char* pChanName, const char* pNodePath) const {
 	int idx = -1;
 	sxStrList* pStrLst = get_str_list();

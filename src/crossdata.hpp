@@ -1989,6 +1989,7 @@ struct sxKeyframesData : public sxData {
 	int get_node_info_num() const { return has_node_info() ? mNodeInfoNum : 0; }
 	int find_node_info_idx(const char* pName, const char* pPath = nullptr, int startIdx = 0) const;
 	NodeInfo* get_node_info_ptr(int idx) const { return ck_node_info_idx(idx) ? reinterpret_cast<NodeInfo*>(XD_INCR_PTR(this, mNodeInfoOffs)) + idx : nullptr; }
+	const char* get_node_name(int idx) const;
 
 	float get_frame_rate() const { return mFPS; }
 	int get_frame_count() const { return get_max_fno() + 1; }
