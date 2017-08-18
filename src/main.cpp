@@ -43,6 +43,12 @@ int64_t get_timestamp() {
 	return ctr.QuadPart;
 }
 
+int get_cpu_count() {
+	SYSTEM_INFO info;
+	::GetSystemInfo(&info);
+	return (int)info.dwNumberOfProcessors;
+}
+
 void sys_init() {
 	sxSysIfc ifc;
 	::ZeroMemory(&ifc, sizeof(ifc));
@@ -253,6 +259,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine,
 	attach_console();
 
 	s_args.parse(pCmdLine);
+
+	if (s_args.mMaxWrk <= 0) {
+		s_args.mMaxWrk = get_cpu_count();
+	}
 
 	if (s_args.mMaxWrk > 0) {
 		s_pBrigade = tskBrigadeCreate(s_args.mMaxWrk);
