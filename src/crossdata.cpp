@@ -174,6 +174,21 @@ static uint32_t s_allocCount = 0;
 static uint64_t s_allocBytes = 0;
 static uint64_t s_allocPeakBytes = 0;
 
+sxMemInfo* find_mem_info(void* pMem) {
+	sxMemInfo* pMemInfo = nullptr;
+	sxMemInfo* pCkInfo = &((sxMemInfo*)pMem)[-1];
+	sxMemInfo* pWkInfo = s_pMemHead;
+	while (pWkInfo) {
+		if (pWkInfo == pCkInfo) {
+			pMemInfo = pWkInfo;
+			pWkInfo = nullptr;
+		} else {
+			pWkInfo = pWkInfo->mpNext;
+		}
+	}
+	return pMemInfo;
+}
+
 void* mem_alloc(size_t size, uint32_t tag) {
 	void* p = nullptr;
 	if (size > 0) {
@@ -204,9 +219,56 @@ void* mem_alloc(size_t size, uint32_t tag) {
 	return p;
 }
 
+void* mem_realloc(void* pMem, size_t newSize) {
+	void* pNewMem = pMem;
+	if (pMem && newSize) {
+		sxMemInfo* pMemInfo = find_mem_info(pMem);
+		if (pMemInfo) {
+			uint32_t oldTag = pMemInfo->mTag;
+			size_t oldSize = pMemInfo->mSize;
+			size_t cpySize = nxCalc::min(oldSize, newSize);
+			void* p = mem_alloc(newSize, oldTag);
+			if (p) {
+				pNewMem = p;
+				::memcpy(pNewMem, pMem, cpySize);
+				mem_free(pMem);
+			}
+		} else {
+			dbg_msg("invalid realloc request: %p\n", pMem);
+		}
+	}
+	return pNewMem;
+}
+
+void* mem_resize(void* pMem, float factor) {
+	void* pNewMem = pMem;
+	if (pMem && factor > 0.0f) {
+		sxMemInfo* pMemInfo = find_mem_info(pMem);
+		if (pMemInfo) {
+			uint32_t oldTag = pMemInfo->mTag;
+			size_t oldSize = pMemInfo->mSize;
+			uint32_t newSize = (uint32_t)::ceilf((float)oldSize * factor);
+			size_t cpySize = nxCalc::min(oldSize, newSize);
+			void* p = mem_alloc(newSize, oldTag);
+			if (p) {
+				pNewMem = p;
+				::memcpy(pNewMem, pMem, cpySize);
+				mem_free(pMem);
+			}
+		} else {
+			dbg_msg("memory @ %p cannot be resized\n", pMem);
+		}
+	}
+	return pNewMem;
+}
+
 void mem_free(void* pMem) {
 	if (!pMem) return;
-	sxMemInfo* pInfo = &((sxMemInfo*)pMem)[-1];
+	sxMemInfo* pInfo = find_mem_info(pMem);
+	if (!pInfo) {
+		dbg_msg("cannot free memory @ %p\n", pMem);
+		return;
+	}
 	sxMemInfo* pNext = pInfo->mpNext;
 	if (pInfo->mpPrev) {
 		pInfo->mpPrev->mpNext = pNext;
@@ -227,6 +289,24 @@ void mem_free(void* pMem) {
 	void* p0 = (void*)((intptr_t)pMem - pInfo->mOffs);
 	nxSys::free(p0);
 	--s_allocCount;
+}
+
+size_t mem_size(void* pMem) {
+	size_t size = 0;
+	sxMemInfo* pMemInfo = find_mem_info(pMem);
+	if (pMemInfo) {
+		size = pMemInfo->mSize;
+	}
+	return size;
+}
+
+uint32_t mem_tag(void* pMem) {
+	uint32_t tag = 0;
+	sxMemInfo* pMemInfo = find_mem_info(pMem);
+	if (pMemInfo) {
+		tag = pMemInfo->mTag;
+	}
+	return tag;
 }
 
 void mem_dbg() {

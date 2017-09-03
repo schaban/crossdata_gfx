@@ -92,7 +92,11 @@ FILE* fopen_w_bin(const char* fpath);
 namespace nxCore {
 
 void* mem_alloc(size_t size, uint32_t tag = XD_DEF_MEM_TAG);
+void* mem_realloc(void* pMem, size_t newSize);
+void* mem_resize(void* pMem, float factor);
 void mem_free(void* pMem);
+size_t mem_size(void* pMem);
+uint32_t mem_tag(void* pMem);
 void mem_dbg();
 void dbg_msg(const char* fmt, ...);
 void* bin_load(const char* pPath, size_t* pSize = nullptr, bool appendPath = false);
