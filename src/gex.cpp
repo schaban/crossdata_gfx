@@ -1502,7 +1502,7 @@ void gexFog(GEX_LIT* pLit, const cxColor& clr, float start, float end, float cur
 	}
 }
 
-void gexSHL(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, float* pB, float* pWgtDiff, float* pWgtRefl) {
+void gexSHLW(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, float* pB, float* pWgtDiff, float* pWgtRefl) {
 	if (!pLit) return;
 	if (order <= 0) {
 		mode = GEX_SHL_MODE::NONE;
@@ -1510,7 +1510,7 @@ void gexSHL(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, f
 	pLit->mCtxWk.shMode = (int)mode;
 	::memset(&pLit->mSHLWk, 0, sizeof(SHL_CTX));
 	if (mode != GEX_SHL_MODE::NONE) {
-		static float wdiff[D_GEX_MAX_SH_ORDER];
+		float wdiff[D_GEX_MAX_SH_ORDER];
 		order = nxCalc::min(order, D_GEX_MAX_SH_ORDER);
 		if (!pWgtDiff) {
 			::memset(wdiff, 0, sizeof(wdiff));
@@ -1530,6 +1530,14 @@ void gexSHL(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, f
 			}
 		}
 	}
+}
+
+void gexSHL(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, float* pB) {
+	float wgt[D_GEX_MAX_SH_ORDER];
+	for (int i = 0; i < D_GEX_MAX_SH_ORDER; ++i) {
+		wgt[i] = 1.0f;
+	}
+	gexSHLW(pLit, mode, order, pR, pG, pB, wgt, wgt);
 }
 
 const char* gexLitName(const GEX_LIT* pLit) {

@@ -128,8 +128,9 @@ void test4_init() {
 		gexHemi(WK.pLit, skyClr, gndClr);
 	} else {
 		gexAmbient(WK.pLit, cxColor(0.0f));
-		gexSHL(WK.pLit, GEX_SHL_MODE::DIFF_REFL, SH_COEFS::ORDER, WK.envSH.mR, WK.envSH.mG, WK.envSH.mB, WK.envSH.mWgtDiff, WK.envSH.mWgtRefl);
-		//gexSHL(WK.pLit, GEX_SHL_MODE::DIFF, SH_COEFS::ORDER, WK.envSH.mR, WK.envSH.mG, WK.envSH.mB, nullptr, WK.envSH.mWgtRefl);
+		gexSHL(WK.pLit, GEX_SHL_MODE::DIFF_REFL, SH_COEFS::ORDER, WK.envSH.mR, WK.envSH.mG, WK.envSH.mB);
+		//gexSHLW(WK.pLit, GEX_SHL_MODE::DIFF_REFL, SH_COEFS::ORDER, WK.envSH.mR, WK.envSH.mG, WK.envSH.mB, WK.envSH.mWgtDiff, WK.envSH.mWgtRefl);
+		//gexSHLW(WK.pLit, GEX_SHL_MODE::DIFF, SH_COEFS::ORDER, WK.envSH.mR, WK.envSH.mG, WK.envSH.mB, nullptr, WK.envSH.mWgtRefl);
 	}
 	gexLightDir(WK.pLit, 0, sunDir);
 	gexLightColor(WK.pLit, 0, sunClr);

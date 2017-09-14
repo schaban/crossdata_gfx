@@ -154,7 +154,8 @@ void gexLightColor(GEX_LIT* pLit, int idx, const cxColor& clr, float diff = 1.0f
 void gexLightRange(GEX_LIT* pLit, int idx, float attnStart, float rangeEnd);
 void gexLightCone(GEX_LIT* pLit, int idx, float angle, float range);
 void gexFog(GEX_LIT* pLit, const cxColor& clr, float start, float end, float curveP1 = 1.0f/3, float curveP2 = 2.0f/3);
-void gexSHL(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, float* pB, float* pWgtDiff, float* pWgtRefl);
+void gexSHLW(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, float* pB, float* pWgtDiff, float* pWgtRefl);
+void gexSHL(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, float* pB);
 const char* gexLitName(const GEX_LIT* pLit);
 GEX_LIT* gexLitFind(const char* pName);
 
