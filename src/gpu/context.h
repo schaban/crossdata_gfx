@@ -76,6 +76,10 @@ struct MTL_CTX {
 	xt_float shDiffDtl;
 	xt_float3 shReflClr;
 	xt_float shReflDtl;
+	xt_float reflFrGain;
+	xt_float reflFrBias;
+	xt_float viewFrGain;
+	xt_float viewFrBias;
 	xt_int diffMode;
 	xt_int specMode;
 	xt_int bumpMode;

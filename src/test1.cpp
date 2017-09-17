@@ -168,7 +168,7 @@ void test1_init() {
 			//gexMtlSpecularColor(pMtl, cxColor(WK.reflect));
 			gexMtlRoughness(pMtl, WK.roughness);
 			gexMtlSpecMode(pMtl, WK.specMode);
-			//gexMtlDiffMode(pMtl, GEX_DIFF_MODE::OREN_NAYAR);
+			gexMtlDiffMode(pMtl, GEX_DIFF_MODE::OREN_NAYAR);
 			gexMtlIOR(pMtl, WK.IOR);
 			if (WK.specMode == GEX_SPEC_MODE::GGX) {
 				gexMtlSpecFresnelMode(pMtl, 1);
@@ -178,10 +178,12 @@ void test1_init() {
 			gexMtlSelfShadowFactor(pMtl, 200.0f);
 			gexMtlShadowCulling(pMtl, true);
 			if (1) {
-				gexMtlReflectionLevel(pMtl, 1.0f);
-				gexMtlReflectionColor(pMtl, cxColor(0.25f));
+				gexMtlReflectionLevel(pMtl, 5.0f);
+				gexMtlReflectionColor(pMtl, cxColor(0.75f));
 				gexMtlReflectionTexture(pMtl, WK.pPano);
+				gexMtlReflFresnel(pMtl, 0.2f, 0.0f);
 			}
+			//gexMtlViewFresnel(pMtl, 0.1f, 0.0f);
 			gexMtlUpdate(pMtl);
 		}
 	}

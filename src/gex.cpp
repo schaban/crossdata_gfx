@@ -3228,6 +3228,18 @@ void gexMtlIOR(GEX_MTL* pMtl, const cxVec& ior) {
 	gexStoreVec(&pMtl->mCtxWk.IOR, ior);
 }
 
+void gexMtlViewFresnel(GEX_MTL* pMtl, float gain, float bias) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.viewFrGain = gain;
+	pMtl->mCtxWk.viewFrBias = bias;
+}
+
+void gexMtlReflFresnel(GEX_MTL* pMtl, float gain, float bias) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.reflFrGain = gain;
+	pMtl->mCtxWk.reflFrBias = bias;
+}
+
 void gexMtlDiffMode(GEX_MTL* pMtl, GEX_DIFF_MODE mode) {
 	if (!pMtl) return;
 	pMtl->mCtxWk.diffMode = (int)mode;

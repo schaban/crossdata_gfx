@@ -80,6 +80,10 @@ float3 calcSpecFresnel(float tcos, float3 ior) {
 	return approxFresnelSchlick(tcos, ior);
 }
 
+float calcViewFresnel(float tcos, float gain, float bias) {
+	return 1 - saturate((pow(1 - tcos, 5) * gain) + bias);
+}
+
 float3 calcDiffFresnel(float nl, float nv, float3 ior) {
 	float3 r = (ior - 1) / (ior + 1);
 	float3 f0 = r*r;
@@ -472,8 +476,10 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 		float4 refl = smpPanorama(wk.view.refl, reflLvl);
 		wk.lit.refl += refl.rgb * g_mtl[0].reflColor;
 	}
+	wk.lit.refl *= calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].reflFrGain, g_mtl[0].reflFrBias);
 	float3 diff = wk.lit.diff * wk.tex.base.rgb;
 	float3 spec = (wk.lit.spec + wk.lit.refl) * wk.tex.spec.rgb;
+	spec *= calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].viewFrGain, g_mtl[0].viewFrBias);
 
 	float alpha = mtl.enableAlpha ? wk.tex.base.a*wk.geom.vclr.a : 1.0f;
 
@@ -505,6 +511,7 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 //tgtClr.rgb = (wk.lit.diff+wk.lit.refl)*0.25;
 //tgtClr.rgb = wk.lit.spec*0.25;////////////////////////
 //tgtClr.rgb = wk.lit.diff*0.5 + wk.lit.spec*0.25;////////////////////////
+//tgtClr.rgb = calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].viewFrGain, g_mtl[0].viewFrBias) * float3(1, 0, 0);/////////////
 
 	tgtClr.a = alpha;
 	tgtClr = tgtColor(tgtClr);

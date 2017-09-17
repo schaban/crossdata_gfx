@@ -212,6 +212,8 @@ void gexMtlTesselationFactor(GEX_MTL* pMtl, float factor);
 void gexMtlAlpha(GEX_MTL* pMtl, bool enable);
 void gexMtlRoughness(GEX_MTL* pMtl, float rough);
 void gexMtlIOR(GEX_MTL* pMtl, const cxVec& ior);
+void gexMtlViewFresnel(GEX_MTL* pMtl, float gain, float bias);
+void gexMtlReflFresnel(GEX_MTL* pMtl, float gain, float bias);
 void gexMtlDiffMode(GEX_MTL* pMtl, GEX_DIFF_MODE mode);
 void gexMtlSpecMode(GEX_MTL* pMtl, GEX_SPEC_MODE mode);
 void gexMtlBumpMode(GEX_MTL* pMtl, GEX_BUMP_MODE mode);
