@@ -28,7 +28,7 @@
 #define XD_FOURCC(c1, c2, c3, c4) ((((uint8_t)(c4))<<24)|(((uint8_t)(c3))<<16)|(((uint8_t)(c2))<<8)|((uint8_t)(c1)))
 #define XD_INCR_PTR(_ptr, _inc) ( &((uint8_t*)(_ptr))[_inc] )
 #define XD_ARY_LEN(_arr) (sizeof((_arr)) / sizeof((_arr)[0]))
-#define XD_ALIGN(_x, _n) ( ((intptr_t)(_x) + ((_n) - 1)) & (~((_n) - 1)) )
+#define XD_ALIGN(_x, _n) ( ((uintptr_t)(_x) + ((_n) - 1)) & (~((_n) - 1)) )
 
 #define XD_BIT_ARY_SIZE(_storage_t, _nbits) ((((int)(_nbits)-1)/(sizeof(_storage_t)*8))+1)
 #define XD_BIT_ARY_DECL(_storage_t, _name, _nbits) _name[XD_BIT_ARY_SIZE(storage_t, _nbits)]
@@ -91,9 +91,9 @@ FILE* fopen_w_bin(const char* fpath);
 
 namespace nxCore {
 
-void* mem_alloc(size_t size, uint32_t tag = XD_DEF_MEM_TAG);
-void* mem_realloc(void* pMem, size_t newSize);
-void* mem_resize(void* pMem, float factor);
+void* mem_alloc(size_t size, uint32_t tag = XD_DEF_MEM_TAG, int alignment = 0x10);
+void* mem_realloc(void* pMem, size_t newSize, int alignment = 0x10);
+void* mem_resize(void* pMem, float factor, int alignment = 0x10);
 void mem_free(void* pMem);
 size_t mem_size(void* pMem);
 uint32_t mem_tag(void* pMem);
@@ -111,6 +111,10 @@ char* str_dup(const char* pSrc);
 
 inline bool is_pow2(uint32_t val) {
 	return (val & (val - 1)) == 0;
+}
+
+inline uintptr_t align_pad(uintptr_t x, int a) {
+	return ((x + (a - 1)) / a) * a;
 }
 
 uint16_t float_to_half(float x);

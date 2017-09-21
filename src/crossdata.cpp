@@ -164,8 +164,10 @@ struct sxMemInfo {
 	sxMemInfo* mpPrev;
 	sxMemInfo* mpNext;
 	size_t mSize;
+	size_t mRawSize;
 	uint32_t mTag;
 	uint32_t mOffs;
+	uint32_t mAlgn;
 };
 
 static sxMemInfo* s_pMemHead = nullptr;
@@ -174,9 +176,30 @@ static uint32_t s_allocCount = 0;
 static uint64_t s_allocBytes = 0;
 static uint64_t s_allocPeakBytes = 0;
 
+sxMemInfo* mem_info_from_addr(void* pMem) {
+	sxMemInfo* pMemInfo = nullptr;
+	if (pMem) {
+		uint8_t* pOffs = (uint8_t*)pMem - sizeof(uint32_t);
+		uint32_t offs = 0;
+		for (int i = 0; i < 4; ++i) {
+			offs |= pOffs[i] << (i * 8);
+		}
+		pMemInfo = (sxMemInfo*)((uint8_t*)pMem - offs);
+	}
+	return pMemInfo;
+}
+
+void* mem_addr_from_info(sxMemInfo* pInfo) {
+	void* p = nullptr;
+	if (pInfo) {
+		p = (uint8_t*)pInfo + pInfo->mOffs;
+	}
+	return p;
+}
+
 sxMemInfo* find_mem_info(void* pMem) {
 	sxMemInfo* pMemInfo = nullptr;
-	sxMemInfo* pCkInfo = &((sxMemInfo*)pMem)[-1];
+	sxMemInfo* pCkInfo = mem_info_from_addr(pMem);
 	sxMemInfo* pWkInfo = s_pMemHead;
 	while (pWkInfo) {
 		if (pWkInfo == pCkInfo) {
@@ -189,17 +212,26 @@ sxMemInfo* find_mem_info(void* pMem) {
 	return pMemInfo;
 }
 
-void* mem_alloc(size_t size, uint32_t tag) {
+void* mem_alloc(size_t size, uint32_t tag, int alignment) {
 	void* p = nullptr;
+	if (alignment < 1) alignment = 0x10;
 	if (size > 0) {
-		size_t asize = XD_ALIGN(size + sizeof(sxMemInfo) + 0x10, 0x10);
+		size_t asize = nxCore::align_pad(size + sizeof(sxMemInfo) + alignment + sizeof(uint32_t), alignment);
 		void* p0 = nxSys::malloc(asize);
 		if (p0) {
-			p = (void*)XD_ALIGN((intptr_t)((uint8_t*)p0 + sizeof(sxMemInfo)), 0x10);
-			sxMemInfo* pInfo = &((sxMemInfo*)p)[-1];
+			p = (void*)nxCore::align_pad((uintptr_t)((uint8_t*)p0 + sizeof(sxMemInfo) + sizeof(uint32_t)), alignment);
+			uint32_t offs = (uint32_t)((uint8_t*)p - (uint8_t*)p0);
+			uint8_t* pOffs = (uint8_t*)p - sizeof(uint32_t);
+			pOffs[0] = offs & 0xFF;
+			pOffs[1] = (offs >> 8) & 0xFF;
+			pOffs[2] = (offs >> 16) & 0xFF;
+			pOffs[3] = (offs >> 24) & 0xFF;
+			sxMemInfo* pInfo = mem_info_from_addr(p);
+			pInfo->mRawSize = asize;
 			pInfo->mSize = size;
 			pInfo->mTag = tag;
-			pInfo->mOffs = (uint32_t)((uint8_t*)p - (uint8_t*)p0);
+			pInfo->mOffs = offs;
+			pInfo->mAlgn = alignment;
 			pInfo->mpPrev = nullptr;
 			pInfo->mpNext = nullptr;
 			if (!s_pMemHead) {
@@ -219,7 +251,7 @@ void* mem_alloc(size_t size, uint32_t tag) {
 	return p;
 }
 
-void* mem_realloc(void* pMem, size_t newSize) {
+void* mem_realloc(void* pMem, size_t newSize, int alignment) {
 	void* pNewMem = pMem;
 	if (pMem && newSize) {
 		sxMemInfo* pMemInfo = find_mem_info(pMem);
@@ -227,7 +259,8 @@ void* mem_realloc(void* pMem, size_t newSize) {
 			uint32_t oldTag = pMemInfo->mTag;
 			size_t oldSize = pMemInfo->mSize;
 			size_t cpySize = nxCalc::min(oldSize, newSize);
-			void* p = mem_alloc(newSize, oldTag);
+			if (alignment < 1) alignment = pMemInfo->mAlgn;
+			void* p = mem_alloc(newSize, oldTag, alignment);
 			if (p) {
 				pNewMem = p;
 				::memcpy(pNewMem, pMem, cpySize);
@@ -240,7 +273,7 @@ void* mem_realloc(void* pMem, size_t newSize) {
 	return pNewMem;
 }
 
-void* mem_resize(void* pMem, float factor) {
+void* mem_resize(void* pMem, float factor, int alignment) {
 	void* pNewMem = pMem;
 	if (pMem && factor > 0.0f) {
 		sxMemInfo* pMemInfo = find_mem_info(pMem);
@@ -249,7 +282,8 @@ void* mem_resize(void* pMem, float factor) {
 			size_t oldSize = pMemInfo->mSize;
 			uint32_t newSize = (uint32_t)::ceilf((float)oldSize * factor);
 			size_t cpySize = nxCalc::min(oldSize, newSize);
-			void* p = mem_alloc(newSize, oldTag);
+			if (alignment < 1) alignment = pMemInfo->mAlgn;
+			void* p = mem_alloc(newSize, oldTag, alignment);
 			if (p) {
 				pNewMem = p;
 				::memcpy(pNewMem, pMem, cpySize);
@@ -315,9 +349,9 @@ void mem_dbg() {
 	char tag[5];
 	tag[4] = 0;
 	while (pInfo) {
-		void* pMem = pInfo + 1;
+		void* pMem = mem_addr_from_info(pInfo);
 		::memcpy(tag, &pInfo->mTag, 4);
-		dbg_msg("%s @ %p, size=0x%X\n", tag, pMem, pInfo->mSize);
+		dbg_msg("%s @ %p, size=0x%X (0x%X, 0x%X)\n", tag, pMem, pInfo->mSize, pInfo->mRawSize, pInfo->mAlgn);
 		if (pInfo->mTag == XD_DAT_MEM_TAG) {
 			sxData* pData = (sxData*)pMem;
 			::memcpy(tag, &pData->mKind, 4);
