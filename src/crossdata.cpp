@@ -280,7 +280,7 @@ void* mem_resize(void* pMem, float factor, int alignment) {
 		if (pMemInfo) {
 			uint32_t oldTag = pMemInfo->mTag;
 			size_t oldSize = pMemInfo->mSize;
-			uint32_t newSize = (uint32_t)::ceilf((float)oldSize * factor);
+			size_t newSize = (size_t)::ceilf((float)oldSize * factor);
 			size_t cpySize = nxCalc::min(oldSize, newSize);
 			if (alignment < 1) alignment = pMemInfo->mAlgn;
 			void* p = mem_alloc(newSize, oldTag, alignment);
@@ -974,6 +974,22 @@ void cxMtx::mul(const cxMtx& m1, const cxMtx& m2) {
 	*this = m0;
 }
 
+void cxMtx::orient_zy(const cxVec& axisZ, const cxVec& axisY, bool normalizeInput) {
+	cxVec az = normalizeInput ? axisZ.get_normalized() : axisZ;
+	cxVec ay = normalizeInput ? axisY.get_normalized() : axisY;
+	cxVec ax = nxVec::cross(ay, az).get_normalized();
+	ay = nxVec::cross(az, ax).get_normalized();
+	set_rot_frame(ax, ay, az);
+}
+
+void cxMtx::orient_zx(const cxVec& axisZ, const cxVec& axisX, bool normalizeInput) {
+	cxVec az = normalizeInput ? axisZ.get_normalized() : axisZ;
+	cxVec ax = normalizeInput ? axisX.get_normalized() : axisX;
+	cxVec ay = nxVec::cross(az, ax).get_normalized();
+	ax = nxVec::cross(ay, az).get_normalized();
+	set_rot_frame(ax, ay, az);
+}
+
 void cxMtx::set_rot_frame(const cxVec& axisX, const cxVec& axisY, const cxVec& axisZ) {
 	m[0][0] = axisX.x;
 	m[0][1] = axisX.y;
@@ -1073,6 +1089,30 @@ void cxMtx::set_rot(float rx, float ry, float rz, exRotOrd ord) {
 void cxMtx::set_rot_degrees(const cxVec& r, exRotOrd ord) {
 	cxVec rr = r * XD_DEG2RAD(1.0f);
 	set_rot(rr.x, rr.y, rr.z, ord);
+}
+
+bool cxMtx::is_valid_rot(float tol) const {
+	cxVec r0 = get_row_vec(0);
+	cxVec r1 = get_row_vec(1);
+	cxVec r2 = get_row_vec(2);
+	float v = ::fabsf(nxVec::scalar_triple(r0, r1, r2));
+	if (::fabsf(v - 1.0f) > tol) return false;
+
+	v = r0.dot(r0);
+	if (::fabsf(v - 1.0f) > tol) return false;
+	v = r1.dot(r1);
+	if (::fabsf(v - 1.0f) > tol) return false;
+	v = r2.dot(r2);
+	if (::fabsf(v - 1.0f) > tol) return false;
+
+	v = r0.dot(r1);
+	if (::fabsf(v) > tol) return false;
+	v = r1.dot(r2);
+	if (::fabsf(v) > tol) return false;
+	v = r0.dot(r2);
+	if (::fabsf(v) > tol) return false;
+
+	return true;
 }
 
 static inline float limit_pi(float rad) {
@@ -2878,8 +2918,76 @@ cxMtx sxRigData::calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx) 
 	return mtx;
 }
 
-void sxRigData::calc_ik_chain(IKChain& chain) {
-	if (!chain.mpMtxL) return;
+static xt_float2 ik_cos_law(float a, float b, float c) {
+	xt_float2 ang;
+	if (c < a + b) {
+		float aa = nxCalc::sq(a);
+		float bb = nxCalc::sq(b);
+		float cc = nxCalc::sq(c);
+		float c0 = (aa - bb + cc) / (2.0f*a*c);
+		float c1 = (aa + bb - cc) / (2.0f*a*b);
+		c0 = nxCalc::clamp(c0, -1.0f, 1.0f);
+		c1 = nxCalc::clamp(c1, -1.0f, 1.0f);
+		ang[0] = -::acosf(c0);
+		ang[1] = XD_PI - ::acosf(c1);
+	} else {
+		ang.fill(0.0f);
+	}
+	return ang;
+}
+
+struct sxIKWork {
+	cxMtx mRootW;
+	cxMtx mParentW;
+	cxMtx mTopW;
+	cxMtx mRotW;
+	cxMtx mEndW;
+	cxMtx mExtW;
+	cxMtx mTopL;
+	cxMtx mRotL;
+	cxMtx mEndL;
+	cxMtx mExtL;
+	cxVec mRotOffs;
+	const sxRigData* mpRig;
+	float mDistTopRot;
+	float mDistRotEnd;
+	float mDistTopEnd;
+	exAxis mAxis;
+	exAxis mUp;
+
+	void calc_world();
+	void calc_local();
+};
+
+void sxIKWork::calc_world() {
+	xt_float2 ang = ik_cos_law(mDistTopRot, mDistRotEnd, mDistTopEnd);
+	cxVec axis = nxVec::get_axis(mAxis);
+	cxVec up = nxVec::get_axis(mUp);
+	cxMtx mtxZY = nxMtx::orient_zy(axis, up, false);
+	cxVec side = mtxZY.calc_vec(nxVec::get_axis(exAxis::PLUS_X));
+	cxVec axisX = mTopW.calc_vec(side);
+	cxVec axisZ = (mEndW.get_translation() - mTopW.get_translation()).get_normalized();
+	cxMtx mtxZX = nxMtx::orient_zx(axisZ, axisX, false);
+	cxMtx mtxIK = mtxZY.get_transposed() * mtxZX;
+	cxMtx rotMtx = nxMtx::from_axis_angle(side, ang[0]);
+	cxVec topPos = mTopW.get_translation();
+	mTopW = rotMtx * mtxIK;
+	mTopW.set_translation(topPos);
+	cxVec rotPos = mTopW.calc_pnt(mRotOffs);
+	rotMtx = nxMtx::from_axis_angle(side, ang[1]);
+	mRotW = rotMtx * mTopW;
+	mRotW.set_translation(rotPos);
+}
+
+void sxIKWork::calc_local() {
+	mTopL = mTopW * mParentW.get_inverted();
+	mRotL = mRotW * mTopW.get_inverted();
+	mEndL = mEndW * mRotW.get_inverted();
+}
+
+void sxRigData::calc_ik_chain_local(IKChain::Result* pResult, IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc) const {
+	if (!pMtx) return;
+	if (!pResult) return;
 	if (!ck_node_idx(chain.mTopCtrl)) return;
 	if (!ck_node_idx(chain.mEndCtrl)) return;
 	if (!ck_node_idx(chain.mTop)) return;
@@ -2888,24 +2996,59 @@ void sxRigData::calc_ik_chain(IKChain& chain) {
 	int parentIdx = get_parent_idx(chain.mTopCtrl);
 	if (!ck_node_idx(parentIdx)) return;
 	bool isExt = ck_node_idx(chain.mExtCtrl);
-	int rootIdx = isExt ? get_parent_idx(chain.mExtCtrl) : get_parent_idx(chain.mEndCtrl);
+	int rootIdx = rootIdx = isExt ? get_parent_idx(chain.mExtCtrl) : get_parent_idx(chain.mEndCtrl);
 	if (!ck_node_idx(rootIdx)) return;
 
-	cxMtx parentW;
-	cxMtx topW;
-	if (chain.mpMtxW) {
-		topW = chain.mpMtxW[chain.mTopCtrl];
-		parentW = chain.mpMtxW[parentIdx];
+	sxIKWork ik;
+	ik.mpRig = this;
+	ik.mTopW = calc_wmtx(chain.mTopCtrl, pMtx, &ik.mParentW);
+	ik.mRootW = calc_wmtx(rootIdx, pMtx);
+	if (isExt) {
+		ik.mExtW = pMtx[chain.mExtCtrl] * ik.mRootW;
+		ik.mEndW = pMtx[chain.mExtCtrl] * pMtx[chain.mEndCtrl] * ik.mRootW;
 	} else {
-		topW = calc_wmtx(chain.mTopCtrl, chain.mpMtxL, &parentW);
+		ik.mExtW.identity();
+		ik.mEndW = pMtx[chain.mEndCtrl] * ik.mRootW;
 	}
 
-	cxMtx rootW;
-	if (chain.mpMtxW) {
-		rootW = chain.mpMtxW[rootIdx];
-	} else {
-		rootW = calc_wmtx(rootIdx, chain.mpMtxL);
+	cxVec effPos = isExt ? ik.mExtW.get_translation() : ik.mEndW.get_translation();
+	if (pAdjFunc) {
+		effPos = (*pAdjFunc)(*this, chain, effPos);
 	}
+
+	cxVec endPos;
+	if (isExt) {
+		ik.mExtW.set_translation(effPos);
+		cxVec extOffs = ck_node_idx(chain.mExt) ? get_lpos(chain.mExt).neg_val() : get_lpos(chain.mExtCtrl);
+		endPos = pMtx[chain.mExtCtrl].calc_pnt(extOffs);
+	} else {
+		endPos = effPos;
+	}
+	ik.mEndW.set_translation(endPos);
+
+	ik.mRotOffs = get_lpos(chain.mRot);
+	ik.mDistTopRot = calc_parent_dist(chain.mRot);
+	ik.mDistRotEnd = calc_parent_dist(chain.mEnd);
+	ik.mDistTopEnd = nxVec::dist(endPos, ik.mTopW.get_translation());
+	ik.mAxis = chain.mAxis;
+	ik.mUp = chain.mUp;
+	ik.calc_world();
+	ik.calc_local();
+
+	if (isExt) {
+		if (chain.mExtCompensate) {
+			ik.mExtL = ik.mExtW * ik.mEndW.get_inverted();
+		} else {
+			ik.mExtL = pMtx[chain.mEndCtrl] * ik.mRootW * ik.mEndW.get_inverted();
+		}
+	} else {
+		ik.mExtL.identity();
+	}
+
+	pResult->mTop = ik.mTopL;
+	pResult->mRot = ik.mRotL;
+	pResult->mEnd = ik.mEndL;
+	pResult->mExt = ik.mExtL;
 }
 
 bool sxRigData::has_info_list() const {
@@ -2920,6 +3063,23 @@ bool sxRigData::has_info_list() const {
 		}
 	}
 	return res;
+}
+
+sxRigData::Info* sxRigData::find_info(eInfoKind kind) const {
+	Info* pInfo = nullptr;
+	if (has_info_list()) {
+		Info* pList = reinterpret_cast<Info*>(XD_INCR_PTR(this, mOffsInfo));
+		Info* pEntry = reinterpret_cast<Info*>(XD_INCR_PTR(this, pList->mOffs));
+		int n = pList->mNum;
+		for (int i = 0; i < n; ++i) {
+			if (pEntry->get_kind() == kind) {
+				pInfo = pEntry;
+				break;
+			}
+			++pEntry;
+		}
+	}
+	return pInfo;
 }
 
 

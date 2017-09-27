@@ -741,6 +741,9 @@ public:
 		return m;
 	}
 
+	void orient_zy(const cxVec& axisZ, const cxVec& axisY, bool normalizeInput = true);
+	void orient_zx(const cxVec& axisZ, const cxVec& axisX, bool normalizeInput = true);
+
 	void set_rot_frame(const cxVec& axisX, const cxVec& axisY, const cxVec& axisZ);
 	void set_rot(const cxVec& axis, float ang);
 	void set_rot_x(float rx);
@@ -749,6 +752,7 @@ public:
 	void set_rot(float rx, float ry, float rz, exRotOrd ord = exRotOrd::XYZ);
 	void set_rot_degrees(const cxVec& r, exRotOrd ord = exRotOrd::XYZ);
 
+	bool is_valid_rot(float tol = 1.0e-3f) const;
 	cxVec get_rot(exRotOrd ord = exRotOrd::XYZ) const;
 	cxVec get_rot_degrees(exRotOrd ord = exRotOrd::XYZ) const { return get_rot(ord) * XD_RAD2DEG(1.0f); }
 
@@ -771,6 +775,24 @@ public:
 inline cxMtx operator * (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.mul(m2); return m; }
 
 namespace nxMtx {
+
+inline cxMtx orient_zy(const cxVec& axisZ, const cxVec& axisY, bool normalizeInput = true) {
+	cxMtx m;
+	m.orient_zy(axisZ, axisY, normalizeInput);
+	return m;
+}
+
+inline cxMtx orient_zx(const cxVec& axisZ, const cxVec& axisX, bool normalizeInput = true) {
+	cxMtx m;
+	m.orient_zx(axisZ, axisX, normalizeInput);
+	return m;
+}
+
+inline cxMtx from_axis_angle(const cxVec& axis, float ang) {
+	cxMtx m;
+	m.set_rot(axis, ang);
+	return m;
+}
 
 inline cxMtx mk_rot_frame(const cxVec& axisX, const cxVec& axisY, const cxVec& axisZ) {
 	cxMtx m;
@@ -1482,6 +1504,25 @@ struct sxRigData : public sxData {
 		eInfoKind get_kind() const { return (eInfoKind)mKind; }
 	};
 
+	struct LimbInfo {
+		int32_t mTopCtrl;
+		int32_t mEndCtrl;
+		int32_t mExtCtrl;
+		int32_t mTop;
+		int32_t mRot;
+		int32_t mEnd;
+		int32_t mExt;
+		uint8_t mLimbId;
+		uint8_t mAxis;
+		uint8_t mUp;
+		uint8_t mExtComp;
+
+		eLimbId get_limb_id() const { return (eLimbId)(mLimbId & 0xF); }
+		int get_limb_idx() const { return (mLimbId >> 4) & 0xF; }
+		exAxis get_axis() const { return (exAxis)mAxis; }
+		exAxis get_up_axis() const { return (exAxis)mUp; }
+	};
+
 	struct IKChain {
 		class AdjustFunc {
 		public:
@@ -1490,9 +1531,13 @@ struct sxRigData : public sxData {
 			virtual cxVec operator()(const sxRigData& rig, const IKChain& chain, const cxVec& pos) { return pos; }
 		};
 
-		cxMtx* mpMtxL;
-		cxMtx* mpMtxW;
-		AdjustFunc* mpAdjFunc;
+		struct Result {
+			cxMtx mTop;
+			cxMtx mRot;
+			cxMtx mEnd;
+			cxMtx mExt;
+		};
+
 		int mTopCtrl;
 		int mEndCtrl;
 		int mExtCtrl;
@@ -1532,9 +1577,10 @@ struct sxRigData : public sxData {
 	cxQuat calc_lquat(int idx) const;
 	cxMtx calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx = nullptr) const;
 
-	void calc_ik_chain(IKChain& chain);
+	void calc_ik_chain_local(IKChain::Result* pResult, IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc) const;
 
 	bool has_info_list() const;
+	Info* find_info(eInfoKind kind) const;
 
 	static const uint32_t KIND = XD_FOURCC('X', 'R', 'I', 'G');
 };
