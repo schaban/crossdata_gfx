@@ -1323,6 +1323,7 @@ struct sxStrList {
 	uint16_t* get_hash_top() const { return (uint16_t*)&mOffs[mNum]; }
 	const char* get_str(int idx) const { return ck_idx(idx) ? reinterpret_cast<const char*>(this) + mOffs[idx] : nullptr; }
 	int find_str(const char* pStr) const;
+	int find_str_any(const char** ppStrs, int n) const;
 };
 
 struct sxVecList {
@@ -1425,6 +1426,7 @@ struct sxValuesData : public sxData {
 		const GrpInfo* get_info() const { return is_valid() ? mpVals->get_grp_info(mGrpId) : nullptr; }
 		int get_val_num() const { return is_valid() ? get_info()->mValNum : 0; }
 		int find_val_idx(const char* pName) const;
+		int find_val_idx_any(const char** ppNames, int n) const;
 		const char* get_val_name(int idx) const { return ck_val_idx(idx) ? mpVals->get_str(get_info()->mVals[idx].mNameId) : nullptr; }
 		eValType get_val_type(int idx) const { return ck_val_idx(idx) ? get_info()->mVals[idx].get_type() : eValType::UNKNOWN; }
 		const ValInfo* get_val_info(int idx) const { return ck_val_idx(idx) ? &get_info()->mVals[idx] : nullptr; }
@@ -1435,10 +1437,15 @@ struct sxValuesData : public sxData {
 		xt_float4 get_val_f4(int idx) const;
 		const char* get_val_s(int idx) const;
 		float get_float(const char* pName, const float defVal = 0.0f) const;
+		float get_float_any(const char** ppNames, int n, const float defVal = 0.0f) const;
 		int get_int(const char* pName, const int defVal = 0) const;
+		int get_int_any(const char** ppNames, int n, const int defVal = 0) const;
 		cxVec get_vec(const char* pName, const cxVec& defVal = cxVec(0.0f)) const;
+		cxVec get_vec_any(const char** ppNames, int n, const cxVec& defVal = cxVec(0.0f)) const;
 		cxColor get_rgb(const char* pName, const cxColor& defVal = cxColor(0.0f)) const;
+		cxColor get_rgb_any(const char** ppNames, int n, const cxColor& defVal = cxColor(0.0f)) const;
 		const char* get_str(const char* pName, const char* pDefVal = "") const;
+		const char* get_str_any(const char** ppNames, int n, const char* pDefVal = "") const;
 	};
 
 	bool ck_grp_idx(int idx) const { return (uint32_t)idx < (uint32_t)get_grp_num(); }

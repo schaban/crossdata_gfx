@@ -2375,6 +2375,48 @@ XD_NOINLINE int sxStrList::find_str(const char* pStr) const {
 	return -1;
 }
 
+XD_NOINLINE int sxStrList::find_str_any(const char** ppStrs, int n) const {
+	if (!ppStrs || n < 1) return -1;
+	int org;
+	uint16_t hblk[8];
+	int bsize = XD_ARY_LEN(hblk);
+	int nblk = n / bsize;
+	uint16_t* pHash = get_hash_top();
+	for (int iblk = 0; iblk < nblk; ++iblk) {
+		org = iblk * bsize;
+		for (int j = 0; j < bsize; ++j) {
+			hblk[j] = nxCore::str_hash16(ppStrs[org + j]);
+		}
+		for (uint32_t i = 0; i < mNum; ++i) {
+			uint16_t htst = pHash[i];
+			const char* pStr = get_str(i);
+			for (int j = 0; j < bsize; ++j) {
+				if (htst == hblk[j]) {
+					if (nxCore::str_eq(pStr, ppStrs[org + j])) {
+						return i;
+					}
+				}
+			}
+		}
+	}
+	org = nblk * bsize;
+	for (int j = org; j < n; ++j) {
+		hblk[j - org] = nxCore::str_hash16(ppStrs[j]);
+	}
+	for (uint32_t i = 0; i < mNum; ++i) {
+		uint16_t htst = pHash[i];
+		const char* pStr = get_str(i);
+		for (int j = org; j < n; ++j) {
+			if (htst == hblk[j - org]) {
+				if (nxCore::str_eq(pStr, ppStrs[j])) {
+					return i;
+				}
+			}
+		}
+	}
+	return -1;
+}
+
 
 int sxVecList::get_elems(float* pDst, int idx, int num) const {
 	int n = 0;
@@ -2421,6 +2463,30 @@ int sxValuesData::Group::find_val_idx(const char* pName) const {
 		sxStrList* pStrLst = mpVals->get_str_list();
 		if (pStrLst) {
 			int nameId = pStrLst->find_str(pName);
+			if (nameId >= 0) {
+				const GrpInfo* pInfo = get_info();
+				const ValInfo* pVal = pInfo->mVals;
+				int nval = pInfo->mValNum;
+				for (int i = 0; i < nval; ++i) {
+					if (pVal[i].mNameId == nameId) {
+						idx = i;
+						break;
+					}
+				}
+			}
+		}
+	}
+	return idx;
+}
+
+int sxValuesData::Group::find_val_idx_any(const char** ppNames, int n) const {
+	int idx = -1;
+	if (ppNames && n > 0 && is_valid()) {
+		sxStrList* pStrLst = mpVals->get_str_list();
+		if (pStrLst) {
+			// NOTE: the use of find_str_any is not strictly correct, but works fine for typical cases,
+			//       i.e. param names are expected to be unique strings.
+			int nameId = pStrLst->find_str_any(ppNames, n);
 			if (nameId >= 0) {
 				const GrpInfo* pInfo = get_info();
 				const ValInfo* pVal = pInfo->mVals;
@@ -2575,6 +2641,15 @@ float sxValuesData::Group::get_float(const char* pName, const float defVal) cons
 	return f;
 }
 
+float sxValuesData::Group::get_float_any(const char** ppNames, int n, const float defVal) const {
+	float f = defVal;
+	int idx = find_val_idx_any(ppNames, n);
+	if (idx >= 0) {
+		f = get_val_f(idx);
+	}
+	return f;
+}
+
 int sxValuesData::Group::get_int(const char* pName, const int defVal) const {
 	int i = defVal;
 	int idx = find_val_idx(pName);
@@ -2584,9 +2659,28 @@ int sxValuesData::Group::get_int(const char* pName, const int defVal) const {
 	return i;
 }
 
+int sxValuesData::Group::get_int_any(const char** ppNames, int n, const int defVal) const {
+	int i = defVal;
+	int idx = find_val_idx_any(ppNames, n);
+	if (idx >= 0) {
+		i = get_val_i(idx);
+	}
+	return i;
+}
+
 cxVec sxValuesData::Group::get_vec(const char* pName, const cxVec& defVal) const {
 	cxVec v = defVal;
 	int idx = find_val_idx(pName);
+	if (idx >= 0) {
+		xt_float3 f3 = get_val_f3(idx);
+		v.set(f3.x, f3.y, f3.z);
+	}
+	return v;
+}
+
+cxVec sxValuesData::Group::get_vec_any(const char** ppNames, int n, const cxVec& defVal) const {
+	cxVec v = defVal;
+	int idx = find_val_idx_any(ppNames, n);
 	if (idx >= 0) {
 		xt_float3 f3 = get_val_f3(idx);
 		v.set(f3.x, f3.y, f3.z);
@@ -2604,9 +2698,28 @@ cxColor sxValuesData::Group::get_rgb(const char* pName, const cxColor& defVal) c
 	return c;
 }
 
+cxColor sxValuesData::Group::get_rgb_any(const char** ppNames, int n, const cxColor& defVal) const {
+	cxColor c = defVal;
+	int idx = find_val_idx_any(ppNames, n);
+	if (idx >= 0) {
+		xt_float3 f3 = get_val_f3(idx);
+		c.set(f3.x, f3.y, f3.z);
+	}
+	return c;
+}
+
 const char* sxValuesData::Group::get_str(const char* pName, const char* pDefVal) const {
 	const char* pStr = pDefVal;
 	int idx = find_val_idx(pName);
+	if (idx >= 0) {
+		pStr = get_val_s(idx);
+	}
+	return pStr;
+}
+
+const char* sxValuesData::Group::get_str_any(const char** ppNames, int n, const char* pDefVal) const {
+	const char* pStr = pDefVal;
+	int idx = find_val_idx_any(ppNames, n);
 	if (idx >= 0) {
 		pStr = get_val_s(idx);
 	}
