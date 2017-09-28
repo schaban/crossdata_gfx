@@ -1322,6 +1322,7 @@ struct sxStrList {
 	bool ck_idx(int idx) const { return (uint32_t)idx < mNum; }
 	uint16_t* get_hash_top() const { return (uint16_t*)&mOffs[mNum]; }
 	const char* get_str(int idx) const { return ck_idx(idx) ? reinterpret_cast<const char*>(this) + mOffs[idx] : nullptr; }
+	bool is_sorted() const;
 	int find_str(const char* pStr) const;
 	int find_str_any(const char** ppStrs, int n) const;
 };

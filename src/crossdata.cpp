@@ -2361,14 +2361,50 @@ XD_NOINLINE void unload(sxData* pData) {
 } // nxData
 
 
+static int find_str_hash_idx(const uint16_t* pHash, int n, uint16_t h) {
+	const uint16_t* p = pHash;
+	uint32_t cnt = (uint32_t)n;
+	while (cnt > 1) {
+		uint32_t mid = cnt / 2;
+		const uint16_t* pm = &p[mid];
+		uint16_t ck = *pm;
+		p = (h < ck) ? p : pm;
+		cnt -= mid;
+	}
+	return (int)(p - pHash) + ((p != pHash) & (*p > h));
+}
+
+bool sxStrList::is_sorted() const {
+	uint8_t flags = ((uint8_t*)this + mSize)[-1];
+	return (flags != 0) && ((flags & 1) != 0);
+}
+
 XD_NOINLINE int sxStrList::find_str(const char* pStr) const {
 	if (!pStr) return -1;
 	uint16_t h = nxCore::str_hash16(pStr);
 	uint16_t* pHash = get_hash_top();
-	for (uint32_t i = 0; i < mNum; ++i) {
-		if (h == pHash[i]) {
-			if (nxCore::str_eq(get_str(i), pStr)) {
-				return i;
+	if (is_sorted()) {
+		int idx = find_str_hash_idx(pHash, mNum, h);
+		if (h == pHash[idx]) {
+			int nck = 1;
+			for (int i = idx; --i >= 0;) {
+				if (pHash[i] != h) break;
+				--idx;
+				++nck;
+			}
+			for (int i = 0; i < nck; ++i) {
+				int strIdx = idx + i;
+				if (nxCore::str_eq(get_str(strIdx), pStr)) {
+					return strIdx;
+				}
+			}
+		}
+	} else {
+		for (uint32_t i = 0; i < mNum; ++i) {
+			if (h == pHash[i]) {
+				if (nxCore::str_eq(get_str(i), pStr)) {
+					return i;
+				}
 			}
 		}
 	}
