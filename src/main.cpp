@@ -30,19 +30,6 @@ static void tst_dbg_msg(const char* pMsg) {
 	::OutputDebugStringA(pMsg);
 }
 
-void cpu_serialize() {
-	int dummy[4];
-	__cpuid(dummy, 0);
-}
-
-int64_t get_timestamp() {
-	LARGE_INTEGER ctr;
-	cpu_serialize();
-	::QueryPerformanceCounter(&ctr);
-	cpu_serialize();
-	return ctr.QuadPart;
-}
-
 int get_cpu_count() {
 	SYSTEM_INFO info;
 	::GetSystemInfo(&info);

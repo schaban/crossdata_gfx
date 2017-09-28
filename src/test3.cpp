@@ -1,6 +1,7 @@
 #include "crossdata.hpp"
 #include "gex.hpp"
 #include "keyctrl.hpp"
+#include "timer.hpp"
 
 #include "util.hpp"
 #include "test.hpp"
@@ -23,6 +24,7 @@ static struct TEST3_WK {
 	GEX_LIT* pConstLit;
 	KEY_CTRL* pKeys;
 	int colorMode;
+	cStopWatch stopWatch;
 } WK;
 
 KEY_CTRL* get_ctrl_keys() {
@@ -78,6 +80,8 @@ void test3_init() {
 		{ "[END]", D_KEY_LIT_SW }
 	};
 	WK.pKeys = keyCreate(keys, XD_ARY_LEN(keys));
+
+	WK.stopWatch.alloc(120);
 }
 
 static void cam_ctrl() {
@@ -255,7 +259,7 @@ void test3_loop() {
 	GEX_CAM* pCam = WK.pCam;
 	GEX_LIT* pLit = WK.pLit;
 
-	int64_t t0 = get_timestamp();
+	WK.stopWatch.begin();
 
 	keyUpdate(WK.pKeys);
 	lamp_ctrl();
@@ -277,9 +281,12 @@ void test3_loop() {
 	WK.stg.disp(pLit);
 	gexEndScene();
 
-	int64_t t1 = get_timestamp();
-	double dt = (double)(t1 - t0);
-	//::printf("dt = %.0f\n", dt);
+	bool timeSmpFlg = WK.stopWatch.end();
+	if (timeSmpFlg) {
+		double dt = WK.stopWatch.median();
+		WK.stopWatch.reset();
+		::printf("dt = %.0f\n", dt);
+	}
 
 	gexSwap();
 }
@@ -291,5 +298,6 @@ void test3_end() {
 	gexLitDestroy(WK.pLit);
 	gexCamDestroy(WK.pCam);
 	keyDestroy(WK.pKeys);
+	WK.stopWatch.free();
 }
 

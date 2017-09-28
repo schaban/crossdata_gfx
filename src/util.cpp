@@ -412,6 +412,16 @@ static GEX_TEX* find_tex(const char* pPath) {
 	return pTex;
 }
 
+static const char* s_baseTexFlgParamNames[] = {
+	"diff_colorUseTexture", /* Classic Shader */
+	"basecolor_useTexture" /* Principled Shader */
+};
+
+static const char* s_baseTexNameParamNames[] = {
+	"diff_colorTexture", /* Classic Shader */
+	"basecolor_texture" /* Principled Shader */
+};
+
 void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor) {
 	int n = vals.get_grp_num();
 	for (int i = 0; i < n; ++i) {
@@ -433,9 +443,9 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 						gexMtlSpecFresnelMode(pMtl, 1);
 					}
 					gexMtlUVMode(pMtl, grp.get_int("ogl_clamping_mode1", 0) ? GEX_UV_MODE::CLAMP : GEX_UV_MODE::WRAP);
-					bool baseTexFlg = !!grp.get_int("basecolor_useTexture");
+					bool baseTexFlg = !!grp.get_int_any(s_baseTexFlgParamNames, XD_ARY_LEN(s_baseTexFlgParamNames));
 					if (baseTexFlg) {
-						const char* pBaseTexName = grp.get_str("basecolor_texture");
+						const char* pBaseTexName = grp.get_str_any(s_baseTexNameParamNames, XD_ARY_LEN(s_baseTexNameParamNames));
 						GEX_TEX* pBaseTex = find_tex(pBaseTexName);
 						if (pBaseTex) {
 							gexMtlBaseTexture(pMtl, pBaseTex);

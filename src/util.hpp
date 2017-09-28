@@ -102,7 +102,6 @@ struct SH_COEFS {
 TRACKBALL* get_trackball();
 float get_wheel_val();
 
-int64_t get_timestamp();
 int get_test_mode();
 int get_max_workers();
 
