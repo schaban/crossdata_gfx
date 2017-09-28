@@ -51,7 +51,12 @@ class PrmVecList:
 		return len(self.lst)
 
 class ParamInfo:
-	def __init__(self, prm, strLst, v2Lst, v3Lst, v4Lst, fnameFlg = False):
+	def __init__(self, xval, prm, fnameFlg = False):
+		self.xval = xval
+		strLst = xval.strLst
+		v2Lst = xval.v2Lst
+		v3Lst = xval.v3Lst
+		v4Lst = xval.v4Lst
 		pt = prm.tuple()
 		self.prm = prm
 		self.name = pt.name()
@@ -95,22 +100,29 @@ class ParamInfo:
 			self.valId = strLst.add(str)
 
 	def write(self, bw):
-		bw.writeI16(self.nameId)
+		self.xval.writeStrId16(bw, self.nameId)
 		bw.writeI8(self.type)
 		bw.writeI8(0) # reserved
 		if self.type == ValType.FLOAT:
 			bw.writeF32(self.valId)
+		elif self.type == ValType.STRING:
+			self.xval.writeStrId32(bw, self.valId)
 		else:
 			bw.writeI32(self.valId)
 
 class ValGrp:
-	def __init__(self, node, strLst, v2Lst, v3Lst, v4Lst, fnameFlg = False, folders = None):
-		self.lst = []
-		self.node = node
+	def __init__(self, xval, node, fnameFlg = False, folders = None):
+		self.xval = xval
+		strLst = xval.strLst
+		v2Lst = xval.v2Lst
+		v3Lst = xval.v3Lst
+		v4Lst = xval.v4Lst
 		self.strLst = strLst
 		self.v2Lst = v2Lst
 		self.v3Lst = v3Lst
 		self.v4Lst = v4Lst
+		self.lst = []
+		self.node = node
 		self.fnameFlg = fnameFlg
 		self.name = node.name()
 		self.path = node.path()
@@ -138,22 +150,28 @@ class ValGrp:
 	def addPrm(self, prm):
 		if not prm.parmTemplate().isHidden():
 			if prm.componentIndex() == 0:
-				self.lst.append(ParamInfo(prm, self.strLst, self.v2Lst, self.v3Lst, self.v4Lst, self.fnameFlg))
+				self.lst.append(ParamInfo(self.xval, prm, self.fnameFlg))
 
 	def write(self, bw):
-		bw.writeI16(self.nameId)
-		bw.writeI16(self.pathId)
-		bw.writeI16(self.typeId)
+		self.xval.writeStrId16(bw, self.nameId)
+		self.xval.writeStrId16(bw, self.pathId)
+		self.xval.writeStrId16(bw, self.typeId)
 		bw.writeI16(0) # reserved
 		bw.writeI32(len(self.lst))
 		for prm in self.lst:
 			prm.write(bw)
 
 class ValGrpList:
-	def __init__(self, nodeLst, strLst, vecLst, v2Lst, v3Lst, v4Lst, fnameFlg = False, folders = None):
+	def __init__(self, xval, nodeLst, fnameFlg = False, folders = None):
+		self.xval = xval
+		strLst = xval.strLst
+		vecLst = xval.vecLst
+		v2Lst = xval.v2Lst
+		v3Lst = xval.v3Lst
+		v4Lst = xval.v4Lst
 		self.lst = []
 		for node in nodeLst:
-			self.lst.append(ValGrp(node, strLst, v2Lst, v3Lst, v4Lst, fnameFlg, folders))
+			self.lst.append(ValGrp(xval, node, fnameFlg, folders))
 		if 0:
 			print "#vec2", v2Lst.num()
 			print "#vec3", v3Lst.num()
@@ -191,7 +209,7 @@ class ValExporter(xd.BaseExporter):
 		self.v2Lst = PrmVecList()
 		self.v3Lst = PrmVecList()
 		self.v4Lst = PrmVecList()
-		self.grpLst = ValGrpList(lst, self.strLst, self.vecLst, self.v2Lst, self.v3Lst, self.v4Lst, fnameFlg, folders)
+		self.grpLst = ValGrpList(self, lst, fnameFlg, folders)
 
 	def writeHead(self, bw, top):
 		self.patchPos = bw.getPos()

@@ -488,10 +488,13 @@ class BinReader:
 		return data.tostring()
 
 class StrList:
-	def __init__(self):
+	def __init__(self, tsort = 32):
 		self.lst = []
 		self.map = {}
 		self.count = 0
+		self.tsort = tsort
+		self.sortedLst = None
+		self.sortedMap = None
 
 	def add(self, str):
 		if str not in self.map:
@@ -515,14 +518,22 @@ class StrList:
 		dataSize += 8 # header: data_size; str_num;
 		dataSize += 4*strNum # offsets
 		dataSize += 2*strNum # hashes
+		if self.sortedLst: dataSize += 1
 		bw.writeU32(dataSize)
 		bw.writeU32(strNum)
 		offsTop = bw.getPos()
 		for i in xrange(strNum): bw.writeU32(0)
-		for s in self.lst: bw.writeU16(strHash16(s))
-		for i, s in enumerate(self.lst):
-			bw.patch(offsTop + i*4, bw.getPos() - strTop)
-			bw.writeStr(s)
+		if self.sortedLst:
+			for s in self.sortedLst: bw.writeU16(s[0])
+			for i, s in enumerate(self.sortedLst):
+				bw.patch(offsTop + i*4, bw.getPos() - strTop)
+				bw.writeStr(s[1])
+		else:
+			for s in self.lst: bw.writeU16(strHash16(s))
+			for i, s in enumerate(self.lst):
+				bw.patch(offsTop + i*4, bw.getPos() - strTop)
+				bw.writeStr(s)
+		if self.sortedLst: bw.writeU8(0x81)
 
 	def addNameAndPath(self, fullPath):
 		name = fullPath
@@ -532,6 +543,26 @@ class StrList:
 		pathId = -1
 		if sep >= 0: pathId = self.add(fullPath[:sep])
 		return nameId, pathId
+
+	def finalize(self):
+		strNum = len(self.lst)
+		if self.tsort > 0 and strNum >= self.tsort:
+			self.sortedLst = []
+			for i in xrange(strNum):
+				s = self.lst[i]
+				h = strHash16(s)
+				self.sortedLst.append([h, s, i])
+			self.sortedLst.sort(cmp=lambda s0, s1: cmp(s0[0], s1[0]))
+			self.sortedMap = [-1 for i in xrange(strNum)]
+			for i in xrange(strNum):
+				self.sortedMap[self.sortedLst[i][2]] = i
+
+	def getWriteId(self, idx):
+		if self.sortedMap:
+			if idx >= 0 and idx < len(self.sortedMap):
+				return self.sortedMap[idx]
+		return idx
+
 
 class VecList:
 	def __init__(self):
@@ -1064,15 +1095,22 @@ class BaseExporter:
 	def writeHead(self, bw, top): pass
 	def writeData(self, bw, top): pass
 
+	def writeStrId16(self, bw, idx):
+		bw.writeI16(self.strLst.getWriteId(idx))
+
+	def writeStrId32(self, bw, idx):
+		bw.writeI32(self.strLst.getWriteId(idx))
+
 	def write(self, bw):
+		self.strLst.finalize()
 		top = bw.getPos()
 		bw.writeFOURCC(self.sig) # +00 sig
 		bw.writeU32(self.flags) # +04 flags
 		bw.writeU32(0) # +08 fileSize
 		bw.writeU32(0) # +0C headSize
 		bw.writeU32(0) # +10 offsStr
-		bw.writeI16(self.nameId) # +14 nameId
-		bw.writeI16(self.pathId) # +16 pathId
+		self.writeStrId16(bw, self.nameId) # +14 nameId
+		self.writeStrId16(bw, self.pathId) # +16 pathId
 		bw.writeU32(0) # +18 filePathLen (set by loader)
 		bw.writeU32(0) # +1C reserved
 		self.writeHead(bw, top)

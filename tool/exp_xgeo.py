@@ -145,8 +145,8 @@ class MaterialInfo(GroupData):
 
 	def write(self, bw):
 		#print self.shopPath, "@", hex(bw.getPos())
-		bw.writeI16(self.nameId) # +00
-		bw.writeI16(self.pathId) # +02
+		self.xgeo.writeStrId16(bw, self.nameId) # +00
+		self.xgeo.writeStrId16(bw, self.pathId) # +02
 		GroupData.write(self, bw)
 
 class GroupInfo(GroupData):
@@ -160,7 +160,7 @@ class GroupInfo(GroupData):
 	def getName(self): return self.strLst.get(self.nameId)
 
 	def write(self, bw):
-		bw.writeI16(self.nameId) # +00
+		self.xgeo.writeStrId16(bw, self.nameId) # +00
 		bw.writeI16(-1) # +02 empty path
 		GroupData.write(self, bw)
 
@@ -743,13 +743,13 @@ class GeoExporter(xd.BaseExporter):
 			val = obj.floatListAttribValue(attr)
 			for x in val: bw.writeF32(x)
 		elif type == hou.attribData.String:
-			bw.writeI32(self.strLst.getIdx(obj.stringAttribValue(attr)))
+			self.writeStrId32(bw, self.strLst.getIdx(obj.stringAttribValue(attr)))
 
 	def writeAttrData(self, bw, top, attrLst):
 		attrPatchTop = bw.getPos()
 		for attr in attrLst:
 			bw.writeU32(0) # +00 -> data
-			bw.writeI32(self.strLst.getIdx(attr.name())) # +04
+			self.writeStrId32(bw, self.strLst.getIdx(attr.name())) # +04
 			bw.writeU16(attr.size()) # +08 len
 			bw.writeU8(getAttrType(attr)) # +0A type
 			bw.writeU8(0) # +0B reserved

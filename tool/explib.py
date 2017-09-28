@@ -74,8 +74,8 @@ class FileCatalogue(xd.BaseExporter):
 		bw.align(0x10)
 		bw.patch(self.patchPos, bw.getPos() - top)
 		for ent in self.lst:
-			bw.writeI32(ent.nameId)
-			bw.writeI32(ent.fnameId)
+			self.writeStrId32(bw, ent.nameId)
+			self.writeStrId32(bw, ent.fnameId)
 
 
 def exportXTEX(copPath, outPath, useCmd = True, rawFlg = True):

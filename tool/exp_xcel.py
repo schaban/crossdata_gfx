@@ -39,7 +39,10 @@ class ExprEntry:
 		e.compile(exprText)
 		self.compiled = e
 
-	def mkStrs(self, strLst):
+	def addToLib(self, lib):
+		self.lib = lib
+		if not lib: return
+		strLst = lib.strLst
 		if self.nodeName: self.nodeNameId = strLst.add(self.nodeName)
 		if self.nodePath: self.nodePathId = strLst.add(self.nodePath)
 		if self.chanName: self.chanNameId = strLst.add(self.chanName)
@@ -48,9 +51,11 @@ class ExprEntry:
 		print self.exprText,  "@", self.nodeName, self.nodePath, self.chanName
 
 	def write(self, bw):
-		bw.writeI16(self.nodeNameId)
-		bw.writeI16(self.nodePathId)
-		bw.writeI16(self.chanNameId)
+		lib = self.lib
+		if not lib: return
+		lib.writeStrId16(bw, self.nodeNameId)
+		lib.writeStrId16(bw, self.nodePathId)
+		lib.writeStrId16(bw, self.chanNameId)
 		bw.writeI16(0) # reserved
 		self.compiled.write(bw)
 
@@ -62,7 +67,7 @@ class ExprLibExporter(xd.BaseExporter):
 
 	def setLst(self, lst):
 		for entry in lst:
-			entry.mkStrs(self.strLst)
+			entry.addToLib(self)
 			self.exprLst.append(entry)
 
 	def writeHead(self, bw, top):

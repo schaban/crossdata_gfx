@@ -32,7 +32,8 @@ def vecAll(vec, val):
 	return True
 
 class RigNode:
-	def __init__(self, hnode, lvl):
+	def __init__(self, xrig, hnode, lvl):
+		self.xrig = xrig
 		self.hnode = hnode
 		self.lvl = lvl
 		self.wmtx = hnode.worldTransform()
@@ -58,9 +59,9 @@ class RigNode:
 	def writeInfo(self, bw):
 		bw.writeI16(self.selfIdx)
 		bw.writeI16(self.parentIdx)
-		bw.writeI16(self.nameId)
-		bw.writeI16(self.pathId)
-		bw.writeU16(self.typeId)
+		self.xrig.writeStrId16(bw, self.nameId)
+		self.xrig.writeStrId16(bw, self.pathId)
+		self.xrig.writeStrId16(bw, self.typeId)
 		bw.writeI16(self.lvl)
 		bw.writeU16(self.attr)
 		bw.writeU8(self.rord)
@@ -105,7 +106,7 @@ class RigExporter(xd.BaseExporter):
 
 	def buildSub(self, hnode, lvl):
 		self.nodeMap[hnode.name()] = len(self.nodes)
-		self.nodes.append(RigNode(hnode, lvl))
+		self.nodes.append(RigNode(self, hnode, lvl))
 		for link in hnode.outputConnectors()[0]:
 			self.buildSub(link.outputNode(), lvl+1)
 

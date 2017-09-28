@@ -97,7 +97,7 @@ class TexPlane:
 
 	def writeInfo(self, bw):
 		bw.writeU32(0) # +00 -> data
-		bw.writeI16(self.nameId) # +04
+		self.xtex.writeStrId16(bw, self.nameId) # +04
 		bw.writeU8(self.minTZ) # +06
 		bw.writeI8(self.format) # +07 
 		bw.writeF32(self.minVal) # +08
