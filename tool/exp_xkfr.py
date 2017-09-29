@@ -141,7 +141,7 @@ class KfrExporter(xd.BaseExporter):
 				if not nodePath in nodeMap:
 					nodeId = len(self.nodeInfoLst)
 					typeId = self.strLst.add("null")
-					info = NodeInfo(hou.node(nodePath), fcv.nodePathId, fcv.nodeNameId, typeId)
+					info = NodeInfo(self, hou.node(nodePath), fcv.nodePathId, fcv.nodeNameId, typeId)
 					nodeMap[nodePath] = nodeId
 					self.nodeInfoLst.append(info)
 
