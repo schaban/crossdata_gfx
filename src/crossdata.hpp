@@ -1480,7 +1480,7 @@ struct sxRigData : public sxData {
 		LIMBS = XD_FOURCC('L', 'I', 'M', 'B')
 	};
 
-	enum class eLimbId {
+	enum class eLimbType {
 		LEG_L,
 		LEG_R,
 		ARM_L,
@@ -1520,13 +1520,13 @@ struct sxRigData : public sxData {
 		int32_t mRot;
 		int32_t mEnd;
 		int32_t mExt;
-		uint8_t mLimbId;
+		uint8_t mLimbId; /* type:4, idx:4 */
 		uint8_t mAxis;
 		uint8_t mUp;
 		uint8_t mExtComp;
 
-		eLimbId get_limb_id() const { return (eLimbId)(mLimbId & 0xF); }
-		int get_limb_idx() const { return (mLimbId >> 4) & 0xF; }
+		eLimbType get_type() const { return (eLimbType)(mLimbId & 0xF); }
+		int get_idx() const { return (mLimbId >> 4) & 0xF; }
 		exAxis get_axis() const { return (exAxis)mAxis; }
 		exAxis get_up_axis() const { return (exAxis)mUp; }
 	};
@@ -1589,7 +1589,7 @@ struct sxRigData : public sxData {
 
 	bool has_info_list() const;
 	Info* find_info(eInfoKind kind) const;
-	LimbInfo* find_limb(eLimbId limbId, int idx = 0) const;
+	LimbInfo* find_limb(eLimbType type, int idx = 0) const;
 
 	static const uint32_t KIND = XD_FOURCC('X', 'R', 'I', 'G');
 };

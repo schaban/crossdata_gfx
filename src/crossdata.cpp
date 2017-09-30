@@ -3231,14 +3231,14 @@ sxRigData::Info* sxRigData::find_info(eInfoKind kind) const {
 	return pInfo;
 }
 
-sxRigData::LimbInfo* sxRigData::find_limb(sxRigData::eLimbId limbId, int idx) const {
+sxRigData::LimbInfo* sxRigData::find_limb(sxRigData::eLimbType type, int idx) const {
 	sxRigData::LimbInfo* pLimb = nullptr;
 	Info* pInfo = find_info(eInfoKind::LIMBS);
 	if (pInfo && pInfo->mOffs) {
 		int n = pInfo->mNum;
 		LimbInfo* pCk = (LimbInfo*)XD_INCR_PTR(this, pInfo->mOffs);
 		for (int i = 0; i < n; ++i) {
-			if (pCk[i].get_limb_id() == limbId && pCk[i].get_limb_idx() == idx) {
+			if (pCk[i].get_type() == type && pCk[i].get_idx() == idx) {
 				pLimb = &pCk[i];
 				break;
 			}
