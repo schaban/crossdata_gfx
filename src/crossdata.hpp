@@ -1589,6 +1589,7 @@ struct sxRigData : public sxData {
 
 	bool has_info_list() const;
 	Info* find_info(eInfoKind kind) const;
+	LimbInfo* find_limb(eLimbId limbId, int idx = 0) const;
 
 	static const uint32_t KIND = XD_FOURCC('X', 'R', 'I', 'G');
 };
