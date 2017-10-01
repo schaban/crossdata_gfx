@@ -2520,18 +2520,12 @@ int sxValuesData::Group::find_val_idx_any(const char** ppNames, int n) const {
 	if (ppNames && n > 0 && is_valid()) {
 		sxStrList* pStrLst = mpVals->get_str_list();
 		if (pStrLst) {
-			// NOTE: the use of find_str_any is not strictly correct, but works fine for typical cases,
-			//       i.e. param names are expected to be unique strings.
-			int nameId = pStrLst->find_str_any(ppNames, n);
-			if (nameId >= 0) {
-				const GrpInfo* pInfo = get_info();
-				const ValInfo* pVal = pInfo->mVals;
-				int nval = pInfo->mValNum;
-				for (int i = 0; i < nval; ++i) {
-					if (pVal[i].mNameId == nameId) {
-						idx = i;
-						break;
-					}
+			for (int i = 0; i < n; ++i) {
+				const char* pName = ppNames[i];
+				int tst = find_val_idx(pName);
+				if (ck_val_idx(tst)) {
+					idx = tst;
+					break;
 				}
 			}
 		}
@@ -3065,6 +3059,32 @@ cxMtx sxRigData::calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx) 
 		*pParentWMtx = parentMtx;
 	}
 	return mtx;
+}
+
+void sxRigData::IKChain::set(LimbInfo* pInfo) {
+	if (pInfo) {
+		mTopCtrl = pInfo->mTopCtrl;
+		mEndCtrl = pInfo->mEndCtrl;
+		mExtCtrl = pInfo->mExtCtrl;
+		mTop = pInfo->mTop;
+		mRot = pInfo->mRot;
+		mEnd = pInfo->mEnd;
+		mExt = pInfo->mExt;
+		mAxis = (exAxis)pInfo->mAxis;
+		mUp = (exAxis)pInfo->mUp;
+		mExtCompensate = !!pInfo->mExtComp;
+	} else {
+		mTopCtrl = -1;
+		mEndCtrl = -1;
+		mExtCtrl = -1;
+		mTop = -1;
+		mRot = -1;
+		mEnd = -1;
+		mExt = -1;
+		mAxis = exAxis::MINUS_Y;
+		mUp = exAxis::PLUS_Z;
+		mExtCompensate = false;
+	}
 }
 
 static xt_float2 ik_cos_law(float a, float b, float c) {

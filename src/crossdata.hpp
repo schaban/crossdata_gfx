@@ -1556,6 +1556,8 @@ struct sxRigData : public sxData {
 		exAxis mAxis;
 		exAxis mUp;
 		bool mExtCompensate;
+
+		void set(LimbInfo* pInfo);
 	};
 
 	bool ck_node_idx(int idx) const { return (uint32_t)idx < mNodeNum; }
