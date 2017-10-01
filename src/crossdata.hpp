@@ -1539,7 +1539,7 @@ struct sxRigData : public sxData {
 			virtual cxVec operator()(const sxRigData& rig, const IKChain& chain, const cxVec& pos) { return pos; }
 		};
 
-		struct Result {
+		struct Solution {
 			cxMtx mTop;
 			cxMtx mRot;
 			cxMtx mEnd;
@@ -1587,7 +1587,8 @@ struct sxRigData : public sxData {
 	cxQuat calc_lquat(int idx) const;
 	cxMtx calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx = nullptr) const;
 
-	void calc_ik_chain_local(IKChain::Result* pResult, IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc = nullptr) const;
+	void calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc = nullptr) const;
+	void copy_ik_chain_solution(cxMtx* pDstMtx, const IKChain& chain, const IKChain::Solution& solution);
 
 	bool has_info_list() const;
 	Info* find_info(eInfoKind kind) const;

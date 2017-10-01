@@ -3154,9 +3154,9 @@ void sxIKWork::calc_local() {
 	mEndL = mEndW * mRotW.get_inverted();
 }
 
-void sxRigData::calc_ik_chain_local(IKChain::Result* pResult, IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc) const {
+void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc) const {
 	if (!pMtx) return;
-	if (!pResult) return;
+	if (!pSolution) return;
 	if (!ck_node_idx(chain.mTopCtrl)) return;
 	if (!ck_node_idx(chain.mEndCtrl)) return;
 	if (!ck_node_idx(chain.mTop)) return;
@@ -3214,10 +3214,26 @@ void sxRigData::calc_ik_chain_local(IKChain::Result* pResult, IKChain& chain, cx
 		ik.mExtL.identity();
 	}
 
-	pResult->mTop = ik.mTopL;
-	pResult->mRot = ik.mRotL;
-	pResult->mEnd = ik.mEndL;
-	pResult->mExt = ik.mExtL;
+	pSolution->mTop = ik.mTopL;
+	pSolution->mRot = ik.mRotL;
+	pSolution->mEnd = ik.mEndL;
+	pSolution->mExt = ik.mExtL;
+}
+
+void sxRigData::copy_ik_chain_solution(cxMtx* pDstMtx, const IKChain& chain, const IKChain::Solution& solution) {
+	if (!pDstMtx) return;
+	if (ck_node_idx(chain.mTop)) {
+		pDstMtx[chain.mTop] = solution.mTop;
+	}
+	if (ck_node_idx(chain.mRot)) {
+		pDstMtx[chain.mRot] = solution.mRot;
+	}
+	if (ck_node_idx(chain.mEnd)) {
+		pDstMtx[chain.mEnd] = solution.mEnd;
+	}
+	if (ck_node_idx(chain.mExt)) {
+		pDstMtx[chain.mExt] = solution.mExt;
+	}
 }
 
 bool sxRigData::has_info_list() const {
