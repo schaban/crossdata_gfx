@@ -1587,7 +1587,7 @@ struct sxRigData : public sxData {
 	cxQuat calc_lquat(int idx) const;
 	cxMtx calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx = nullptr) const;
 
-	void calc_ik_chain_local(IKChain::Result* pResult, IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc) const;
+	void calc_ik_chain_local(IKChain::Result* pResult, IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc = nullptr) const;
 
 	bool has_info_list() const;
 	Info* find_info(eInfoKind kind) const;
