@@ -789,7 +789,7 @@ class GeoExporter(xd.BaseExporter):
 		bw.align(0x10)
 		bw.patch(self.patchPos + 0x20, bw.getPos() - top) # -> skin nodes
 		for sph in self.glbSkinSph: sph.write(bw) # spheres
-		for id in self.skinIds: bw.writeI32(id) # names
+		for id in self.skinIds: self.writeStrId32(bw, id) # names
 		bw.patch(self.patchPos + 0x24, bw.getPos() - top) # -> wgt
 		n = self.pntNum
 		offsTop = bw.getPos()
