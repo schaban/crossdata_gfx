@@ -3118,6 +3118,7 @@ struct sxIKWork {
 	cxMtx mExtL;
 	cxVec mRotOffs;
 	const sxRigData* mpRig;
+	const sxRigData::IKChain* mpChain;
 	float mDistTopRot;
 	float mDistRotEnd;
 	float mDistTopEnd;
@@ -3125,7 +3126,7 @@ struct sxIKWork {
 	exAxis mUp;
 
 	void calc_world();
-	void calc_local();
+	void calc_local(bool fixPos = true);
 };
 
 void sxIKWork::calc_world() {
@@ -3148,10 +3149,15 @@ void sxIKWork::calc_world() {
 	mRotW.set_translation(rotPos);
 }
 
-void sxIKWork::calc_local() {
+void sxIKWork::calc_local(bool fixPos) {
 	mTopL = mTopW * mParentW.get_inverted();
 	mRotL = mRotW * mTopW.get_inverted();
 	mEndL = mEndW * mRotW.get_inverted();
+	if (fixPos && mpChain) {
+		mTopL.set_translation(mpRig->get_lpos(mpChain->mTop));
+		mRotL.set_translation(mpRig->get_lpos(mpChain->mRot));
+		mEndL.set_translation(mpRig->get_lpos(mpChain->mEnd));
+	}
 }
 
 void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc) const {
@@ -3170,11 +3176,12 @@ void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain&
 
 	sxIKWork ik;
 	ik.mpRig = this;
+	ik.mpChain = &chain;
 	ik.mTopW = calc_wmtx(chain.mTopCtrl, pMtx, &ik.mParentW);
 	ik.mRootW = calc_wmtx(rootIdx, pMtx);
 	if (isExt) {
 		ik.mExtW = pMtx[chain.mExtCtrl] * ik.mRootW;
-		ik.mEndW = pMtx[chain.mExtCtrl] * pMtx[chain.mEndCtrl] * ik.mRootW;
+		ik.mEndW = pMtx[chain.mExtCtrl] * pMtx[chain.mEndCtrl].get_sr() * ik.mRootW;
 	} else {
 		ik.mExtW.identity();
 		ik.mEndW = pMtx[chain.mEndCtrl] * ik.mRootW;
@@ -3189,7 +3196,8 @@ void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain&
 	if (isExt) {
 		ik.mExtW.set_translation(effPos);
 		cxVec extOffs = ck_node_idx(chain.mExt) ? get_lpos(chain.mExt).neg_val() : get_lpos(chain.mExtCtrl);
-		endPos = pMtx[chain.mExtCtrl].calc_pnt(extOffs);
+		extOffs = pMtx[chain.mExtCtrl].calc_vec(extOffs);
+		endPos = (pMtx[chain.mEndCtrl] * ik.mRootW).calc_vec(extOffs) + ik.mExtW.get_translation();
 	} else {
 		endPos = effPos;
 	}
@@ -3208,8 +3216,9 @@ void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain&
 		if (chain.mExtCompensate) {
 			ik.mExtL = ik.mExtW * ik.mEndW.get_inverted();
 		} else {
-			ik.mExtL = pMtx[chain.mEndCtrl] * ik.mRootW * ik.mEndW.get_inverted();
+			ik.mExtL = pMtx[chain.mExtCtrl] * ik.mRootW * ik.mEndW.get_inverted();
 		}
+		ik.mExtL.set_translation(get_lpos(chain.mExt));
 	} else {
 		ik.mExtL.identity();
 	}
