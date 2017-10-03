@@ -412,15 +412,51 @@ static GEX_TEX* find_tex(const char* pPath) {
 	return pTex;
 }
 
-static const char* s_baseTexFlgParamNames[] = {
-	"diff_colorUseTexture", /* Classic Shader */
-	"basecolor_useTexture" /* Principled Shader */
+namespace MtlParamNames {
+
+	static const char* baseTexFlg[] = {
+		"diff_colorUseTexture", /* Classic Shader */
+		"basecolor_useTexture" /* Principled Shader */
+	};
+
+	static const char* baseTexName[] = {
+		"diff_colorTexture", /* Classic Shader */
+		"basecolor_texture" /* Principled Shader */
+	};
+
+	static const char* baseColor[] = {
+		"diff_color", /* Classic Shader */
+		"basecolor" /* Principled Shader */
+	};
+
+	static const char* specModel[] = {
+		"spec_model", /* Classic Shader */
+		"ogl_spec_model" /* Principled Shader */
+	};
+
+	static const char* roughness[] = {
+		"spec_rough", /* Classic Shader */
+		"rough" /* Principled Shader */
+	};
+
+	static const char* IOR[] = {
+		"ior_in", /* Classic Shader */
+		"ogl_ior_inner" /* Principled Shader */
+	};
+
+	static const char* useAlpha[] = {
+		"diff_colorTextureUseAlpha", /* Classic Shader */
+		"ogl_cutout" /* Principled Shader */
+	};
 };
 
-static const char* s_baseTexNameParamNames[] = {
-	"diff_colorTexture", /* Classic Shader */
-	"basecolor_texture" /* Principled Shader */
-};
+#define D_MTL_PRM(_grp, _typ, _name, _def) (_grp).get_##_typ##_any(MtlParamNames::_name, XD_ARY_LEN(MtlParamNames::_name), _def)
+#define D_MTL_INT(_grp, _name, _def) D_MTL_PRM(_grp, int, _name, _def)
+#define D_MTL_FLOAT(_grp, _name, _def) D_MTL_PRM(_grp, float, _name, _def)
+#define D_MTL_RGB(_grp, _name, _def) D_MTL_PRM(_grp, rgb, _name, _def)
+#define D_MTL_STR(_grp, _name, _def) D_MTL_PRM(_grp, str, _name, _def)
+#define D_MTL_BOOL(_grp, _name, _def) ( !!(D_MTL_INT(_grp, _name, _def)) )
+#define D_MTL_BOOL_(_grp, _name) D_MTL_BOOL(_grp, _name, 0)
 
 void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor) {
 	int n = vals.get_grp_num();
@@ -431,10 +467,10 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 			if (pMtlName) {
 				GEX_MTL* pMtl = gexFindMaterial(&obj, pMtlName);
 				if (pMtl) {
-					float roughness = cvt_roughness(grp.get_float("rough", 0.3f));
-					cxColor baseClr = grp.get_rgb("basecolor", cxColor(0.2f));
-					GEX_SPEC_MODE specMode = parse_spec_mode(grp.get_str("ogl_spec_model", "phong"));
-					float IOR = grp.get_float("ogl_ior_inner", 1.4f);
+					float roughness = cvt_roughness(D_MTL_FLOAT(grp, roughness, 0.3f));
+					cxColor baseClr = D_MTL_RGB(grp, baseColor, cxColor(0.2f));
+					GEX_SPEC_MODE specMode = parse_spec_mode(D_MTL_STR(grp, specModel, "phong"));
+					float IOR = D_MTL_FLOAT(grp, IOR, 1.4f);
 					gexMtlBaseColor(pMtl, baseClr);
 					gexMtlRoughness(pMtl, roughness);
 					gexMtlSpecMode(pMtl, specMode);
@@ -442,10 +478,11 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 					if (specMode == GEX_SPEC_MODE::GGX) {
 						gexMtlSpecFresnelMode(pMtl, 1);
 					}
-					gexMtlUVMode(pMtl, grp.get_int("ogl_clamping_mode1", 0) ? GEX_UV_MODE::CLAMP : GEX_UV_MODE::WRAP);
-					bool baseTexFlg = !!grp.get_int_any(s_baseTexFlgParamNames, XD_ARY_LEN(s_baseTexFlgParamNames));
+					GEX_UV_MODE uvMode = grp.get_int("ogl_clamping_mode1", 0) ? GEX_UV_MODE::CLAMP : GEX_UV_MODE::WRAP;
+					gexMtlUVMode(pMtl, uvMode);
+					bool baseTexFlg = D_MTL_BOOL_(grp, baseTexFlg);
 					if (baseTexFlg) {
-						const char* pBaseTexName = grp.get_str_any(s_baseTexNameParamNames, XD_ARY_LEN(s_baseTexNameParamNames));
+						const char* pBaseTexName = D_MTL_STR(grp, baseTexName, "");
 						GEX_TEX* pBaseTex = find_tex(pBaseTexName);
 						if (pBaseTex) {
 							gexMtlBaseTexture(pMtl, pBaseTex);
@@ -462,7 +499,8 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 					if (useReflectColor) {
 						gexMtlSpecularColor(pMtl, cxColor(grp.get_float("reflect", 0.5f)));
 					}
-					gexMtlAlpha(pMtl, !!grp.get_int("ogl_cutout"));
+					bool alphaFlg = D_MTL_BOOL_(grp, useAlpha);
+					gexMtlAlpha(pMtl, alphaFlg);
 					bool bumpTexFlg = !!grp.get_int("enableBumpOrNormalTexture");
 					if (bumpTexFlg) {
 						gexMtlBumpFactor(pMtl, grp.get_float("normalTexScale", 1.0f));
