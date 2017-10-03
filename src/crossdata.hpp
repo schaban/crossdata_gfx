@@ -1523,12 +1523,13 @@ struct sxRigData : public sxData {
 		uint8_t mLimbId; /* type:4, idx:4 */
 		uint8_t mAxis;
 		uint8_t mUp;
-		uint8_t mExtComp;
+		uint8_t mFlags;
 
 		eLimbType get_type() const { return (eLimbType)(mLimbId & 0xF); }
 		int get_idx() const { return (mLimbId >> 4) & 0xF; }
 		exAxis get_axis() const { return (exAxis)mAxis; }
 		exAxis get_up_axis() const { return (exAxis)mUp; }
+		bool get_ext_comp_flg() const { return !!(mFlags & 1); }
 	};
 
 	struct IKChain {

@@ -3072,7 +3072,7 @@ void sxRigData::IKChain::set(LimbInfo* pInfo) {
 		mExt = pInfo->mExt;
 		mAxis = (exAxis)pInfo->mAxis;
 		mUp = (exAxis)pInfo->mUp;
-		mExtCompensate = !!pInfo->mExtComp;
+		mExtCompensate = pInfo->get_ext_comp_flg();
 	} else {
 		mTopCtrl = -1;
 		mEndCtrl = -1;
