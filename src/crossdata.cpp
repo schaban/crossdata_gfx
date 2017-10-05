@@ -3061,7 +3061,7 @@ cxMtx sxRigData::calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx) 
 	return mtx;
 }
 
-void sxRigData::IKChain::set(LimbInfo* pInfo) {
+void sxRigData::LimbChain::set(LimbInfo* pInfo) {
 	if (pInfo) {
 		mTopCtrl = pInfo->mTopCtrl;
 		mEndCtrl = pInfo->mEndCtrl;
@@ -3105,7 +3105,7 @@ static xt_float2 ik_cos_law(float a, float b, float c) {
 	return ang;
 }
 
-struct sxIKWork {
+struct sxLimbIKWork {
 	cxMtx mRootW;
 	cxMtx mParentW;
 	cxMtx mTopW;
@@ -3118,7 +3118,7 @@ struct sxIKWork {
 	cxMtx mExtL;
 	cxVec mRotOffs;
 	const sxRigData* mpRig;
-	const sxRigData::IKChain* mpChain;
+	const sxRigData::LimbChain* mpChain;
 	float mDistTopRot;
 	float mDistRotEnd;
 	float mDistTopEnd;
@@ -3129,7 +3129,7 @@ struct sxIKWork {
 	void calc_local(bool fixPos = true);
 };
 
-void sxIKWork::calc_world() {
+void sxLimbIKWork::calc_world() {
 	xt_float2 ang = ik_cos_law(mDistTopRot, mDistRotEnd, mDistTopEnd);
 	cxVec axis = nxVec::get_axis(mAxis);
 	cxVec up = nxVec::get_axis(mUp);
@@ -3149,7 +3149,7 @@ void sxIKWork::calc_world() {
 	mRotW.set_translation(rotPos);
 }
 
-void sxIKWork::calc_local(bool fixPos) {
+void sxLimbIKWork::calc_local(bool fixPos) {
 	mTopL = mTopW * mParentW.get_inverted();
 	mRotL = mRotW * mTopW.get_inverted();
 	mEndL = mEndW * mRotW.get_inverted();
@@ -3160,7 +3160,7 @@ void sxIKWork::calc_local(bool fixPos) {
 	}
 }
 
-void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc) const {
+void sxRigData::calc_limb_local(LimbChain::Solution* pSolution, const LimbChain& chain, cxMtx* pMtx, LimbChain::AdjustFunc* pAdjFunc) const {
 	if (!pMtx) return;
 	if (!pSolution) return;
 	if (!ck_node_idx(chain.mTopCtrl)) return;
@@ -3174,7 +3174,7 @@ void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain&
 	int rootIdx = rootIdx = isExt ? get_parent_idx(chain.mExtCtrl) : get_parent_idx(chain.mEndCtrl);
 	if (!ck_node_idx(rootIdx)) return;
 
-	sxIKWork ik;
+	sxLimbIKWork ik;
 	ik.mpRig = this;
 	ik.mpChain = &chain;
 	ik.mTopW = calc_wmtx(chain.mTopCtrl, pMtx, &ik.mParentW);
@@ -3229,7 +3229,7 @@ void sxRigData::calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain&
 	pSolution->mExt = ik.mExtL;
 }
 
-void sxRigData::copy_ik_chain_solution(cxMtx* pDstMtx, const IKChain& chain, const IKChain::Solution& solution) {
+void sxRigData::copy_limb_solution(cxMtx* pDstMtx, const LimbChain& chain, const LimbChain::Solution& solution) {
 	if (!pDstMtx) return;
 	if (ck_node_idx(chain.mTop)) {
 		pDstMtx[chain.mTop] = solution.mTop;

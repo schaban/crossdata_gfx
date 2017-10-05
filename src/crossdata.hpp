@@ -1532,12 +1532,12 @@ struct sxRigData : public sxData {
 		bool get_ext_comp_flg() const { return !!(mFlags & 1); }
 	};
 
-	struct IKChain {
+	struct LimbChain {
 		class AdjustFunc {
 		public:
 			AdjustFunc() {}
 			virtual ~AdjustFunc() {}
-			virtual cxVec operator()(const sxRigData& rig, const IKChain& chain, const cxVec& pos) { return pos; }
+			virtual cxVec operator()(const sxRigData& rig, const LimbChain& chain, const cxVec& pos) { return pos; }
 		};
 
 		struct Solution {
@@ -1588,8 +1588,8 @@ struct sxRigData : public sxData {
 	cxQuat calc_lquat(int idx) const;
 	cxMtx calc_wmtx(int idx, const cxMtx* pMtxLocal, cxMtx* pParentWMtx = nullptr) const;
 
-	void calc_ik_chain_local(IKChain::Solution* pSolution, const IKChain& chain, cxMtx* pMtx, IKChain::AdjustFunc* pAdjFunc = nullptr) const;
-	void copy_ik_chain_solution(cxMtx* pDstMtx, const IKChain& chain, const IKChain::Solution& solution);
+	void calc_limb_local(LimbChain::Solution* pSolution, const LimbChain& chain, cxMtx* pMtx, LimbChain::AdjustFunc* pAdjFunc = nullptr) const;
+	void copy_limb_solution(cxMtx* pDstMtx, const LimbChain& chain, const LimbChain::Solution& solution);
 
 	bool has_info_list() const;
 	Info* find_info(eInfoKind kind) const;
