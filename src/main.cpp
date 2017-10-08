@@ -115,6 +115,26 @@ int get_max_workers() {
 	return s_args.mMaxWrk;
 }
 
+void con_locate(int x, int y) {
+	HANDLE hstd = ::GetStdHandle(STD_OUTPUT_HANDLE);
+	COORD c;
+	c.X = (SHORT)x;
+	c.Y = (SHORT)y;
+	::SetConsoleCursorPosition(hstd, c);
+}
+
+void con_text_color(const cxColor& clr) {
+	HANDLE hstd = ::GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_SCREEN_BUFFER_INFO info;
+	::GetConsoleScreenBufferInfo(hstd, &info);
+	WORD attr = 0;
+	if (clr.r >= 0.5f) attr |= FOREGROUND_RED;
+	if (clr.g >= 0.5f) attr |= FOREGROUND_GREEN;
+	if (clr.b >= 0.5f) attr |= FOREGROUND_BLUE;
+	if (clr.luma() > 0.5f) attr |= FOREGROUND_INTENSITY;
+	::SetConsoleTextAttribute(hstd, attr);
+}
+
 static struct sMouseState {
 	enum class eBtn {
 		LEFT,

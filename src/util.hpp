@@ -104,6 +104,8 @@ float get_wheel_val();
 
 int get_test_mode();
 int get_max_workers();
+void con_locate(int x, int y);
+void con_text_color(const cxColor& clr = cxColor(0.5f));
 
 struct TSK_BRIGADE;
 TSK_BRIGADE* get_brigade();
