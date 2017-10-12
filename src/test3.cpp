@@ -2,6 +2,7 @@
 #include "gex.hpp"
 #include "keyctrl.hpp"
 #include "timer.hpp"
+#include "remote.hpp"
 
 #include "util.hpp"
 #include "test.hpp"
@@ -25,10 +26,19 @@ static struct TEST3_WK {
 	KEY_CTRL* pKeys;
 	int colorMode;
 	cStopWatch stopWatch;
+	RMT_PIPE_IN* pPipeIn;
+	union {
+		TD_JOYSTICK_CHANNELS joych;
+		float pipeInVals[16];
+	};
 } WK;
 
 KEY_CTRL* get_ctrl_keys() {
 	return WK.pKeys;
+}
+
+TD_JOYSTICK_CHANNELS* get_td_joy() {
+	return &WK.joych;
 }
 
 float get_anim_speed() {
@@ -43,7 +53,16 @@ sxGeometryData* get_stg_obst_geo() {
 	return WK.stg.get_obst_geo();
 }
 
+void pipe_in_ctrl();
+
 void test3_init() {
+	::memset(WK.pipeInVals, 0, sizeof(WK.pipeInVals));
+	rmtSocketInit();
+	WK.pPipeIn = rmtPipeInCreate();
+	for (int i = 0; i < 100; ++i) {
+		pipe_in_ctrl();
+	}
+
 	WK.colorMode = get_test_mode() ? 2 : 1;
 
 	WK.chr.create();
@@ -252,12 +271,100 @@ const void lamp_ctrl() {
 	gexLitUpdate(pLit);
 }
 
+static void pipe_in_ctrl() {
+	RMT_PIPE_IN* pPipe = WK.pPipeIn;
+	if (!pPipe) return;
+
+	int ntry = 100;
+	int mode = 0;
+	int nvals = XD_ARY_LEN(WK.pipeInVals);
+	for (int i = 0; i < nvals; ++i) {
+		//WK.pipeInVals[i] = 0.0f;
+	}
+	while (ntry > 0) {
+		char* pCmd = rmtPipeInReadStr(pPipe);
+		if (::strlen(pCmd)) {
+			bool isStart = nxCore::str_starts_with(pCmd, "start");
+			bool isSlice = nxCore::str_starts_with(pCmd, "slice");
+			if (mode == 0) {
+				if (isStart) {
+					++mode;
+				} else {
+					if (!isStart && !isSlice) {
+						::printf("%s\n", pCmd);
+					}
+				}
+			}
+			if (mode == 1 && isSlice) {
+				char* pNext = nullptr;
+				char* pTok = pCmd;
+				int idx = -1;
+				for (pTok = ::strtok_s(pTok, " ", &pNext); pTok; pTok = ::strtok_s(nullptr, " ", &pNext)) {
+					if (idx >= 0) {
+						WK.pipeInVals[idx] = (float)::atof(pTok);
+					}
+					++idx;
+					if (idx >= nvals) {
+						break;
+					}
+				}
+				for (int i = idx; i < nvals; ++i) {
+					if (i >= 0) {
+						WK.pipeInVals[i] = 0.0f;
+					}
+				}
+			} else {
+				if (!isStart && !isSlice) {
+					::printf("%s\n", pCmd);
+				}
+			}
+		}
+		--ntry;
+	}
+
+	if (1) {
+		TD_JOYSTICK_CHANNELS* pJoy = get_td_joy();
+		if (pJoy) {
+			static struct {
+				const char* pLabel;
+				float TD_JOYSTICK_CHANNELS::* pVal;
+			} joyTbl[] = {
+				{ "xaxis", &TD_JOYSTICK_CHANNELS::xaxis },
+				{ "yaxis", &TD_JOYSTICK_CHANNELS::yaxis },
+				{ "zaxis", &TD_JOYSTICK_CHANNELS::zaxis },
+				{ " xrot", &TD_JOYSTICK_CHANNELS::xrot },
+				{ " yrot", &TD_JOYSTICK_CHANNELS::yrot },
+				{ "   b1", &TD_JOYSTICK_CHANNELS::b1 },
+				{ "   b2", &TD_JOYSTICK_CHANNELS::b2 },
+				{ "   b3", &TD_JOYSTICK_CHANNELS::b3 },
+				{ "   b4", &TD_JOYSTICK_CHANNELS::b4 },
+				{ "   b5", &TD_JOYSTICK_CHANNELS::b5 },
+				{ "   b6", &TD_JOYSTICK_CHANNELS::b6 }
+			};
+			con_locate(0, 1);
+			cxColor nameClr(2.0f, 0.0f, 0.0f);
+			cxColor valClr0(0.0f, 0.75f, 0.0f);
+			cxColor valClr1(0.0f, 1.0f, 0.0f);
+			for (int i = 0; i < XD_ARY_LEN(joyTbl); ++i) {
+				con_text_color(nameClr);
+				::printf("%s: ", joyTbl[i].pLabel);
+				float val = pJoy->*joyTbl[i].pVal;
+				con_text_color(::fabsf(val) > 0.001f ? valClr1 : valClr0);
+				::printf("%f     \n", val);
+			}
+			con_text_color();
+		}
+	}
+}
+
 void test3_loop() {
 	gexClearTarget(cxColor(0.44f, 0.55f, 0.66f));
 	gexClearDepth();
 
 	GEX_CAM* pCam = WK.pCam;
 	GEX_LIT* pLit = WK.pLit;
+
+	pipe_in_ctrl();
 
 	WK.stopWatch.begin();
 
@@ -285,7 +392,7 @@ void test3_loop() {
 	if (timeSmpFlg) {
 		double dt = WK.stopWatch.median();
 		WK.stopWatch.reset();
-		::printf("dt = %.0f\n", dt);
+		//::printf("dt = %.0f\n", dt);
 	}
 
 	gexSwap();
@@ -299,5 +406,7 @@ void test3_end() {
 	gexCamDestroy(WK.pCam);
 	keyDestroy(WK.pKeys);
 	WK.stopWatch.free();
+	rmtPipeInDestroy(WK.pPipeIn);
+	rmtSocketReset();
 }
 

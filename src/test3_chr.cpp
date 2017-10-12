@@ -1,6 +1,7 @@
 #include "crossdata.hpp"
 #include "gex.hpp"
 #include "keyctrl.hpp"
+#include "remote.hpp"
 #include "task.hpp"
 #include "util.hpp"
 #include "obstacle.hpp"
@@ -272,7 +273,7 @@ float cCharacter3::calc_motion(int motId, float frame, float frameStep) {
 		frame = 0.0f;
 	}
 
-	if (1 && pBgd) {
+	if (0 && pBgd) {
 		::printf("%d/%d -> ", njobs, nwrk);
 		int nwrk = tskBrigadeGetNumActiveWorkers(pBgd);
 		for (int i = 0; i < nwrk; ++i) {
@@ -321,7 +322,18 @@ void cCharacter3::calc_world() {
 void cCharacter3::dance_loop_ctrl() {
 	KEY_CTRL* pKeys = get_ctrl_keys();
 	if (!pKeys) return;
-	if (keyCkTrg(pKeys, D_KEY_UP)) {
+	bool flgU = keyCkTrg(pKeys, D_KEY_UP);
+	bool flgD = keyCkTrg(pKeys, D_KEY_DOWN);
+	bool flgL = keyCkTrg(pKeys, D_KEY_LEFT);
+	bool flgR = keyCkTrg(pKeys, D_KEY_RIGHT);
+	bool useTDJoy = true;
+	if (useTDJoy) {
+		flgU |= (get_td_joy()->b4 != 0);
+		flgD |= (get_td_joy()->b1 != 0);
+		flgL |= (get_td_joy()->b3 != 0);
+		flgR |= (get_td_joy()->b2 != 0);
+	}
+	if (flgU) {
 		mStateMain = STATE::DANCE_ACT;
 		mStateSub = 0;
 		if (keyCkNow(pKeys, D_KEY_L1)) {
@@ -360,7 +372,7 @@ void cCharacter3::dance_loop_ctrl() {
 			mMotFrame = 0.0f;
 			blend_init(actBlendToTime);
 		}
-	} else if (keyCkTrg(pKeys, D_KEY_DOWN)) {
+	} else if (flgD) {
 		mStateMain = STATE::DANCE_ACT;
 		mStateSub = 0;
 		int actRand = ::rand() & 3;
@@ -386,7 +398,7 @@ void cCharacter3::dance_loop_ctrl() {
 		mStateParams[1] = actBlendBackTime;
 		mMotFrame = 0.0f;
 		blend_init(actBlendToTime);
-	} else if (keyCkTrg(pKeys, D_KEY_LEFT)) {
+	} else if (flgL) {
 		mStateMain = STATE::DANCE_ACT;
 		mStateSub = 0;
 		int actRand = ::rand() & 3;
@@ -412,7 +424,7 @@ void cCharacter3::dance_loop_ctrl() {
 		mStateParams[1] = actBlendBackTime;
 		mMotFrame = 0.0f;
 		blend_init(actBlendToTime);
-	} else if (keyCkTrg(pKeys, D_KEY_RIGHT)) {
+	} else if (flgR) {
 		mStateMain = STATE::DANCE_ACT;
 		mStateSub = 0;
 		int actRand = ::rand() & 3;

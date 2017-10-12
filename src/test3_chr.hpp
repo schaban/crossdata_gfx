@@ -10,6 +10,7 @@
 #define D_KEY_B 9
 
 KEY_CTRL* get_ctrl_keys();
+TD_JOYSTICK_CHANNELS* get_td_joy();
 float get_anim_speed();
 bool stg_hit_ck(const cxVec& pos0, const cxVec& pos1, cxVec* pHitPos, cxVec* pHitNrm);
 sxGeometryData* get_stg_obst_geo();

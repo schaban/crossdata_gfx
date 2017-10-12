@@ -1,6 +1,7 @@
 #include "crossdata.hpp"
 #include "gex.hpp"
 #include "keyctrl.hpp"
+#include "remote.hpp"
 #include "util.hpp"
 
 #include "test3_chr.hpp"
