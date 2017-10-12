@@ -171,6 +171,7 @@
     <ClCompile Include="src\keyctrl.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\obstacle.cpp" />
+    <ClCompile Include="src\remote.cpp" />
     <ClCompile Include="src\task.cpp" />
     <ClCompile Include="src\test1.cpp" />
     <ClCompile Include="src\test2.cpp" />
@@ -192,6 +193,7 @@
     <ClInclude Include="src\gpu\defs.h" />
     <ClInclude Include="src\keyctrl.hpp" />
     <ClInclude Include="src\obstacle.hpp" />
+    <ClInclude Include="src\remote.hpp" />
     <ClInclude Include="src\task.hpp" />
     <ClInclude Include="src\test.hpp" />
     <ClInclude Include="src\test3_chr.hpp" />
