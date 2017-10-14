@@ -2300,11 +2300,22 @@ const char* xform_ord_to_str(exTransformOrd xord);
 
 } // nxDataUtil
 
+struct sxPackedData {
+	uint32_t mSig;
+	uint32_t mAttr;
+	uint32_t mPackSize;
+	uint32_t mRawSize;
+
+	static const uint32_t SIG = XD_FOURCC('x', 'p', 'k', 'd');
+};
 
 namespace nxData {
 
 sxData* load(const char* pPath);
 void unload(sxData* pData);
+
+sxPackedData* pack(const uint8_t* pSrc, uint32_t srcSize, uint32_t mode = 0);
+uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag = XD_TMP_MEM_TAG, uint8_t* pDstMem = nullptr, uint32_t dstMemSize = 0);
 
 } // nxData
 
