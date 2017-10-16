@@ -99,7 +99,7 @@ size_t mem_size(void* pMem);
 uint32_t mem_tag(void* pMem);
 void mem_dbg();
 void dbg_msg(const char* fmt, ...);
-void* bin_load(const char* pPath, size_t* pSize = nullptr, bool appendPath = false);
+void* bin_load(const char* pPath, size_t* pSize = nullptr, bool appendPath = false, bool unpack = false);
 void bin_unload(void* pMem);
 void bin_save(const char* pPath, const void* pMem, size_t size);
 uint32_t str_hash32(const char* pStr);

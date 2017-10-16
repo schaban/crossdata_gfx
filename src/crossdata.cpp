@@ -374,7 +374,7 @@ void dbg_msg(const char* fmt, ...) {
 	nxSys::dbgmsg(msg);
 }
 
-void* bin_load(const char* pPath, size_t* pSize, bool appendPath) {
+void* bin_load(const char* pPath, size_t* pSize, bool appendPath, bool unpack) {
 	void* pData = nullptr;
 	size_t size = 0;
 	XD_FHANDLE fh = nxSys::fopen(pPath);
@@ -390,6 +390,26 @@ void* bin_load(const char* pPath, size_t* pSize, bool appendPath) {
 			size = nxSys::fread(fh, pData, fsize);
 		}
 		nxSys::fclose(fh);
+		if (pData && unpack && fsize > sizeof(sxPackedData)) {
+			sxPackedData* pPkd = (sxPackedData*)pData;
+			if (pPkd->mSig == sxPackedData::SIG && pPkd->mPackSize == fsize) {
+				size_t memsize0 = memsize;
+				memsize = pPkd->mRawSize;
+				if (appendPath) {
+					memsize += pathLen + 1;
+				}
+				uint8_t* pUnpkd = (uint8_t*)mem_alloc(memsize, XD_DAT_MEM_TAG);
+				if (nxData::unpack(pPkd, XD_DAT_MEM_TAG, pUnpkd, (uint32_t)memsize)) {
+					size = pPkd->mRawSize;
+					fsize = size;
+					mem_free(pData);
+					pData = pUnpkd;
+				} else {
+					mem_free(pUnpkd);
+					memsize = memsize0;
+				}
+			}
+		}
 		if (pData && appendPath) {
 			nxSys::x_strcpy(&((char*)pData)[fsize], pathLen + 1, pPath);
 		}
@@ -2342,7 +2362,7 @@ namespace nxData {
 
 XD_NOINLINE sxData* load(const char* pPath) {
 	size_t size = 0;
-	sxData* pData = reinterpret_cast<sxData*>(nxCore::bin_load(pPath, &size, true));
+	sxData* pData = reinterpret_cast<sxData*>(nxCore::bin_load(pPath, &size, true, true));
 	if (pData) {
 		if (pData->mFileSize == size) {
 			pData->mFilePathLen = (uint32_t)::strlen(pPath);
@@ -2624,33 +2644,35 @@ uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag, uint8_t* pDstMem, uint32_t 
 			pDst = pDstMem;
 		} else {
 			pDst = (uint8_t*)nxCore::mem_alloc(pPkd->mRawSize, memTag);
-			if (pDst) {
-				int mode = pPkd->mAttr & 0xFF;
-				if (mode == 0) {
-					uint32_t dictSize = ((pPkd->mAttr >> 8) & 0xFF) + 1;
-					uint8_t* pDict = (uint8_t*)(pPkd + 1);
-					uint8_t* pBitCnt = pDict + dictSize;
-					uint8_t* pBitCodes = pBitCnt + pk_bit_cnt_to_bytes(pPkd->mRawSize * 3);
-					pk_decode(pDst, pPkd->mRawSize, pDict, pBitCnt, pBitCodes);
-				} else if (mode == 1) {
-					uint32_t dictSize = ((pPkd->mAttr >> 8) & 0xFF) + 1;
-					uint32_t dictSize2 = ((pPkd->mAttr >> 16) & 0xFF) + 1;
-					uint32_t* pCode2Size = (uint32_t*)(pPkd + 1);
-					uint8_t* pDict = (uint8_t*)(pCode2Size + 1);
-					uint8_t* pDict2 = pDict + dictSize;
-					uint8_t* pCnt2 = pDict2 + dictSize2;
-					uint32_t cntSize = pk_bit_cnt_to_bytes(pPkd->mRawSize * 3);
-					uint8_t* pCode2 = pCnt2 + pk_bit_cnt_to_bytes(cntSize * 3);
-					uint8_t* pCode = pCode2 + *pCode2Size;
-					uint8_t* pCnt = (uint8_t*)nxCore::mem_alloc(cntSize);
-					if (pCnt) {
-						pk_decode(pCnt, cntSize, pDict2, pCnt2, pCode2);
-						pk_decode(pDst, pPkd->mRawSize, pDict, pCnt, pCode);
-						nxCore::mem_free(pCnt);
-					} else {
+		}
+		if (pDst) {
+			int mode = pPkd->mAttr & 0xFF;
+			if (mode == 0) {
+				uint32_t dictSize = ((pPkd->mAttr >> 8) & 0xFF) + 1;
+				uint8_t* pDict = (uint8_t*)(pPkd + 1);
+				uint8_t* pBitCnt = pDict + dictSize;
+				uint8_t* pBitCodes = pBitCnt + pk_bit_cnt_to_bytes(pPkd->mRawSize * 3);
+				pk_decode(pDst, pPkd->mRawSize, pDict, pBitCnt, pBitCodes);
+			} else if (mode == 1) {
+				uint32_t dictSize = ((pPkd->mAttr >> 8) & 0xFF) + 1;
+				uint32_t dictSize2 = ((pPkd->mAttr >> 16) & 0xFF) + 1;
+				uint32_t* pCode2Size = (uint32_t*)(pPkd + 1);
+				uint8_t* pDict = (uint8_t*)(pCode2Size + 1);
+				uint8_t* pDict2 = pDict + dictSize;
+				uint8_t* pCnt2 = pDict2 + dictSize2;
+				uint32_t cntSize = pk_bit_cnt_to_bytes(pPkd->mRawSize * 3);
+				uint8_t* pCode2 = pCnt2 + pk_bit_cnt_to_bytes(cntSize * 3);
+				uint8_t* pCode = pCode2 + *pCode2Size;
+				uint8_t* pCnt = (uint8_t*)nxCore::mem_alloc(cntSize);
+				if (pCnt) {
+					pk_decode(pCnt, cntSize, pDict2, pCnt2, pCode2);
+					pk_decode(pDst, pPkd->mRawSize, pDict, pCnt, pCode);
+					nxCore::mem_free(pCnt);
+				} else {
+					if (pDst != pDstMem) {
 						nxCore::mem_free(pDst);
-						pDst = nullptr;
 					}
+					pDst = nullptr;
 				}
 			}
 		}
