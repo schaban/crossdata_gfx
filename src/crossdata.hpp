@@ -1279,6 +1279,7 @@ public:
 
 	float luma() const { return r*0.299f + g*0.587f + b*0.114f; }
 	float luminance() const { return r*0.212671f + g*0.71516f + b*0.072169f; }
+	float average() const { return (r + g + b) / 3.0f; }
 
 	void scl(float s) {
 		r *= s;
@@ -1311,6 +1312,11 @@ public:
 		g += c.g;
 		b += c.b;
 	}
+
+	cxVec YCgCo() const;
+	void from_YCgCo(const cxVec& ygo);
+	cxVec TMI() const;
+	void from_TMI(const cxVec& tmi);
 };
 
 

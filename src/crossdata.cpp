@@ -2222,6 +2222,42 @@ bool cxFrustum::overlaps(const cxAABB& box) const {
 }
 
 
+cxVec cxColor::YCgCo() const {
+	cxVec rgb(r, g, b);
+	return cxVec(
+		rgb.dot(cxVec(0.25f, 0.5f, 0.25f)),
+		rgb.dot(cxVec(-0.25f, 0.5f, -0.25f)),
+		rgb.dot(cxVec(0.5f, 0.0f, -0.5f))
+	);
+}
+
+void cxColor::from_YCgCo(const cxVec& ygo) {
+	float Y = ygo[0];
+	float G = ygo[1];
+	float O = ygo[2];
+	float t = Y - G;
+	r = t + O;
+	g = Y + G;
+	b = t - O;
+}
+
+cxVec cxColor::TMI() const {
+	float T = b - r;
+	float M = (r - g*2.0f + b) * 0.5f;
+	float I = (r + g + b) / 3.0f;
+	return cxVec(T, M, I);
+}
+
+void cxColor::from_TMI(const cxVec& tmi) {
+	float T = tmi[0];
+	float M = tmi[1];
+	float I = tmi[2];
+	r = I - T*0.5f + M/3.0f;
+	g = I - M*2.0f/3.0f;
+	b = I + T*0.5f + M/3.0f;
+}
+
+
 namespace nxSH {
 
 void calc_weights(float* pWgt, int order, float s, float scl) {
@@ -2612,9 +2648,9 @@ sxPackedData* pack(const uint8_t* pSrc, uint32_t srcSize, uint32_t mode) {
 static void pk_decode(uint8_t* pDst, uint32_t size, uint8_t* pDict, uint8_t* pBitCnt, uint8_t* pBitCodes) {
 	uint32_t codeBitIdx = 0;
 	for (uint32_t i = 0; i < size; ++i) {
-		uint32_t cntIdx = i * 3;
-		uint32_t byteIdx = cntIdx >> 3;
-		uint32_t bitIdx = cntIdx & 7;
+		uint32_t cntBitIdx = i * 3;
+		uint32_t byteIdx = cntBitIdx >> 3;
+		uint32_t bitIdx = cntBitIdx & 7;
 		uint8_t nbits = pBitCnt[byteIdx] >> bitIdx;
 		nbits |= pBitCnt[byteIdx + 1] << (8 - bitIdx);
 		nbits &= 7;
