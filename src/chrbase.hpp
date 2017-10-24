@@ -124,7 +124,7 @@ public:
 	virtual void init(sxRigData* pRigData);
 	virtual void reset();
 
-	virtual float animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg = nullptr);
+	virtual float animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg = nullptr, bool evalExprs = true);
 
 	void blend_init(int duration);
 	void blend_exec();
@@ -159,7 +159,7 @@ public:
 
 	virtual void init(sxRigData* pRigData);
 	virtual void reset();
-	virtual float animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg = nullptr);
+	virtual float animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg = nullptr, bool evalExprs = true);
 };
 
 class cSkinGeo {

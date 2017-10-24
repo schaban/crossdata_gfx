@@ -250,7 +250,7 @@ void cBaseRig::exec_exprs() {
 	}
 }
 
-float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg) {
+float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg, bool evalExprs) {
 	float frame = frameNow;
 	clear_anim_status();
 	if (is_valid() && pKfr && pLnk) {
@@ -293,7 +293,9 @@ float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, f
 			*pLoopFlg = loopFlg;
 		}
 	}
-	exec_exprs();
+	if (evalExprs) {
+		exec_exprs();
+	}
 	return frame;
 }
 
@@ -386,16 +388,19 @@ void cHumanoidRig::reset() {
 	reset_limbs();
 }
 
-float cHumanoidRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg) {
+float cHumanoidRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg, bool evalExprs) {
 	float fnext = frameNow;
 	if (is_valid()) {
-		fnext = cBaseRig::animate(pKfr, pLnk, frameNow, frameAdd, pLoopFlg);
+		fnext = cBaseRig::animate(pKfr, pLnk, frameNow, frameAdd, pLoopFlg, false);
 		update_coord();
 		for (int i = 0; i < 4; ++i) {
 			if (mLimbs[i].mpInfo) {
 				mpData->calc_limb_local(&mLimbs[i].mSolution, mLimbs[i].mChain, mpMtxL);
 				mpData->copy_limb_solution(mpMtxL, mLimbs[i].mChain, mLimbs[i].mSolution);
 			}
+		}
+		if (evalExprs) {
+			exec_exprs();
 		}
 	}
 	return fnext;
