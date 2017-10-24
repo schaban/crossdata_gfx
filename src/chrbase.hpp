@@ -21,6 +21,67 @@ public:
 	eMoveMode mMoveMode;
 
 protected:
+	struct NodeStatus {
+		uint16_t tx : 1;
+		uint16_t ty : 1;
+		uint16_t tz : 1;
+		uint16_t rx : 1;
+		uint16_t ry : 1;
+		uint16_t rz : 1;
+		uint16_t sx : 1;
+		uint16_t sy : 1;
+		uint16_t sz : 1;
+
+		void clear() {
+			*((uint16_t*)this) = 0;
+		}
+
+		bool any_t() const { return tx || ty || tz; }
+		bool any_r() const { return rx || ry || rz; }
+		bool any_s() const { return sx || sy || sz; }
+		bool any() const { return any_t() || any_r() || any_s(); }
+	};
+
+	struct NodeParams {
+		cxVec mPos;
+		cxVec mRot;
+		cxVec mScl;
+		NodeStatus mAnimStatus;
+		NodeStatus mExprStatus;
+	};
+
+	struct ExprChInfo {
+		int16_t mNodeId;
+		exAnimChan mChanId;
+
+		ExprChInfo() : mNodeId(-1), mChanId(exAnimChan::UNKNOWN) {}
+	};
+
+	class ExprCtx : public sxCompiledExpression::ExecIfc {
+	private:
+		cBaseRig* mpRig;
+		sxRigData::ExprInfo** mppInfo;
+		sxCompiledExpression::Stack mStack;
+		int mExprNum;
+		float mRes;
+	public:
+		ExprCtx() : mppInfo(nullptr), mExprNum(0), mRes(0.0f) {}
+
+		void init(cBaseRig& rig);
+		void reset();
+
+		bool ck_expr_idx(int idx) const { return (uint32_t)idx < (uint32_t)mExprNum; }
+		int get_expr_num() const { return mExprNum; }
+		sxRigData::ExprInfo* get_expr_info(int idx) { return (mppInfo && ck_expr_idx(idx)) ? mppInfo[idx] : nullptr; }
+		sxCompiledExpression::Stack* get_stack() { return &mStack; }
+		void set_result(float val) { mRes = val; }
+		float get_result() const { return mRes; }
+		float ch(const sxCompiledExpression::String& path);
+	};
+
+	ExprCtx mExprCtx;
+	NodeParams* mpParams;
+
 	float mBlendDuration;
 	float mBlendCount;
 	float mAnimFrame;
@@ -31,10 +92,19 @@ protected:
 			::memcpy(mpPrevMtxW, mpMtxW, mNodesNum * sizeof(cxMtx));
 		}
 	}
+
+	void clear_anim_status();
+	void clear_expr_status();
+
+	ExprChInfo parse_ch_path(const sxCompiledExpression::String& path) const;
+	float eval_ch(ExprChInfo chi) const;
+	void exec_exprs();
+
 public:
 	cBaseRig()
 	:
 	mpData(nullptr),
+	mpParams(nullptr),
 	mpMtxL(nullptr), mpMtxW(nullptr),
 	mpPrevMtxW(nullptr), mpMtxBlendL(nullptr),
 	mMoveMode(eMoveMode::FCURVES),

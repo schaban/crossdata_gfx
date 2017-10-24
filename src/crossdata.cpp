@@ -2682,7 +2682,7 @@ uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag, uint8_t* pDstMem, uint32_t 
 			pDst = (uint8_t*)nxCore::mem_alloc(pPkd->mRawSize, memTag);
 		}
 		if (pDst) {
-			int mode = pPkd->mAttr & 0xFF;
+			int mode = pPkd->get_mode();
 			if (mode == 0) {
 				uint32_t dictSize = ((pPkd->mAttr >> 8) & 0xFF) + 1;
 				uint8_t* pDict = (uint8_t*)(pPkd + 1);
@@ -3648,6 +3648,51 @@ sxRigData::LimbInfo* sxRigData::find_limb(sxRigData::eLimbType type, int idx) co
 		}
 	}
 	return pLimb;
+}
+
+int sxRigData::get_expr_num() const {
+	int n = 0;
+	Info* pInfo = find_info(eInfoKind::EXPRS);
+	if (pInfo) {
+		n = pInfo->mNum;
+	}
+	return n;
+}
+
+int sxRigData::get_expr_stack_size() const {
+	int stksize = 0;
+	Info* pInfo = find_info(eInfoKind::EXPRS);
+	if (pInfo) {
+		stksize = (int)(pInfo->mParam & 0xFF);
+		if (0 == stksize) {
+			stksize = 16;
+		}
+	}
+	return stksize;
+}
+
+sxRigData::ExprInfo* sxRigData::get_expr_info(int idx) const {
+	ExprInfo* pExprInfo = nullptr;
+	Info* pInfo = find_info(eInfoKind::EXPRS);
+	if (pInfo && pInfo->mOffs) {
+		if ((uint32_t)idx < pInfo->mNum) {
+			uint32_t* pOffs = reinterpret_cast<uint32_t*>(XD_INCR_PTR(this, pInfo->mOffs));
+			uint32_t offs = pOffs[idx];
+			if (offs) {
+				pExprInfo = reinterpret_cast<sxRigData::ExprInfo*>(XD_INCR_PTR(this, offs));
+			}
+		}
+	}
+	return pExprInfo;
+}
+
+sxCompiledExpression* sxRigData::get_expr_code(int idx) const {
+	sxCompiledExpression* pCode = nullptr;
+	ExprInfo* pExprInfo = get_expr_info(idx);
+	if (pExprInfo) {
+		pCode = pExprInfo->get_code();
+	}
+	return pCode;
 }
 
 
@@ -4907,6 +4952,56 @@ sxTextureData::DDS sxTextureData::Pyramid::get_lvl_dds(int idx) const {
 	return dds;
 }
 
+
+
+float sxKeyframesData::RigLink::Node::get_pos_chan(int idx) {
+	float val = 0.0f;
+	if ((uint32_t)idx < 3) {
+		Val* pVal = get_pos_val();
+		if (pVal && pVal->fcvId[idx] >= 0) {
+			val = pVal->f3[idx];
+		}
+	}
+	return val;
+}
+
+float sxKeyframesData::RigLink::Node::get_rot_chan(int idx) {
+	float val = 0.0f;
+	if ((uint32_t)idx < 3) {
+		Val* pVal = get_rot_val();
+		if (pVal && pVal->fcvId[idx] >= 0) {
+			val = pVal->f3[idx];
+		}
+	}
+	return val;
+}
+
+float sxKeyframesData::RigLink::Node::get_scl_chan(int idx) {
+	float val = 1.0f;
+	if ((uint32_t)idx < 3) {
+		Val* pVal = get_scl_val();
+		if (pVal && pVal->fcvId[idx] >= 0) {
+			val = pVal->f3[idx];
+		}
+	}
+	return val;
+}
+
+float sxKeyframesData::RigLink::Node::get_anim_chan(exAnimChan chan) {
+	float val = 0.0f;
+	switch (chan) {
+		case exAnimChan::TX: val = get_pos_chan(0); break;
+		case exAnimChan::TY: val = get_pos_chan(1); break;
+		case exAnimChan::TZ: val = get_pos_chan(2); break;
+		case exAnimChan::RX: val = get_rot_chan(0); break;
+		case exAnimChan::RY: val = get_rot_chan(1); break;
+		case exAnimChan::RZ: val = get_rot_chan(2); break;
+		case exAnimChan::SX: val = get_scl_chan(0); break;
+		case exAnimChan::SY: val = get_scl_chan(1); break;
+		case exAnimChan::SZ: val = get_scl_chan(2); break;
+	}
+	return val;
+}
 
 bool sxKeyframesData::has_node_info() const {
 	bool res = false;

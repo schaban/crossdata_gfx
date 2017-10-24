@@ -28,11 +28,17 @@ void cBaseRig::init(sxRigData* pRigData) {
 	if (!pRigData) return;
 	mpData = pRigData;
 	int nnodes = mpData->get_nodes_num();
+	mpParams = (NodeParams*)nxCore::mem_alloc(nnodes * sizeof(NodeParams), XD_FOURCC('R', 'i', 'g', 'P'));
 	mpMtxL = (cxMtx*)nxCore::mem_alloc(nnodes * sizeof(cxMtx), XD_FOURCC('R', 'i', 'g', 'L'));
 	mpMtxW = (cxMtx*)nxCore::mem_alloc(nnodes * sizeof(cxMtx), XD_FOURCC('R', 'i', 'g', 'W'));
 	mpPrevMtxW = (cxMtx*)nxCore::mem_alloc(nnodes * sizeof(cxMtx), XD_FOURCC('R', 'i', 'g', 'w'));
 	mpMtxBlendL = (cxMtx*)nxCore::mem_alloc(nnodes * sizeof(cxMtx), XD_FOURCC('R', 'i', 'g', 'B'));
 	for (int i = 0; i < nnodes; ++i) {
+		if (mpParams) {
+			mpParams[i].mPos = mpData->get_lpos(i);
+			mpParams[i].mRot = mpData->get_lrot(i);
+			mpParams[i].mScl = mpData->get_lscl(i);
+		}
 		if (mpMtxL) {
 			mpMtxL[i] = mpData->get_lmtx(i);
 		}
@@ -44,16 +50,20 @@ void cBaseRig::init(sxRigData* pRigData) {
 		}
 	}
 	save_prev_w();
+	clear_anim_status();
+	clear_expr_status();
 	mNodesNum = nnodes;
 	mRootNodeId = mpData->find_node("root");
 	mMovementNodeId = mpData->find_node("n_Move");
 	if (!mpData->ck_node_idx(mMovementNodeId)) {
 		mMovementNodeId = mRootNodeId;
 	}
+	mExprCtx.init(*this);
 }
 
 void cBaseRig::reset() {
 	if (!mpData) return;
+	mExprCtx.reset();
 	nxCore::mem_free(mpMtxL);
 	mpMtxL = nullptr;
 	nxCore::mem_free(mpMtxW);
@@ -62,10 +72,187 @@ void cBaseRig::reset() {
 	mpPrevMtxW = nullptr;
 	nxCore::mem_free(mpMtxBlendL);
 	mpMtxBlendL = nullptr;
+	nxCore::mem_free(mpParams);
+	mpParams = nullptr;
+}
+
+void cBaseRig::ExprCtx::init(cBaseRig& rig) {
+	mpRig = &rig;
+	sxRigData* pRigData = rig.mpData;
+	if (pRigData) {
+		int nexpr = pRigData->get_expr_num();
+		if (nexpr > 0) {
+			mExprNum = nexpr;
+			int stksize = pRigData->get_expr_stack_size();
+			mStack.alloc(stksize);
+			mppInfo = (sxRigData::ExprInfo**)nxCore::mem_alloc(nexpr * sizeof(sxRigData::ExprInfo*), XD_FOURCC('R', 'E', 'x', 'p'));
+			if (mppInfo) {
+				for (int i = 0; i < nexpr; ++i) {
+					mppInfo[i] = pRigData->get_expr_info(i);
+				}
+			}
+		}
+	}
+}
+
+void cBaseRig::ExprCtx::reset() {
+	nxCore::mem_free(mppInfo);
+	mppInfo = nullptr;
+	mStack.free();
+	mExprNum = 0;
+	mpRig = nullptr;
+}
+
+float cBaseRig::ExprCtx::ch(const sxCompiledExpression::String& path) {
+	float val = 0.0f;
+	if (mpRig) {
+		ExprChInfo chi = mpRig->parse_ch_path(path);
+		val = mpRig->eval_ch(chi);
+	}
+	return val;
+}
+
+void cBaseRig::clear_anim_status() {
+	if (is_valid() && mpParams) {
+		for (int i = 0; i < mNodesNum; ++i) {
+			mpParams[i].mAnimStatus.clear();
+		}
+	}
+}
+
+void cBaseRig::clear_expr_status() {
+	if (is_valid() && mpParams) {
+		for (int i = 0; i < mNodesNum; ++i) {
+			mpParams[i].mExprStatus.clear();
+		}
+	}
+}
+
+cBaseRig::ExprChInfo cBaseRig::parse_ch_path(const sxCompiledExpression::String& path) const {
+	ExprChInfo chi;
+	const char* pPath = path.mpChars;
+	int pathLen = path.mLen;
+	short pathParts[2];
+	int splitN = 0;
+	for (int i = pathLen; --i;) {
+		if (pPath[i] == '/') {
+			pathParts[splitN] = (short)i;
+			++splitN;
+			if (splitN >= XD_ARY_LEN(pathParts)) break;
+		}
+	}
+	if (splitN > 0) {
+		const char* pChanName = &pPath[pathParts[0] + 1];
+		const char* pNodeName = splitN < 2 ? pPath : &pPath[pathParts[1] + 1];
+		size_t nodeNameLen = splitN < 2 ? pathParts[0] : pathParts[0] - pathParts[1] - 1;
+		char nodeName[128];
+		::memcpy(nodeName, pNodeName, nodeNameLen);
+		nodeName[nodeNameLen] = 0;
+		sxRigData* pRig = get_data();
+		chi.mNodeId = pRig ? pRig->find_node(nodeName) : -1;
+		chi.mChanId = nxDataUtil::anim_chan_from_str(pChanName);
+	}
+	return chi;
+}
+
+float cBaseRig::eval_ch(ExprChInfo chi) const {
+	float val = 0.0f;
+	if (is_valid() && mpData->ck_node_idx(chi.mNodeId) && mpMtxL) {
+		exRotOrd rord = mpData->get_rot_order(chi.mNodeId);
+		exTransformOrd xord = mpData->get_xform_order(chi.mNodeId);
+		cxMtx lm = mpMtxL[chi.mNodeId];
+		cxMtx rt;
+		cxVec scl = lm.get_scl(&rt, xord);
+		switch (chi.mChanId) {
+			case exAnimChan::TX: val = rt.get_translation().x; break;
+			case exAnimChan::TY: val = rt.get_translation().y; break;
+			case exAnimChan::TZ: val = rt.get_translation().z; break;
+			case exAnimChan::RX: val = rt.get_rot_degrees(rord).x; break;
+			case exAnimChan::RY: val = rt.get_rot_degrees(rord).y; break;
+			case exAnimChan::RZ: val = rt.get_rot_degrees(rord).z; break;
+			case exAnimChan::SX: val = scl.x; break;
+			case exAnimChan::SY: val = scl.y; break;
+			case exAnimChan::SZ: val = scl.z; break;
+		}
+	}
+	return val;
+}
+
+void cBaseRig::exec_exprs() {
+	clear_expr_status();
+	if (is_valid()) {
+		int n = mExprCtx.get_expr_num();
+		for (int i = 0; i < n; ++i) {
+			sxRigData::ExprInfo* pInfo = mExprCtx.get_expr_info(i);
+			if (pInfo) {
+				int nodeId = pInfo->mNodeId;
+				if (mpData->ck_node_idx(nodeId)) {
+					pInfo->get_code()->exec(mExprCtx);
+					float res = mExprCtx.get_result();
+					if (mpParams) {
+						switch (pInfo->get_chan_id()) {
+							case exAnimChan::TX:
+								mpParams[nodeId].mPos.x = res;
+								mpParams[nodeId].mExprStatus.tx = 1;
+								break;
+							case exAnimChan::TY:
+								mpParams[nodeId].mPos.y = res;
+								mpParams[nodeId].mExprStatus.ty = 1;
+								break;
+							case exAnimChan::TZ:
+								mpParams[nodeId].mPos.z = res;
+								mpParams[nodeId].mExprStatus.tz = 1;
+								break;
+							case exAnimChan::RX:
+								mpParams[nodeId].mRot.x = res;
+								mpParams[nodeId].mExprStatus.rx = 1;
+								break;
+							case exAnimChan::RY:
+								mpParams[nodeId].mRot.y = res;
+								mpParams[nodeId].mExprStatus.ry = 1;
+								break;
+							case exAnimChan::RZ:
+								mpParams[nodeId].mRot.z = res;
+								mpParams[nodeId].mExprStatus.rz = 1;
+								break;
+							case exAnimChan::SX:
+								mpParams[nodeId].mScl.x = res;
+								mpParams[nodeId].mExprStatus.sx = 1;
+								break;
+							case exAnimChan::SY:
+								mpParams[nodeId].mScl.y = res;
+								mpParams[nodeId].mExprStatus.sy = 1;
+								break;
+							case exAnimChan::SZ:
+								mpParams[nodeId].mScl.z = res;
+								mpParams[nodeId].mExprStatus.sz = 1;
+								break;
+						}
+					}
+				}
+			}
+		}
+		if (mpParams && mpMtxL) {
+			for (int i = 0; i < mNodesNum; ++i) {
+				if (mpParams[i].mExprStatus.any()) {
+					exTransformOrd xord = mpData->get_xform_order(i);
+					exRotOrd rord = mpData->get_rot_order(i);
+					cxMtx tm;
+					tm.mk_translation(mpParams[i].mPos);
+					cxMtx rm;
+					rm.set_rot_degrees(mpParams[i].mRot, rord);
+					cxMtx sm;
+					sm.mk_scl(mpParams[i].mScl);
+					mpMtxL[i].calc_xform(tm, rm, sm, xord);
+				}
+			}
+		}
+	}
 }
 
 float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, float frameNow, float frameAdd, bool* pLoopFlg) {
 	float frame = frameNow;
+	clear_anim_status();
 	if (is_valid() && pKfr && pLnk) {
 		float frmax = (float)pKfr->get_max_fno();
 		mAnimFrame = frame;
@@ -106,6 +293,7 @@ float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, f
 			*pLoopFlg = loopFlg;
 		}
 	}
+	exec_exprs();
 	return frame;
 }
 

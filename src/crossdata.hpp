@@ -1320,6 +1320,8 @@ public:
 };
 
 
+struct sxCompiledExpression;
+
 struct sxStrList {
 	uint32_t mSize;
 	uint32_t mNum;
@@ -1483,7 +1485,8 @@ struct sxRigData : public sxData {
 
 	enum class eInfoKind {
 		LIST  = XD_FOURCC('L', 'I', 'S', 'T'),
-		LIMBS = XD_FOURCC('L', 'I', 'M', 'B')
+		LIMBS = XD_FOURCC('L', 'I', 'M', 'B'),
+		EXPRS = XD_FOURCC('E', 'X', 'P', 'R')
 	};
 
 	enum class eLimbType {
@@ -1513,9 +1516,18 @@ struct sxRigData : public sxData {
 		uint32_t mKind;
 		uint32_t mOffs;
 		uint32_t mNum;
-		uint32_t mReserved;
+		uint32_t mParam;
 
 		eInfoKind get_kind() const { return (eInfoKind)mKind; }
+	};
+
+	struct ExprInfo {
+		int16_t mNodeId;
+		int8_t mChanId;
+		uint8_t mReserved;
+
+		exAnimChan get_chan_id() const { return (exAnimChan)mChanId; }
+		sxCompiledExpression* get_code() { return reinterpret_cast<sxCompiledExpression*>(this + 1); }
 	};
 
 	struct LimbInfo {
@@ -1600,6 +1612,11 @@ struct sxRigData : public sxData {
 	bool has_info_list() const;
 	Info* find_info(eInfoKind kind) const;
 	LimbInfo* find_limb(eLimbType type, int idx = 0) const;
+
+	int get_expr_num() const;
+	int get_expr_stack_size() const;
+	ExprInfo* get_expr_info(int idx) const;
+	sxCompiledExpression* get_expr_code(int idx) const;
 
 	static const uint32_t KIND = XD_FOURCC('X', 'R', 'I', 'G');
 };
@@ -2046,6 +2063,11 @@ struct sxKeyframesData : public sxData {
 			Val* get_pos_val() { return mPosValOffs ? (Val*)XD_INCR_PTR(this, mPosValOffs) : nullptr; }
 			Val* get_rot_val() { return mRotValOffs ? (Val*)XD_INCR_PTR(this, mRotValOffs) : nullptr; }
 			Val* get_scl_val() { return mSclValOffs ? (Val*)XD_INCR_PTR(this, mSclValOffs) : nullptr; }
+
+			float get_pos_chan(int idx);
+			float get_rot_chan(int idx);
+			float get_scl_chan(int idx);
+			float get_anim_chan(exAnimChan chan);
 		};
 
 		int32_t mNodeNum;
@@ -2311,6 +2333,8 @@ struct sxPackedData {
 	uint32_t mAttr;
 	uint32_t mPackSize;
 	uint32_t mRawSize;
+
+	int get_mode() const { return (int)(mAttr & 0xFF); }
 
 	static const uint32_t SIG = XD_FOURCC('x', 'p', 'k', 'd');
 };
