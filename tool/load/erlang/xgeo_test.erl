@@ -14,17 +14,15 @@ read_pts(Bin) ->
 read_pol_data(Bin, Offs, Arity, IdxByteSize) ->
 	IdxDataSize = Arity*IdxByteSize,
 	<<_:Offs/binary, PolBin:IdxDataSize/binary, _/binary>> = Bin,
-	read_int_lst(PolBin, Arity, IdxByteSize).
+	read_int_lst(PolBin, IdxByteSize).
 read_pol(Lst, _, [], [], _) -> Lst;
 read_pol(Lst, Bin, [Offs | OffsT], [Arity | ArityT], IdxByteSize) ->
 	[read_pol_data(Bin, Offs, Arity, IdxByteSize) | read_pol(Lst, Bin, OffsT, ArityT, IdxByteSize)].
 read_pols(Bin, OffsLst, ArityLst, IdxByteSize) -> read_pol([], Bin, OffsLst, ArityLst, IdxByteSize).
 
-read_int_lst(Lst, _, 0, _) -> Lst;
-read_int_lst(Lst, Bin, Num, BitsPerVal) ->
-	<< Idx:BitsPerVal/little, Next/binary >> = Bin,
-	[Idx | read_int_lst(Lst, Next, Num - 1, BitsPerVal)].
-read_int_lst(Bin, Num, BytesPerVal) -> read_int_lst([], Bin, Num, BytesPerVal*8).
+read_int_lst(Bin, BytesPerVal) ->
+	BitsPerVal = BytesPerVal*8,
+	[Val || <<Val:BitsPerVal/little>> <= Bin].
 
 write_vtx(Out, V) -> io:format(Out, "v ~f ~f ~f~n", [element(1, V), element(2, V), element(3, V)]).
 
@@ -138,11 +136,11 @@ xgeo_read(Bin) ->
 		false ->
 			PolOffsDataSize = PolNum*4,
 			<<_:OffsPol/binary, PolOffsBin:PolOffsDataSize/binary, _/binary>> = Bin,
-			PolOffsLst = read_int_lst(PolOffsBin, PolNum, 4),
+			PolOffsLst = read_int_lst(PolOffsBin, 4),
 			PolArityDataSize = PolNum*PolAritySize,
 			PolArityTop = OffsPol + PolOffsDataSize + MtlIdSize*PolNum,
 			<< _:PolArityTop/binary, PolArityBin:PolArityDataSize/binary, _/binary>> = Bin,
-			PolArityLst = read_int_lst(PolArityBin, PolNum, PolAritySize)
+			PolArityLst = read_int_lst(PolArityBin, PolAritySize)
 	end,
 	Pols = read_pols(Bin, PolOffsLst, PolArityLst, IdxByteSize),
 
