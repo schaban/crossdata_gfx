@@ -5003,6 +5003,49 @@ float sxKeyframesData::RigLink::Node::get_anim_chan(exAnimChan chan) {
 	return val;
 }
 
+bool sxKeyframesData::RigLink::Node::ck_pos_chan(int idx) {
+	bool res = false;
+	if ((uint32_t)idx < 3) {
+		Val* pVal = get_pos_val();
+		res = (pVal && pVal->fcvId[idx] >= 0);
+	}
+	return res;
+}
+
+bool sxKeyframesData::RigLink::Node::ck_rot_chan(int idx) {
+	bool res = false;
+	if ((uint32_t)idx < 3) {
+		Val* pVal = get_rot_val();
+		res = (pVal && pVal->fcvId[idx] >= 0);
+	}
+	return res;
+}
+
+bool sxKeyframesData::RigLink::Node::ck_scl_chan(int idx) {
+	bool res = false;
+	if ((uint32_t)idx < 3) {
+		Val* pVal = get_scl_val();
+		res = (pVal && pVal->fcvId[idx] >= 0);
+	}
+	return res;
+}
+
+bool sxKeyframesData::RigLink::Node::ck_anim_chan(exAnimChan chan) {
+	bool res = false;
+	switch (chan) {
+		case exAnimChan::TX: res = ck_pos_chan(0); break;
+		case exAnimChan::TY: res = ck_pos_chan(1); break;
+		case exAnimChan::TZ: res = ck_pos_chan(2); break;
+		case exAnimChan::RX: res = ck_rot_chan(0); break;
+		case exAnimChan::RY: res = ck_rot_chan(1); break;
+		case exAnimChan::RZ: res = ck_rot_chan(2); break;
+		case exAnimChan::SX: res = ck_scl_chan(0); break;
+		case exAnimChan::SY: res = ck_scl_chan(1); break;
+		case exAnimChan::SZ: res = ck_scl_chan(2); break;
+	}
+	return res;
+}
+
 bool sxKeyframesData::has_node_info() const {
 	bool res = false;
 	ptrdiff_t offs = (uint8_t*)&mNodeInfoNum - (uint8_t*)this;

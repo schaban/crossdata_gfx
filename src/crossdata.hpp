@@ -2068,6 +2068,10 @@ struct sxKeyframesData : public sxData {
 			float get_rot_chan(int idx);
 			float get_scl_chan(int idx);
 			float get_anim_chan(exAnimChan chan);
+			bool ck_pos_chan(int idx);
+			bool ck_rot_chan(int idx);
+			bool ck_scl_chan(int idx);
+			bool ck_anim_chan(exAnimChan chan);
 		};
 
 		int32_t mNodeNum;
