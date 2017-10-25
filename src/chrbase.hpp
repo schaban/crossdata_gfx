@@ -5,22 +5,6 @@ public:
 		FCURVES
 	};
 
-	sxRigData* mpData;
-	cxMtx* mpMtxL;
-	cxMtx* mpMtxW;
-	cxMtx* mpPrevMtxW;
-	cxMtx* mpMtxBlendL;
-	cxVec mMoveVel;
-	cxVec mConstMoveVel;
-	cxVec mPrevWorldPos;
-	cxVec mWorldPos;
-	cxVec mWorldRot;
-	int mNodesNum;
-	int mRootNodeId;
-	int mMovementNodeId;
-	eMoveMode mMoveMode;
-
-protected:
 	struct NodeStatus {
 		uint16_t tx : 1;
 		uint16_t ty : 1;
@@ -40,6 +24,11 @@ protected:
 		bool any_r() const { return rx || ry || rz; }
 		bool any_s() const { return sx || sy || sz; }
 		bool any() const { return any_t() || any_r() || any_s(); }
+
+		bool all_t() const { return tx && ty && tz; }
+		bool all_r() const { return rx && ry && rz; }
+
+		bool ck(exAnimChan ch);
 	};
 
 	struct NodeParams {
@@ -48,7 +37,28 @@ protected:
 		cxVec mScl;
 		NodeStatus mAnimStatus;
 		NodeStatus mExprStatus;
+
+		float get_ch(exAnimChan ch);
+		void update_anim_ch(exAnimChan ch, float val);
+		void update_expr_ch(exAnimChan ch, float val);
 	};
+
+	sxRigData* mpData;
+	cxMtx* mpMtxL;
+	cxMtx* mpMtxW;
+	cxMtx* mpPrevMtxW;
+	cxMtx* mpMtxBlendL;
+	cxVec mMoveVel;
+	cxVec mConstMoveVel;
+	cxVec mPrevWorldPos;
+	cxVec mWorldPos;
+	cxVec mWorldRot;
+	int mNodesNum;
+	int mRootNodeId;
+	int mMovementNodeId;
+	eMoveMode mMoveMode;
+
+protected:
 
 	struct ExprChInfo {
 		int16_t mNodeId;

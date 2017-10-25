@@ -155,27 +155,91 @@ cBaseRig::ExprChInfo cBaseRig::parse_ch_path(const sxCompiledExpression::String&
 	return chi;
 }
 
+bool cBaseRig::NodeStatus::ck(exAnimChan ch) {
+	bool res = false;
+	switch (ch) {
+		case exAnimChan::TX: res = !!tx; break;
+		case exAnimChan::TY: res = !!ty; break;
+		case exAnimChan::TZ: res = !!tz; break;
+		case exAnimChan::RX: res = !!rx; break;
+		case exAnimChan::RY: res = !!ry; break;
+		case exAnimChan::RZ: res = !!rz; break;
+		case exAnimChan::SX: res = !!sx; break;
+		case exAnimChan::SY: res = !!sy; break;
+		case exAnimChan::SZ: res = !!sz; break;
+	}
+	return res;
+}
+
 float cBaseRig::eval_ch(ExprChInfo chi) const {
 	float val = 0.0f;
-	if (is_valid() && mpData->ck_node_idx(chi.mNodeId) && mpMtxL) {
-		exRotOrd rord = mpData->get_rot_order(chi.mNodeId);
-		exTransformOrd xord = mpData->get_xform_order(chi.mNodeId);
-		cxMtx lm = mpMtxL[chi.mNodeId];
-		cxMtx rt;
-		cxVec scl = lm.get_scl(&rt, xord);
-		switch (chi.mChanId) {
-			case exAnimChan::TX: val = rt.get_translation().x; break;
-			case exAnimChan::TY: val = rt.get_translation().y; break;
-			case exAnimChan::TZ: val = rt.get_translation().z; break;
-			case exAnimChan::RX: val = rt.get_rot_degrees(rord).x; break;
-			case exAnimChan::RY: val = rt.get_rot_degrees(rord).y; break;
-			case exAnimChan::RZ: val = rt.get_rot_degrees(rord).z; break;
-			case exAnimChan::SX: val = scl.x; break;
-			case exAnimChan::SY: val = scl.y; break;
-			case exAnimChan::SZ: val = scl.z; break;
+	int nodeId = chi.mNodeId;
+	if (is_valid() && mpData->ck_node_idx(nodeId)) {
+		bool useAnim = false;
+		if (mpParams) {
+			useAnim = mpParams[nodeId].mAnimStatus.ck(chi.mChanId);
+		}
+		if (useAnim) {
+			val = mpParams[nodeId].get_ch(chi.mChanId);
+		} else if (mpMtxL) {
+			exRotOrd rord = mpData->get_rot_order(nodeId);
+			exTransformOrd xord = mpData->get_xform_order(nodeId);
+			cxMtx lm = mpMtxL[nodeId];
+			cxMtx rt;
+			cxVec scl = lm.get_scl(&rt, xord);
+			switch (chi.mChanId) {
+				case exAnimChan::TX: val = rt.get_translation().x; break;
+				case exAnimChan::TY: val = rt.get_translation().y; break;
+				case exAnimChan::TZ: val = rt.get_translation().z; break;
+				case exAnimChan::RX: val = rt.get_rot_degrees(rord).x; break;
+				case exAnimChan::RY: val = rt.get_rot_degrees(rord).y; break;
+				case exAnimChan::RZ: val = rt.get_rot_degrees(rord).z; break;
+				case exAnimChan::SX: val = scl.x; break;
+				case exAnimChan::SY: val = scl.y; break;
+				case exAnimChan::SZ: val = scl.z; break;
+			}
 		}
 	}
 	return val;
+}
+
+static void update_prm_ch(cBaseRig::NodeParams* pPrm, exAnimChan ch, float val, bool isExpr) {
+	cBaseRig::NodeStatus* pStt = isExpr ? &pPrm->mExprStatus : &pPrm->mAnimStatus;
+	switch (ch) {
+		case exAnimChan::TX: pPrm->mPos.x = val; pStt->tx = 1; break;
+		case exAnimChan::TY: pPrm->mPos.y = val; pStt->ty = 1; break;
+		case exAnimChan::TZ: pPrm->mPos.z = val; pStt->tz = 1; break;
+		case exAnimChan::RX: pPrm->mRot.x = val; pStt->rx = 1; break;
+		case exAnimChan::RY: pPrm->mRot.y = val; pStt->ry = 1; break;
+		case exAnimChan::RZ: pPrm->mRot.z = val; pStt->rz = 1; break;
+		case exAnimChan::SX: pPrm->mScl.x = val; pStt->sx = 1; break;
+		case exAnimChan::SY: pPrm->mScl.y = val; pStt->sy = 1; break;
+		case exAnimChan::SZ: pPrm->mScl.z = val; pStt->sz = 1; break;
+	}
+}
+
+float cBaseRig::NodeParams::get_ch(exAnimChan ch) {
+	float val = 0.0f;
+	switch (ch) {
+		case exAnimChan::TX: val = mPos.x; break;
+		case exAnimChan::TY: val = mPos.y; break;
+		case exAnimChan::TZ: val = mPos.z; break;
+		case exAnimChan::RX: val = mRot.x; break;
+		case exAnimChan::RY: val = mRot.y; break;
+		case exAnimChan::RZ: val = mRot.z; break;
+		case exAnimChan::SX: val = mScl.x; break;
+		case exAnimChan::SY: val = mScl.y; break;
+		case exAnimChan::SZ: val = mScl.z; break;
+	}
+	return val;
+}
+
+void cBaseRig::NodeParams::update_anim_ch(exAnimChan ch, float val) {
+	update_prm_ch(this, ch, val, false);
+}
+
+void cBaseRig::NodeParams::update_expr_ch(exAnimChan ch, float val) {
+	update_prm_ch(this, ch, val, true);
 }
 
 void cBaseRig::exec_exprs() {
@@ -190,44 +254,7 @@ void cBaseRig::exec_exprs() {
 					pInfo->get_code()->exec(mExprCtx);
 					float res = mExprCtx.get_result();
 					if (mpParams) {
-						switch (pInfo->get_chan_id()) {
-							case exAnimChan::TX:
-								mpParams[nodeId].mPos.x = res;
-								mpParams[nodeId].mExprStatus.tx = 1;
-								break;
-							case exAnimChan::TY:
-								mpParams[nodeId].mPos.y = res;
-								mpParams[nodeId].mExprStatus.ty = 1;
-								break;
-							case exAnimChan::TZ:
-								mpParams[nodeId].mPos.z = res;
-								mpParams[nodeId].mExprStatus.tz = 1;
-								break;
-							case exAnimChan::RX:
-								mpParams[nodeId].mRot.x = res;
-								mpParams[nodeId].mExprStatus.rx = 1;
-								break;
-							case exAnimChan::RY:
-								mpParams[nodeId].mRot.y = res;
-								mpParams[nodeId].mExprStatus.ry = 1;
-								break;
-							case exAnimChan::RZ:
-								mpParams[nodeId].mRot.z = res;
-								mpParams[nodeId].mExprStatus.rz = 1;
-								break;
-							case exAnimChan::SX:
-								mpParams[nodeId].mScl.x = res;
-								mpParams[nodeId].mExprStatus.sx = 1;
-								break;
-							case exAnimChan::SY:
-								mpParams[nodeId].mScl.y = res;
-								mpParams[nodeId].mExprStatus.sy = 1;
-								break;
-							case exAnimChan::SZ:
-								mpParams[nodeId].mScl.z = res;
-								mpParams[nodeId].mExprStatus.sz = 1;
-								break;
-						}
+						mpParams[nodeId].update_expr_ch(pInfo->get_chan_id(), res);
 					}
 				}
 			}
@@ -254,12 +281,29 @@ float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, f
 	float frame = frameNow;
 	clear_anim_status();
 	if (is_valid() && pKfr && pLnk) {
+		int16_t* pMotToRig = pLnk->get_rig_map();
 		float frmax = (float)pKfr->get_max_fno();
 		mAnimFrame = frame;
 		pKfr->eval_rig_link(pLnk, frame, mpData, mpMtxL);
+		if (pMotToRig && mpParams) {
+			for (int i = 0; i < pLnk->mNodeNum; ++i) {
+				sxKeyframesData::RigLink::Node* pLnkNode = &pLnk->mNodes[i];
+				NodeParams* pPrm = &mpParams[pLnkNode->mRigNodeId];
+				static exAnimChan ctbl[] = {
+					exAnimChan::TX, exAnimChan::TY, exAnimChan::TZ,
+					exAnimChan::RX, exAnimChan::RY, exAnimChan::RZ,
+					exAnimChan::SX, exAnimChan::SY, exAnimChan::SZ
+				};
+				for (int ci = 0; ci < XD_ARY_LEN(ctbl); ++ci) {
+					exAnimChan ch = ctbl[ci];
+					if (pLnkNode->ck_anim_chan(ch)) {
+						pPrm->update_anim_ch(ch, pLnkNode->get_anim_chan(ch));
+					}
+				}
+			}
+		}
 		mMoveVel = mConstMoveVel * frameAdd;
 		if (mMoveMode == eMoveMode::FCURVES && mpData->ck_node_idx(mMovementNodeId)) {
-			int16_t* pMotToRig = pLnk->get_rig_map();
 			if (pMotToRig) {
 				int moveGrpId = pMotToRig[mMovementNodeId];
 				if (moveGrpId >= 0) {
