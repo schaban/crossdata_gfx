@@ -4079,6 +4079,24 @@ sxGeometryData::Group sxGeometryData::get_mtl_grp(int idx) const {
 	return grp;
 }
 
+const char* sxGeometryData::get_mtl_name(int idx) const {
+	const char* pName = nullptr;
+	GrpInfo* pInfo = get_mtl_info(idx);
+	if (pInfo) {
+		pName = get_str(pInfo->mNameId);
+	}
+	return pName;
+}
+
+const char* sxGeometryData::get_mtl_path(int idx) const {
+	const char* pPath = nullptr;
+	GrpInfo* pInfo = get_mtl_info(idx);
+	if (pInfo) {
+		pPath = get_str(pInfo->mPathId);
+	}
+	return pPath;
+}
+
 sxGeometryData::GrpInfo* sxGeometryData::get_pnt_grp_info(int idx) const {
 	GrpInfo* pInfo = nullptr;
 	if (ck_pnt_grp_idx(idx) && mPntGrpOffs) {
@@ -4568,6 +4586,267 @@ uint16_t* sxGeometryData::Group::get_skin_ids() const {
 		}
 	}
 	return pLst;
+}
+
+void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* pBatGrpPrefix) {
+	int nmtl = geo.get_mtl_num();
+	int nbat = nmtl > 0 ? nmtl : 1;
+	int batGrpCount = 0;
+	int* pBatGrpIdx = nullptr;
+	if (pBatGrpPrefix) {
+		for (int i = 0; i < geo.get_pol_grp_num(); ++i) {
+			Group polGrp = geo.get_pol_grp(i);
+			if (polGrp.is_valid()) {
+				const char* pPolGrpName = polGrp.get_name();
+				if (nxCore::str_starts_with(pPolGrpName, pBatGrpPrefix)) {
+					++batGrpCount;
+				}
+			}
+		}
+		if (batGrpCount > 0) {
+			nbat = batGrpCount;
+			pBatGrpIdx = reinterpret_cast<int*>(nxCore::mem_alloc(batGrpCount * sizeof(int), XD_TMP_MEM_TAG));
+			batGrpCount = 0;
+			if (pBatGrpIdx) {
+				for (int i = 0; i < geo.get_pol_grp_num(); ++i) {
+					Group polGrp = geo.get_pol_grp(i);
+					if (polGrp.is_valid()) {
+						const char* pPolGrpName = polGrp.get_name();
+						if (nxCore::str_starts_with(pPolGrpName, pBatGrpPrefix)) {
+							pBatGrpIdx[batGrpCount] = i;
+							++batGrpCount;
+						}
+					}
+				}
+			}
+		}
+	}
+	int ntri = 0;
+	int nidx16 = 0;
+	int nidx32 = 0;
+	for (int i = 0; i < nbat; ++i) {
+		int npol = 0;
+		if (batGrpCount > 0) {
+			int batGrpIdx = pBatGrpIdx[i];
+			Group batGrp = geo.get_pol_grp(batGrpIdx);
+			npol = batGrp.get_idx_num();
+		} else {
+			if (nmtl > 0) {
+				Group mtlGrp = geo.get_mtl_grp(i);
+				npol = mtlGrp.get_idx_num();
+			} else {
+				npol = geo.get_pol_num();
+			}
+		}
+		int minIdx = 0;
+		int maxIdx = 0;
+		int batIdxCnt = 0;
+		for (int j = 0; j < npol; ++j) {
+			int polIdx = 0;
+			if (batGrpCount > 0) {
+				int batGrpIdx = pBatGrpIdx[i];
+				Group batGrp = geo.get_pol_grp(batGrpIdx);
+				polIdx = batGrp.get_idx(j);
+			} else {
+				if (nmtl > 0) {
+					polIdx = geo.get_mtl_grp(i).get_idx(j);
+				} else {
+					polIdx = j;
+				}
+			}
+			Polygon pol = geo.get_pol(polIdx);
+			if (pol.is_tri()) {
+				for (int k = 0; k < 3; ++k) {
+					int vtxId = pol.get_vtx_pnt_id(k);
+					if (batIdxCnt > 0) {
+						minIdx = nxCalc::min(minIdx, vtxId);
+						maxIdx = nxCalc::max(maxIdx, vtxId);
+					} else {
+						minIdx = vtxId;
+						maxIdx = vtxId;
+					}
+					++batIdxCnt;
+				}
+				++ntri;
+			}
+		}
+		if ((maxIdx - minIdx) < (1 << 16)) {
+			nidx16 += batIdxCnt;
+		} else {
+			nidx32 += batIdxCnt;
+		}
+	}
+	size_t size = XD_ALIGN(sizeof(Data), 0x10);
+	uint32_t offsBat = (uint32_t)size;
+	size += XD_ALIGN(nbat * sizeof(Batch), 0x10);
+	uint32_t offsIdx32 = nidx32 > 0 ? (uint32_t)size : 0;
+	size += XD_ALIGN(nidx32 * sizeof(uint32_t), 0x10);
+	uint32_t offsIdx16 = nidx16 > 0 ? (uint32_t)size : 0;
+	size += XD_ALIGN(nidx16 * sizeof(uint16_t), 0x10);
+	Data* pData = (Data*)nxCore::mem_alloc(size, XD_FOURCC('G', 'D', 'L', 'D'));
+	if (!pData) {
+		return;
+	}
+	::memset(pData, 0, size);
+	pData->mOffsBat = offsBat;
+	pData->mOffsIdx32 = offsIdx32;
+	pData->mOffsIdx16 = offsIdx16;
+	pData->mIdx16Num = nidx16;
+	pData->mIdx32Num = nidx32;
+	pData->mMtlNum = nmtl;
+	pData->mBatNum = nbat;
+	pData->mTriNum = ntri;
+	mpGeo = &geo;
+	mpData = pData;
+	nidx16 = 0;
+	nidx32 = 0;
+	for (int i = 0; i < nbat; ++i) {
+		Batch* pBat = get_bat(i);
+		int npol = 0;
+		if (pBat) {
+			if (batGrpCount > 0) {
+				int batGrpIdx = pBatGrpIdx[i];
+				Group batGrp = geo.get_pol_grp(batGrpIdx);
+				pBat->mMtlId = geo.get_pol(batGrp.get_idx(0)).get_mtl_id();
+				if (geo.has_skin()) {
+					pBat->mMaxWgtNum = batGrp.get_max_wgt_num();
+				}
+				npol = batGrp.get_idx_num();
+			} else {
+				pBat->mGrpId = -1;
+				if (nmtl > 0) {
+					Group mtlGrp = geo.get_mtl_grp(i);
+					pBat->mMtlId = i;
+					if (geo.has_skin()) {
+						pBat->mMaxWgtNum = mtlGrp.get_max_wgt_num();
+					}
+					npol = mtlGrp.get_idx_num();
+				} else {
+					pBat->mMtlId = -1;
+					if (geo.has_skin()) {
+						pBat->mMaxWgtNum = geo.mMaxSkinWgtNum;
+					}
+					npol = geo.get_pol_num();
+				}
+			}
+			int batIdxCnt = 0;
+			pBat->mTriNum = 0;
+			for (int j = 0; j < npol; ++j) {
+				int polIdx = 0;
+				if (batGrpCount > 0) {
+					int batGrpIdx = pBatGrpIdx[i];
+					Group batGrp = geo.get_pol_grp(batGrpIdx);
+					polIdx = batGrp.get_idx(j);
+				} else {
+					if (nmtl > 0) {
+						polIdx = geo.get_mtl_grp(i).get_idx(j);
+					} else {
+						polIdx = j;
+					}
+				}
+				Polygon pol = geo.get_pol(polIdx);
+				if (pol.is_tri()) {
+					for (int k = 0; k < 3; ++k) {
+						int vtxId = pol.get_vtx_pnt_id(k);
+						if (batIdxCnt > 0) {
+							pBat->mMinIdx = nxCalc::min(pBat->mMinIdx, vtxId);
+							pBat->mMaxIdx = nxCalc::max(pBat->mMaxIdx, vtxId);
+						} else {
+							pBat->mMinIdx = vtxId;
+							pBat->mMaxIdx = vtxId;
+						}
+						++batIdxCnt;
+					}
+					++pBat->mTriNum;
+				}
+			}
+			if (pBat->is_idx16()) {
+				pBat->mIdxOrg = nidx16;
+				nidx16 += batIdxCnt;
+			} else {
+				pBat->mIdxOrg = nidx32;
+				nidx32 += batIdxCnt;
+			}
+		}
+	}
+	nidx16 = 0;
+	nidx32 = 0;
+	for (int i = 0; i < nbat; ++i) {
+		Batch* pBat = get_bat(i);
+		int npol = 0;
+		if (pBat) {
+			if (batGrpCount > 0) {
+				int batGrpIdx = pBatGrpIdx[i];
+				Group batGrp = geo.get_pol_grp(batGrpIdx);
+				npol = batGrp.get_idx_num();
+			} else {
+				pBat->mGrpId = -1;
+				if (nmtl > 0) {
+					Group mtlGrp = geo.get_mtl_grp(i);
+					npol = mtlGrp.get_idx_num();
+				} else {
+					npol = geo.get_pol_num();
+				}
+			}
+			for (int j = 0; j < npol; ++j) {
+				int polIdx = 0;
+				if (batGrpCount > 0) {
+					int batGrpIdx = pBatGrpIdx[i];
+					Group batGrp = geo.get_pol_grp(batGrpIdx);
+					polIdx = batGrp.get_idx(j);
+				} else {
+					if (nmtl > 0) {
+						polIdx = geo.get_mtl_grp(i).get_idx(j);
+					} else {
+						polIdx = j;
+					}
+				}
+				Polygon pol = geo.get_pol(polIdx);
+				if (pol.is_tri()) {
+					if (pBat->is_idx16()) {
+						uint16_t* pIdx16 = pData->get_idx16();
+						if (pIdx16) {
+							for (int k = 0; k < 3; ++k) {
+								pIdx16[nidx16 + k] = (uint16_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
+							}
+						}
+						nidx16 += 3;
+					} else {
+						uint32_t* pIdx32 = pData->get_idx32();
+						if (pIdx32) {
+							for (int k = 0; k < 3; ++k) {
+								pIdx32[nidx32 + k] = (uint32_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (pBatGrpIdx) {
+		nxCore::mem_free(pBatGrpIdx);
+		pBatGrpIdx = nullptr;
+	}
+}
+
+void sxGeometryData::DisplayList::destroy() {
+	if (mpData) {
+		nxCore::mem_free(mpData);
+	}
+	mpData = nullptr;
+	mpGeo = nullptr;
+}
+
+const char* sxGeometryData::DisplayList::get_bat_mtl_name(int batIdx) const {
+	const char* pMtlName = nullptr;
+	if (is_valid()) {
+		Batch* pBat = get_bat(batIdx);
+		if (pBat) {
+			pMtlName = mpGeo->get_mtl_name(pBat->mMtlId);
+		}
+	}
+	return pMtlName;
 }
 
 

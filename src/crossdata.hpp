@@ -1780,6 +1780,67 @@ struct sxGeometryData : public sxData {
 		uint32_t mReserved2;
 	};
 
+	class DisplayList {
+	public:
+		struct Batch {
+			int32_t mMtlId;
+			int32_t mGrpId; /* -1 for material groups */
+			int32_t mMinIdx;
+			int32_t mMaxIdx;
+			int32_t mIdxOrg;
+			int32_t mTriNum;
+			int32_t mMaxWgtNum;
+			int32_t mSkinNodesNum;
+
+			bool is_idx16() const { return (mMaxIdx - mMinIdx) < (1 << 16); }
+		};
+
+	private:
+		struct Data {
+			uint32_t mOffsBat;
+			uint32_t mOffsIdx32;
+			uint32_t mOffsIdx16;
+			uint32_t mMtlNum;
+			uint32_t mBatNum;
+			uint32_t mTriNum;
+			uint32_t mIdx16Num;
+			uint32_t mIdx32Num;
+
+			Batch* get_bat_top() { return mOffsBat ? reinterpret_cast<Batch*>(XD_INCR_PTR(this, mOffsBat)) : nullptr; }
+			uint16_t* get_idx16() { return mOffsIdx16 ? reinterpret_cast<uint16_t*>(XD_INCR_PTR(this, mOffsIdx16)) : nullptr; }
+			uint32_t* get_idx32() { return mOffsIdx32 ? reinterpret_cast<uint32_t*>(XD_INCR_PTR(this, mOffsIdx32)) : nullptr; }
+		};
+
+		const sxGeometryData* mpGeo;
+		Data* mpData;
+
+		DisplayList() : mpGeo(nullptr), mpData(nullptr) {}
+
+		void create(const sxGeometryData& geo, const char* pBatGrpPrefix = nullptr);
+
+		friend struct sxGeometryData;
+
+	public:
+		~DisplayList() { destroy(); }
+
+		void destroy();
+
+		bool is_valid() const { return mpGeo != nullptr && mpData != nullptr; }
+
+		int get_mtl_num() const { return mpData ? mpData->mMtlNum : 0; }
+		int get_bat_num() const { return mpData ? mpData->mBatNum : 0; }
+		int get_tri_num() const { return mpData ? mpData->mTriNum : 0; }
+
+		int get_idx16_num() const { return mpData ? mpData->mIdx16Num : 0; }
+		uint16_t* get_idx16_buf() { return mpData ? mpData->get_idx16() : nullptr; }
+		int get_idx32_num() const { return mpData ? mpData->mIdx32Num : 0; }
+		uint32_t* get_idx32_buf() { return mpData ? mpData->get_idx32() : nullptr; }
+
+		bool bat_idx_ck(int idx) const { return mpData ? (uint32_t)idx < mpData->mBatNum : false; }
+		Batch* get_bat(int idx) const { return bat_idx_ck(idx) ? mpData->get_bat_top() + idx : nullptr; }
+		const char* get_bat_mtl_name(int batIdx) const;
+	};
+
 	int get_pnt_num() const { return mPntNum; }
 	int get_pol_num() const { return mPolNum; }
 	int get_mtl_num() const { return mMtlNum; }
@@ -1840,6 +1901,8 @@ struct sxGeometryData : public sxData {
 	Group find_mtl_grp(const char* pName, const char* pPath = nullptr) const { return get_mtl_grp(find_mtl_grp_idx(pName, pPath)); }
 	GrpInfo* get_mtl_info(int idx) const;
 	Group get_mtl_grp(int idx) const;
+	const char* get_mtl_name(int idx) const;
+	const char* get_mtl_path(int idx) const;
 	GrpInfo* get_pnt_grp_info(int idx) const;
 	Group get_pnt_grp(int idx) const;
 	GrpInfo* get_pol_grp_info(int idx) const;
