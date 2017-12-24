@@ -693,7 +693,7 @@ bool cCharacter3::prop_adj() {
 }
 
 void cCharacter3::update() {
-	static StateFunc danceCtrlTbl[] = {
+	static StateFunc ctrlTbl[] = {
 		&cCharacter3::dance_loop_ctrl,
 		&cCharacter3::dance_act_ctrl,
 		&cCharacter3::idle_ctrl,
@@ -701,7 +701,7 @@ void cCharacter3::update() {
 		&cCharacter3::walk_ctrl,
 		&cCharacter3::run_ctrl
 	};
-	static StateFunc danceExecTbl[] = {
+	static StateFunc execTbl[] = {
 		&cCharacter3::dance_loop_exec,
 		&cCharacter3::dance_act_exec,
 		&cCharacter3::idle_exec,
@@ -709,8 +709,8 @@ void cCharacter3::update() {
 		&cCharacter3::walk_exec,
 		&cCharacter3::run_exec
 	};
-	(this->*danceCtrlTbl[(int)mStateMain])();
-	(this->*danceExecTbl[(int)mStateMain])();
+	(this->*ctrlTbl[(int)mStateMain])();
+	(this->*execTbl[(int)mStateMain])();
 
 	bool adjFlg = false;
 	adjFlg |= prop_adj();
