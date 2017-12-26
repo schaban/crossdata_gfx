@@ -63,6 +63,34 @@ void util_reset() {
 	WK.clear();
 }
 
+cxMtx TD_CAM_INFO::calc_xform() const {
+	cxMtx tns = nxMtx::mk_translation(cxVec(mX, mY, mZ));
+	cxMtx scl = nxMtx::mk_scl(1.0f);
+	cxMtx rot;
+	rot.set_rot_degrees(cxVec(mRotX, mRotY, mRotZ), rord());
+	cxMtx xform;
+	xform.calc_xform(tns, rot, scl, xord());
+	cxVec piv(mPivotX, mPivotY, mPivotZ);
+	xform = nxMtx::mk_translation(piv.neg_val()) * xform * nxMtx::mk_translation(piv);
+	return xform;
+}
+
+void TD_CAM_INFO::calc_pos_tgt(cxVec* pPos, cxVec* pTgt, float dist) const {
+	if (dist == 0.0f) {
+		dist = mFar - mNear;
+	}
+	cxMtx xform = calc_xform();
+	cxVec pos = xform.get_translation();
+	cxVec dir = xform.get_row_vec(2).neg_val();
+	cxVec tgt = pos + dir*dist;
+	if (pPos) {
+		*pPos = pos;
+	}
+	if (pTgt) {
+		*pTgt = tgt;
+	}
+}
+
 void MOTION_LIB::init(const char* pBasePath, const sxRigData& rig) {
 	bool dbgInfo = true;
 	if (!pBasePath) return;
@@ -531,6 +559,91 @@ CAM_INFO get_cam_info(const sxValuesData& vals, const char* pCamName) {
 		info.mFOVY = gexCalcFOVY(focal, aperture);
 		info.mNear = grp.get_float("near", info.mNear);
 		info.mFar = grp.get_float("far", info.mFar);
+	}
+	return info;
+}
+
+TD_CAM_INFO parse_td_cam(const char* pData, size_t dataSize) {
+	TD_CAM_INFO info = {};
+	if (pData && dataSize > 0) {
+		const char* pWk = pData;
+		const char* pEnd = pData + dataSize;
+		const char* pSym = pWk;
+		int state = 0;
+		int cnt = 0;
+		int idx = -1;
+		static struct MAP {
+			const char* pName;
+			float TD_CAM_INFO::* pField;
+		} map[] = {
+			{ "tx", &TD_CAM_INFO::mX },
+			{ "ty", &TD_CAM_INFO::mY },
+			{ "tz", &TD_CAM_INFO::mZ },
+			{ "rx", &TD_CAM_INFO::mRotX },
+			{ "ry", &TD_CAM_INFO::mRotY },
+			{ "rz", &TD_CAM_INFO::mRotZ },
+			{ "px", &TD_CAM_INFO::mPivotX },
+			{ "py", &TD_CAM_INFO::mPivotY },
+			{ "pz", &TD_CAM_INFO::mPivotZ },
+			{ "xord", &TD_CAM_INFO::mXOrd },
+			{ "rord", &TD_CAM_INFO::mROrd },
+			{ "viewanglemethod", &TD_CAM_INFO::mFOVType },
+			{ "fov", &TD_CAM_INFO::mFOV },
+			{ "focal", &TD_CAM_INFO::mFocal },
+			{ "aperture", &TD_CAM_INFO::mAperture },
+			{ "near", &TD_CAM_INFO::mNear },
+			{ "far", &TD_CAM_INFO::mFar },
+			{ nullptr, nullptr }
+		};
+		while (pWk < pEnd) {
+			char c = *pWk++;
+			if (c == '\n' || c == '\r') {
+				if (idx >= 0 && pSym && cnt > 0) {
+					char vbuf[128];
+					if (cnt < sizeof(vbuf) - 1) {
+						::memcpy(vbuf, pSym, cnt);
+						vbuf[cnt] = 0;
+						float val = (float)::atof(vbuf);
+						info.*map[idx].pField = val;
+					}
+				}
+				state = 0;
+				cnt = 0;
+				idx = -1;
+				pSym = pWk;
+			} else if (c == '\t') {
+				idx = -1;
+				if (pSym && cnt > 0) {
+					for (int i = 0; map[i].pName; ++i) {
+						if (cnt == ::strlen(map[i].pName) && ::memcmp(map[i].pName, pSym, cnt) == 0) {
+							idx = i;
+							break;
+						}
+					}
+				}
+				pSym = pWk;
+				cnt = 0;
+				state = 1;
+			} else {
+				++cnt;
+			}
+		}
+	}
+	return info;
+}
+
+TD_CAM_INFO load_td_cam(const char* pPath) {
+	TD_CAM_INFO info = {};
+	XD_FHANDLE fh = nxSys::fopen(pPath);
+	if (fh) {
+		size_t fsize = nxSys::fsize(fh);
+		void* pData = nxCore::mem_alloc(fsize, XD_TMP_MEM_TAG);
+		if (pData) {
+			size_t size = nxSys::fread(fh, pData, fsize);
+			nxSys::fclose(fh);
+			info = parse_td_cam((const char*)pData, size);
+			nxCore::mem_free(pData);
+		}
 	}
 	return info;
 }

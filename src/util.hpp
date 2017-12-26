@@ -3,6 +3,35 @@
 void util_init();
 void util_reset();
 
+struct TD_CAM_INFO {
+	float mX, mY, mZ;
+	float mRotX, mRotY, mRotZ;
+	float mPivotX, mPivotY, mPivotZ;
+	float mXOrd;
+	float mROrd;
+	float mFOVType;
+	float mFOV;
+	float mFocal;
+	float mAperture;
+	float mNear;
+	float mFar;
+
+	exTransformOrd xord() const {
+		int i = (int)mXOrd;
+		if (i >= 0 && i <= 5) return (exTransformOrd)i;
+		return exTransformOrd::SRT;
+	}
+
+	exRotOrd rord() const {
+		int i = (int)mROrd;
+		if (i >= 0 && i <= 5) return (exRotOrd)i;
+		return exRotOrd::XYZ;
+	}
+
+	cxMtx calc_xform() const;
+	void calc_pos_tgt(cxVec* pPos, cxVec* pTgt, float dist = 0.0f) const;
+};
+
 struct CAM_INFO {
 	cxVec mPos;
 	cxQuat mQuat;
@@ -127,6 +156,8 @@ GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir = nullptr);
 GEX_LIT* make_const_lit(const char* pName = nullptr, float val = 1.0f);
 void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor = false);
 CAM_INFO get_cam_info(const sxValuesData& vals, const char* pCamName);
+TD_CAM_INFO parse_td_cam(const char* pData, size_t dataSize);
+TD_CAM_INFO load_td_cam(const char* pPath);
 void obj_shadow_mode(const GEX_OBJ& obj, bool castShadows, bool receiveShadows);
 void obj_shadow_params(const GEX_OBJ& obj, float density, float selfShadowFactor, bool cullShadows);
 void obj_tesselation(const GEX_OBJ& obj, GEX_TESS_MODE mode, float factor);
