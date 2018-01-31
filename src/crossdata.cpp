@@ -704,7 +704,7 @@ void cxVec::parse(const char* pStr) {
 	set(val[0], val[1], val[2]);
 }
 
-// http://www.insomniacgames.com/mike-day-vector-length-and-normalization-difficulties/
+// Ref: Mike Day, "Vector length and normalization difficulties"
 float cxVec::mag() const {
 	cxVec v = *this;
 	float m = v.max_abs_elem();
@@ -1208,7 +1208,7 @@ cxVec cxMtx::get_rot(exRotOrd ord) const {
 	float r[3] = { 0, 0, 0 };
 	r[i0] = ::atan2f(rm[1][2], rm[2][2]);
 	r[i1] = ::atan2f(-rm[0][2], ::sqrtf(nxCalc::sq(rm[0][0]) + nxCalc::sq(rm[0][1])));
-	// http://www.insomniacgames.com/mike-day-extracting-euler-angles-from-a-rotation-matrix/
+	// Ref: Mike Day, "Extracting Euler Angles from a Rotation Matrix"
 	float s = ::sinf(r[i0]);
 	float c = ::cosf(r[i0]);
 	r[i2] = ::atan2f(s*rm[2][0] - c*rm[1][0], c*rm[1][1] - s*rm[2][1]);
