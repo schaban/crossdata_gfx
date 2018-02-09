@@ -1586,6 +1586,31 @@ cxVec cxQuat::apply(const cxVec& v) const {
 	return ((qv*d + v*ww) - nxVec::cross(v, qv)*w)*2.0f - v;
 }
 
+namespace nxQuat {
+
+cxQuat log(const cxQuat& q) {
+	float m = q.mag();
+	float w = ::logf(m);
+	cxVec v = q.get_imag_part();
+	float s = v.mag();
+	s = s < 1.0e-5f ? 1.0f : ::atan2f(s, q.get_real_part()) / s;
+	v.scl(s);
+	return cxQuat(v.x, v.y, v.z, w);
+}
+
+cxQuat exp(const cxQuat& q) {
+	cxVec v = q.get_imag_part();
+	float e = ::expf(q.get_real_part());
+	float h = v.mag();
+	float c = ::cosf(h);
+	float s = ::sinf(h);
+	v.normalize();
+	v.scl(s * e);
+	return cxQuat(v.x, v.y, v.z, c * e);
+}
+
+} // nxQuat
+
 
 namespace nxGeom {
 

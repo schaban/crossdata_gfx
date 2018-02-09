@@ -839,6 +839,9 @@ public:
 	void from_log_vec(const cxVec& lvec, bool nrmFlg = true);
 	void from_vecs(const cxVec& vfrom, const cxVec& vto);
 
+	float get_real_part() const { return w; }
+	cxVec get_imag_part() const { return cxVec(x, y, z); }
+
 	float dot(const cxQuat& q) const { return x*q.x + y*q.y + z*q.z + w*q.w; }
 
 	float mag2() const { return dot(*this); }
@@ -929,6 +932,8 @@ inline cxQuat slerp(const cxQuat& q1, const cxQuat& q2, float t) {
 	return q;
 }
 
+cxQuat log(const cxQuat& q);
+cxQuat exp(const cxQuat& q);
 
 } // nxQuat
 
