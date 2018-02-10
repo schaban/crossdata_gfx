@@ -832,6 +832,8 @@ public:
 	cxVec get_axis_y() const { return cxVec((2.0f*x*y) - (2.0f*w*z), 1.0f - (2.0f*x*x) - (2.0f*z*z), (2.0f*y*z) + (2.0f*w*x)); }
 	cxVec get_axis_z() const { return cxVec((2.0f*x*z) + (2.0f*w*y), (2.0f*y*z) - (2.0f*w*x), 1.0f - (2.0f*x*x) - (2.0f*y*y)); }
 
+	void from_mem(const float* pSrc) { set(pSrc[0], pSrc[1], pSrc[2], pSrc[3]); }
+
 	void from_mtx(const cxMtx& m);
 	cxMtx to_mtx() const;
 	float get_axis_ang(cxVec* pAxis) const;
@@ -857,14 +859,29 @@ public:
 
 	void mul(const cxQuat& q) { mul(*this, q); }
 
+	void scale(float s) {
+		float* p = reinterpret_cast<float*>(this);
+		for (int i = 0; i < 4; ++i) {
+			p[i] *= s;
+		}
+	}
+
+	void scale(const cxQuat& q, float s) {
+		*this = q;
+		scale(s);
+	}
+
+	cxQuat get_scaled(float s) const {
+		cxQuat q;
+		q.scale(*this, s);
+		return q;
+	}
+
 	void normalize() {
 		float len = mag();
 		if (len > 0.0f) {
 			float rlen = 1.0f / len;
-			x *= rlen;
-			y *= rlen;
-			z *= rlen;
-			w *= rlen;
+			scale(rlen);
 		}
 	}
 
@@ -873,7 +890,11 @@ public:
 		normalize();
 	}
 
-	cxQuat get_normalized() const { cxQuat q; q.normalize(*this); return q; }
+	cxQuat get_normalized() const {
+		cxQuat q;
+		q.normalize(*this);
+		return q;
+	}
 
 	void conjugate() {
 		x = -x;
@@ -888,7 +909,11 @@ public:
 		w = q.w;
 	}
 
-	cxQuat get_conjugated() const { cxQuat q; q.conjugate(*this); return q; }
+	cxQuat get_conjugated() const {
+		cxQuat q;
+		q.conjugate(*this);
+		return q;
+	}
 
 	void invert() {
 		float lsq = mag2();
@@ -905,13 +930,38 @@ public:
 		invert();
 	}
 
-	cxQuat get_inverted() const { cxQuat q; q.invert(*this); return q; }
+	cxQuat get_inverted() const {
+		cxQuat q;
+		q.invert(*this);
+		return q;
+	}
+
+	void negate() {
+		x = -x;
+		y = -y;
+		z = -z;
+		w = -w;
+	}
+
+	void negate(const cxQuat& q) {
+		x = -q.x;
+		y = -q.y;
+		z = -q.z;
+		w = -q.w;
+	}
+
+	cxQuat get_negated() const {
+		cxQuat q;
+		q.negate(*this);
+		return q;
+	}
 
 	void set_rot(const cxVec& axis, float ang);
 	void set_rot_x(float rx);
 	void set_rot_y(float ry);
 	void set_rot_z(float rz);
 	void set_rot(float rx, float ry, float rz, exRotOrd ord = exRotOrd::XYZ);
+	void set_rot_degrees(float dx, float dy, float dz, exRotOrd ord = exRotOrd::XYZ);
 	void set_rot_degrees(const cxVec& r, exRotOrd ord = exRotOrd::XYZ);
 
 	cxVec get_rot(exRotOrd ord = exRotOrd::XYZ) const;
@@ -926,14 +976,41 @@ inline cxQuat operator * (const cxQuat& q1, const cxQuat& q2) { cxQuat q = q1; q
 
 namespace nxQuat {
 
+inline cxQuat identity() {
+	cxQuat q;
+	q.identity();
+	return q;
+}
+
+inline cxQuat zero() {
+	cxQuat q;
+	q.fill(0.0f);
+	return q;
+}
+	
 inline cxQuat slerp(const cxQuat& q1, const cxQuat& q2, float t) {
 	cxQuat q;
 	q.slerp(q1, q2, t);
 	return q;
 }
 
+inline cxQuat from_radians(float rx, float ry, float rz, exRotOrd ord = exRotOrd::XYZ) {
+	cxQuat q;
+	q.set_rot(rx, ry, rz, ord);
+	return q;
+}
+
+inline cxQuat from_degrees(float dx, float dy, float dz, exRotOrd ord = exRotOrd::XYZ) {
+	cxQuat q;
+	q.set_rot_degrees(dx, dy, dz, ord);
+	return q;
+}
+
 cxQuat log(const cxQuat& q);
 cxQuat exp(const cxQuat& q);
+cxQuat pow(const cxQuat& q, float x);
+
+float arc_dist(const cxQuat& a, const cxQuat& b);
 
 } // nxQuat
 

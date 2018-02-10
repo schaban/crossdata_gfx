@@ -1484,6 +1484,10 @@ void cxQuat::set_rot(float rx, float ry, float rz, exRotOrd ord) {
 	}
 }
 
+void cxQuat::set_rot_degrees(float dx, float dy, float dz, exRotOrd ord) {
+	set_rot_degrees(cxVec(dx, dy, dz), ord);
+}
+
 void cxQuat::set_rot_degrees(const cxVec& r, exRotOrd ord) {
 	cxVec rr = r * XD_DEG2RAD(1.0f);
 	set_rot(rr.x, rr.y, rr.z, ord);
@@ -1605,8 +1609,28 @@ cxQuat exp(const cxQuat& q) {
 	float c = ::cosf(h);
 	float s = ::sinf(h);
 	v.normalize();
-	v.scl(s * e);
-	return cxQuat(v.x, v.y, v.z, c * e);
+	v.scl(s);
+	return cxQuat(v.x, v.y, v.z, c).get_scaled(e);
+}
+
+cxQuat pow(const cxQuat& q, float x) {
+	if (q.mag() < 1.0e-5f) return nxQuat::zero();
+	return exp(log(q).get_scaled(x));
+}
+
+float arc_dist(const cxQuat& a, const cxQuat& b) {
+	double ax = a.x;
+	double ay = a.y;
+	double az = a.z;
+	double aw = a.w;
+	double bx = b.x;
+	double by = b.y;
+	double bz = b.z;
+	double bw = b.w;
+	double d = ::fabs(ax*bx + ay*by + az*bz + aw*bw);
+	if (d > 1.0) d = 1.0;
+	d = ::acos(d) / (XD_PI / 2.0);
+	return float(d);
 }
 
 } // nxQuat
