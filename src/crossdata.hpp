@@ -221,8 +221,18 @@ struct xt_float4 {
 	float x, y, z, w;
 
 	void set(float xval, float yval, float zval, float wval) { x = xval; y = yval; z = zval; w = wval; }
-	void fill(float val) { x = val; y = val; z = val; w = val; }
-	void scl(float s) { x *= s; y *= s; z *= s; w *= s; }
+
+	void fill(float val) {
+		for (int i = 0; i < 4; ++i) {
+			(*this)[i] = val;
+		}
+	}
+
+	void scl(float s) {
+		for (int i = 0; i < 4; ++i) {
+			(*this)[i] *= s;
+		}
+	}
 
 	float get_at(int i) const {
 		float res = nxCore::f32_mk_nan();
@@ -826,6 +836,7 @@ public:
 	cxQuat(const cxQuat& q) = default;
 	cxQuat& operator=(const cxQuat& q) = default;
 
+	void zero() { fill(0.0f); }
 	void identity() { set(0.0f, 0.0f, 0.0f, 1.0f); }
 
 	cxVec get_axis_x() const { return cxVec(1.0f - (2.0f*y*y) - (2.0f*z*z), (2.0f*x*y) + (2.0f*w*z), (2.0f*x*z) - (2.0f*w*y)); }
@@ -843,6 +854,8 @@ public:
 
 	float get_real_part() const { return w; }
 	cxVec get_imag_part() const { return cxVec(x, y, z); }
+	float get_scalar_part() const { get_real_part(); }
+	cxVec get_vector_part() const { get_imag_part(); }
 
 	float dot(const cxQuat& q) const { return x*q.x + y*q.y + z*q.z + w*q.w; }
 
@@ -859,12 +872,7 @@ public:
 
 	void mul(const cxQuat& q) { mul(*this, q); }
 
-	void scale(float s) {
-		float* p = reinterpret_cast<float*>(this);
-		for (int i = 0; i < 4; ++i) {
-			p[i] *= s;
-		}
-	}
+	void scale(float s) { scl(s); }
 
 	void scale(const cxQuat& q, float s) {
 		*this = q;
@@ -919,10 +927,7 @@ public:
 		float lsq = mag2();
 		float rlsq = nxCalc::rcp0(lsq);
 		conjugate();
-		x *= rlsq;
-		y *= rlsq;
-		z *= rlsq;
-		w *= rlsq;
+		scale(rlsq);
 	}
 
 	void invert(const cxQuat& q) {
@@ -984,7 +989,7 @@ inline cxQuat identity() {
 
 inline cxQuat zero() {
 	cxQuat q;
-	q.fill(0.0f);
+	q.zero();
 	return q;
 }
 	
