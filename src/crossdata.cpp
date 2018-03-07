@@ -970,6 +970,11 @@ void cxMtx::mul(const cxMtx& mtx) {
 }
 
 void cxMtx::mul(const cxMtx& m1, const cxMtx& m2) {
+#if XD_USE_LA
+	float res[4 * 4];
+	nxLA::mul_mm(res, (const float*)m1, (const float*)m2, 4, 4, 4);
+	from_mem(res);
+#else
 	cxMtx m0;
 	m0.m[0][0] = m1.m[0][0]*m2.m[0][0] + m1.m[0][1]*m2.m[1][0] + m1.m[0][2]*m2.m[2][0] + m1.m[0][3]*m2.m[3][0];
 	m0.m[0][1] = m1.m[0][0]*m2.m[0][1] + m1.m[0][1]*m2.m[1][1] + m1.m[0][2]*m2.m[2][1] + m1.m[0][3]*m2.m[3][1];
@@ -992,6 +997,7 @@ void cxMtx::mul(const cxMtx& m1, const cxMtx& m2) {
 	m0.m[3][3] = m1.m[3][0]*m2.m[0][3] + m1.m[3][1]*m2.m[1][3] + m1.m[3][2]*m2.m[2][3] + m1.m[3][3]*m2.m[3][3];
 
 	*this = m0;
+#endif
 }
 
 void cxMtx::orient_zy(const cxVec& axisZ, const cxVec& axisY, bool normalizeInput) {
@@ -1330,6 +1336,12 @@ void cxMtx::mk_proj(float fovy, float aspect, float znear, float zfar) {
 }
 
 cxVec cxMtx::calc_vec(const cxVec& v) const {
+#if XD_USE_LA
+	float vec[4] = { v.x, v.y, v.z, 0.0f };
+	float res[4];
+	nxLA::mul_vm(res, vec, (float*)m, 4, 4);
+	return nxVec::from_mem(res);
+#else
 	float x = v.x;
 	float y = v.y;
 	float z = v.z;
@@ -1337,9 +1349,16 @@ cxVec cxMtx::calc_vec(const cxVec& v) const {
 	float ty = x*m[0][1] + y*m[1][1] + z*m[2][1];
 	float tz = x*m[0][2] + y*m[1][2] + z*m[2][2];
 	return cxVec(tx, ty, tz);
+#endif
 }
 
 cxVec cxMtx::calc_pnt(const cxVec& v) const {
+#if XD_USE_LA
+	float vec[4] = { v.x, v.y, v.z, 1.0f };
+	float res[4];
+	nxLA::mul_vm(res, vec, (float*)m, 4, 4);
+	return nxVec::from_mem(res);
+#else
 	float x = v.x;
 	float y = v.y;
 	float z = v.z;
@@ -1347,6 +1366,7 @@ cxVec cxMtx::calc_pnt(const cxVec& v) const {
 	float ty = x*m[0][1] + y*m[1][1] + z*m[2][1] + m[3][1];
 	float tz = x*m[0][2] + y*m[1][2] + z*m[2][2] + m[3][2];
 	return cxVec(tx, ty, tz);
+#endif
 }
 
 xt_float4 cxMtx::apply(const xt_float4& qv) const {

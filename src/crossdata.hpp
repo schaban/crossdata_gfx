@@ -39,6 +39,10 @@
 #	endif
 #endif
 
+#ifndef XD_USE_LA
+#	define XD_USE_LA 1
+#endif
+
 #define XD_MAX_PATH 4096
 
 #define XD_FOURCC(c1, c2, c3, c4) ((((uint8_t)(c4))<<24)|(((uint8_t)(c3))<<16)|(((uint8_t)(c2))<<8)|((uint8_t)(c1)))
@@ -189,6 +193,41 @@ float fit(float val, float oldMin, float oldMax, float newMin, float newMax);
 float calc_fovy(float focal, float aperture, float aspect);
 
 } // nxCalc
+
+namespace nxLA {
+
+// https://blogs.msdn.microsoft.com/nativeconcurrency/2014/09/04/raking-through-the-parallelism-tool-shed-the-curious-case-of-matrix-matrix-multiplication/
+template<typename DST_T, typename SRC_L_T, typename SRC_R_T>
+XD_FORCEINLINE
+void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int N, int P) {
+	const int nres = M * P;
+	for (int i = 0; i < nres; ++i) {
+		pDst[i] = 0;
+	}
+	for (int i = 0; i < M; ++i) {
+		int ra = i * N;
+		int rr = i * P;
+		for (int j = 0; j < N; ++j) {
+			int rb = j * P;
+			DST_T s = DST_T(pSrc1[ra + j]);
+			for (int k = 0; k < P; ++k) {
+				pDst[rr + k] += DST_T(pSrc2[rb + k]) * s;
+			}
+		}
+	}
+}
+
+template<typename DST_VEC_T, typename SRC_VEC_T, typename MTX_T>
+inline void mul_vm(DST_VEC_T* pDstVec, const SRC_VEC_T* pSrcVec, const MTX_T* pMtx, int M, int N) {
+	mul_mm(pDstVec, pSrcVec, pMtx, 1, M, N);
+}
+
+template<typename DST_VEC_T, typename MTX_T, typename SRC_VEC_T>
+inline void mul_mv(DST_VEC_T* pDstVec, const MTX_T* pMtx, const SRC_VEC_T* pSrcVec, int M, int N) {
+	mul_mm(pDstVec, pMtx, pSrcVec, M, N, 1);
+}
+
+} // nxLA
 
 typedef int32_t xt_int;
 typedef float xt_float;
@@ -648,6 +687,12 @@ inline cxVec operator * (const cxVec& v0, float s) { cxVec v = v0; v.scl(s); ret
 inline cxVec operator * (float s, const cxVec& v0) { cxVec v = v0; v.scl(s); return v; }
 
 namespace nxVec {
+
+inline cxVec from_mem(const float* pSrc) {
+	cxVec v;
+	v.from_mem(pSrc);
+	return v;
+}
 
 inline cxVec cross(const cxVec& v1, const cxVec& v2) {
 	cxVec cv;
