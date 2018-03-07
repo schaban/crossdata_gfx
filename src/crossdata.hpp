@@ -20,7 +20,23 @@
 #endif
 
 #ifndef XD_NOINLINE
-#	define XD_NOINLINE
+#	if defined(_MSC_VER)
+#		define XD_NOINLINE __declspec(noinline)
+#	elif defined(__GNUC__)
+#		define XD_NOINLINE __attribute__((noinline))
+#	else
+#		define XD_NOINLINE
+#	endif
+#endif
+
+#ifndef XD_FORCEINLINE
+#	if defined(_MSC_VER)
+#		define XD_FORCEINLINE __forceinline
+#	elif defined(__GNUC__)
+#		define XD_FORCEINLINE __inline__ __attribute__((__always_inline__))
+#	else
+#		define XD_FORCEINLINE inline
+#	endif
 #endif
 
 #define XD_MAX_PATH 4096
