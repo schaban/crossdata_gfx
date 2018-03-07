@@ -1337,9 +1337,8 @@ void cxMtx::mk_proj(float fovy, float aspect, float znear, float zfar) {
 
 cxVec cxMtx::calc_vec(const cxVec& v) const {
 #if XD_USE_LA
-	float vec[4] = { v.x, v.y, v.z, 0.0f };
 	float res[4];
-	nxLA::mul_vm(res, vec, (float*)m, 4, 4);
+	nxLA::mul_vm(res, (float*)&v, (float*)m, 3, 4);
 	return nxVec::from_mem(res);
 #else
 	float x = v.x;
