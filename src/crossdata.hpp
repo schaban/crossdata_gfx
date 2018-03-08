@@ -199,6 +199,7 @@ namespace nxLA {
 // https://blogs.msdn.microsoft.com/nativeconcurrency/2014/09/04/raking-through-the-parallelism-tool-shed-the-curious-case-of-matrix-matrix-multiplication/
 template<typename DST_T, typename SRC_L_T, typename SRC_R_T>
 XD_FORCEINLINE
+#if 0
 void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int N, int P) {
 	const int nres = M * P;
 	for (int i = 0; i < nres; ++i) {
@@ -216,6 +217,29 @@ void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int 
 		}
 	}
 }
+#else
+void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int N, int P) {
+	for (int i = 0; i < M; ++i) {
+		int ra = i * N;
+		int rr = i * P;
+		DST_T s = DST_T(pSrc1[ra]);
+		for (int k = 0; k < P; ++k) {
+			pDst[rr + k] = DST_T(pSrc2[k]) * s;
+		}
+	}
+	for (int i = 0; i < M; ++i) {
+		int ra = i * N;
+		int rr = i * P;
+		for (int j = 1; j < N; ++j) {
+			int rb = j * P;
+			DST_T s = DST_T(pSrc1[ra + j]);
+			for (int k = 0; k < P; ++k) {
+				pDst[rr + k] += DST_T(pSrc2[rb + k]) * s;
+			}
+		}
+	}
+}
+#endif
 
 template<typename DST_VEC_T, typename SRC_VEC_T, typename MTX_T>
 inline void mul_vm(DST_VEC_T* pDstVec, const SRC_VEC_T* pSrcVec, const MTX_T* pMtx, int M, int N) {
