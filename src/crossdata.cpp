@@ -952,11 +952,19 @@ void cxMtx::invert() {
 		im.m[3][3] =  m[2][0]*a3 - m[2][1]*a1 + m[2][2]*a0;
 
 		float idet = 1.0f / det;
+#if 0
 		for (int i = 0; i < 4; ++i) {
 			for (int j = 0; j < 4; ++j) {
 				m[i][j] = im.m[i][j] * idet;
 			}
 		}
+#else
+		float* pDst = &m[0][0];
+		float* pSrc = &im.m[0][0];
+		for (int i = 0; i < 4 * 4; ++i) {
+			pDst[i] = pSrc[i] * idet;
+		}
+#endif
 	}
 }
 
