@@ -4706,8 +4706,8 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 				npol = geo.get_pol_num();
 			}
 		}
-		int minIdx = 0;
-		int maxIdx = 0;
+		int32_t minIdx = 0;
+		int32_t maxIdx = 0;
 		int batIdxCnt = 0;
 		for (int j = 0; j < npol; ++j) {
 			int polIdx = 0;
@@ -4725,7 +4725,7 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 			Polygon pol = geo.get_pol(polIdx);
 			if (pol.is_tri()) {
 				for (int k = 0; k < 3; ++k) {
-					int vtxId = pol.get_vtx_pnt_id(k);
+					int32_t vtxId = pol.get_vtx_pnt_id(k);
 					if (batIdxCnt > 0) {
 						minIdx = nxCalc::min(minIdx, vtxId);
 						maxIdx = nxCalc::max(maxIdx, vtxId);
@@ -4815,7 +4815,7 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 				Polygon pol = geo.get_pol(polIdx);
 				if (pol.is_tri()) {
 					for (int k = 0; k < 3; ++k) {
-						int vtxId = pol.get_vtx_pnt_id(k);
+						int32_t vtxId = pol.get_vtx_pnt_id(k);
 						if (batIdxCnt > 0) {
 							pBat->mMinIdx = nxCalc::min(pBat->mMinIdx, vtxId);
 							pBat->mMaxIdx = nxCalc::max(pBat->mMaxIdx, vtxId);
