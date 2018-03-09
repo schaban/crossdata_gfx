@@ -906,6 +906,13 @@ void cxMtx::transpose_sr(const cxMtx& mtx) {
 }
 
 void cxMtx::invert() {
+#if XD_USE_LA
+	int idx[4 * 3];
+	bool ok = nxLA::inv_gj((float*)this, 4, idx);
+	if (!ok) {
+		::memset(*this, 0, sizeof(cxMtx));
+	}
+#else
 	float det;
 	float a0, a1, a2, a3, a4, a5;
 	float b0, b1, b2, b3, b4, b5;
@@ -952,20 +959,13 @@ void cxMtx::invert() {
 		im.m[3][3] =  m[2][0]*a3 - m[2][1]*a1 + m[2][2]*a0;
 
 		float idet = 1.0f / det;
-#if 0
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				m[i][j] = im.m[i][j] * idet;
-			}
-		}
-#else
 		float* pDst = &m[0][0];
 		float* pSrc = &im.m[0][0];
 		for (int i = 0; i < 4 * 4; ++i) {
 			pDst[i] = pSrc[i] * idet;
 		}
-#endif
 	}
+#endif
 }
 
 void cxMtx::invert(const cxMtx& mtx) {

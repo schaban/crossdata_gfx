@@ -251,6 +251,82 @@ inline void mul_mv(DST_VEC_T* pDstVec, const MTX_T* pMtx, const SRC_VEC_T* pSrcV
 	mul_mm(pDstVec, pMtx, pSrcVec, M, N, 1);
 }
 
+template<typename T>
+XD_FORCEINLINE
+bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
+	int* pPiv = pWk;
+	int* pCol = pWk + N;
+	int* pRow = pWk + N*2;
+	int ri = 0;
+	int ci = 0;
+	for (int i = 0; i < N; ++i) {
+		pPiv[i] = 0;
+	}
+	for (int i = 0; i < N; ++i) {
+		T amax = 0;
+		for (int j = 0; j < N; ++j) {
+			if (pPiv[j] != 1) {
+				int ra = j * N;
+				for (int k = 0; k < N; ++k) {
+					if (0 == pPiv[k]) {
+						T a = pMtx[ra + k];
+						if (a < 0) a = -a;
+						if (a >= amax) {
+							amax = a;
+							ri = j;
+							ci = k;
+						}
+					}
+				}
+			}
+		}
+		++pPiv[ci];
+		if (ri != ci) {
+			int ra = ri * N;
+			int ca = ci * N;
+			for (int k = 0; k < N; ++k) {
+				T t = pMtx[ra + k];
+				pMtx[ra + k] = pMtx[ca + k];
+				pMtx[ca + k] = t;
+			}
+		}
+		pRow[i] = ri;
+		pCol[i] = ci;
+		int ra = ci * N;
+		T piv = pMtx[ra + ci];
+		if (piv == 0) return false; /* singular */
+		T ipiv = 1 / piv;
+		pMtx[ra + ci] = 1;
+		for (int j = 0; j < N; ++j) {
+			pMtx[ra + j] *= ipiv;
+		}
+		int ca = ci * N;
+		for (int j = 0; j < N; ++j) {
+			if (j != ci) {
+				int ra = j * N;
+				T d = pMtx[ra + ci];
+				pMtx[ra + ci] = 0;
+				for (int k = 0; k < N; ++k) {
+					pMtx[ra + k] -= pMtx[ca + k] * d;
+				}
+			}
+		}
+	}
+	for (int i = N; --i >= 0;) {
+		int ri = pRow[i];
+		int ci = pCol[i];
+		if (ri != ci) {
+			for (int j = 0; j < N; ++j) {
+				int ra = j * N;
+				T t = pMtx[ra + ri];
+				pMtx[ra + ri] = pMtx[ra + ci];
+				pMtx[ra + ci] = t;
+			}
+		}
+	}
+	return true;
+}
+
 } // nxLA
 
 typedef int32_t xt_int;
