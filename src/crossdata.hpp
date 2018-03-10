@@ -251,6 +251,22 @@ inline void mul_mv(DST_VEC_T* pDstVec, const MTX_T* pMtx, const SRC_VEC_T* pSrcV
 	mul_mm(pDstVec, pMtx, pSrcVec, M, N, 1);
 }
 
+template<typename DST_T, typename SRC_T> inline void mtx_cpy(DST_T* pDst, const SRC_T* pSrc, int M, int N) {
+	int n = M * N;
+	for (int i = 0; i < n; ++i) {
+		pDst[i] = DST_T(pSrc[i]);
+	}
+}
+
+template<typename T> inline void identity(T* pMtx, int N) {
+	for (int i = 0; i < N * N; ++i) {
+		pMtx[i] = 0;
+	}
+	for (int i = 0; i < N; ++i) {
+		pMtx[(i * N) + i] = 1;
+	}
+}
+
 template<typename T>
 XD_FORCEINLINE
 bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
@@ -284,10 +300,10 @@ bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
 		if (ri != ci) {
 			int ra = ri * N;
 			int ca = ci * N;
-			for (int k = 0; k < N; ++k) {
-				T t = pMtx[ra + k];
-				pMtx[ra + k] = pMtx[ca + k];
-				pMtx[ca + k] = t;
+			for (int j = 0; j < N; ++j) {
+				T t = pMtx[ra + j];
+				pMtx[ra + j] = pMtx[ca + j];
+				pMtx[ca + j] = t;
 			}
 		}
 		pRow[i] = ri;
@@ -325,6 +341,110 @@ bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
 		}
 	}
 	return true;
+}
+
+template<typename T>
+XD_FORCEINLINE
+bool lu_decomp(T* pMtx, int N, T* pWk /* [N] */, int* pIdx /* [N] */, T* pDetSgn = nullptr) {
+	T dsgn = 1;
+	T* pScl = pWk;
+	for (int i = 0; i < N; ++i) {
+		T scl = 0;
+		int ri = i * N;
+		for (int j = 0; j < N; ++j) {
+			T a = pMtx[ri + j];
+			if (a < 0) a = -a;
+			if (a > scl) scl = a;
+		}
+		if (scl == 0) {
+			if (pDetSgn) {
+				*pDetSgn = 0;
+			}
+			return false;
+		}
+		pScl[i] = scl;
+	}
+	for (int i = 0; i < N; ++i) {
+		pScl[i] = 1 / pScl[i];
+	}
+	int imax = 0;
+	for (int k = 0; k < N; ++k) {
+		int rk = k * N;
+		T amax = 0;
+		for (int i = k; i < N; ++i) {
+			T a = pMtx[(i * N) + k];
+			if (a < 0) a = -a;
+			a *= pScl[i];
+			if (amax <= a) {
+				amax = a;
+				imax = i;
+			}
+		}
+		if (k != imax) {
+			int rm = imax * N;
+			for (int j = 0; j < N; ++j) {
+				T t = pMtx[rm + j];
+				pMtx[rm + j] = pMtx[rk + j];
+				pMtx[rk + j] = t;
+			}
+			dsgn = -dsgn;
+			pScl[imax] = pScl[k];
+		}
+		if (pIdx) {
+			pIdx[k] = imax;
+		}
+		if (pMtx[rk + k] == 0) {
+			pMtx[rk + k] = T(1.0e-16);
+		}
+		for (int i = k + 1; i < N; ++i) {
+			int ri = i * N;
+			T s = pMtx[ri + k] / pMtx[rk + k];
+			pMtx[ri + k] = s;
+			for (int j = k + 1; j < N; ++j) {
+				pMtx[ri + j] -= pMtx[rk + j] * s;
+			}
+		}
+	}
+	if (pDetSgn) {
+		*pDetSgn = dsgn;
+	}
+	return true;
+}
+
+template<typename T>
+XD_FORCEINLINE
+void lu_solve_vec(T* pAns, const T* pLU, const T* pRHS, const int* pIdx, int N) {
+	if (pAns != pRHS) {
+		for (int i = 0; i < N; ++i) {
+			pAns[i] = pRHS[i];
+		}
+	}
+	T s = 0;
+	int ii = -1;
+	for (int i = 0; i < N; ++i) {
+		int ri = i * N;
+		int idx = pIdx[i];
+		s = pAns[idx];
+		pAns[idx] = pAns[i];
+		if (ii < 0) {
+			if (s != 0) {
+				ii = i;
+			}
+		} else {
+			for (int j = ii; j < i; ++j) {
+				s -= pLU[ri + j] * pAns[j];
+			}
+		}
+		pAns[i] = s;
+	}
+	for (int i = N; --i >= 0;) {
+		int ri = i * N;
+		s = pAns[i];
+		for (int j = i + 1; j < N; ++j) {
+			s -= pLU[ri + j] * pAns[j];
+		}
+		pAns[i] = s / pLU[ri + i];
+	}
 }
 
 } // nxLA
@@ -853,6 +973,9 @@ public:
 	void transpose_sr(const cxMtx& mtx);
 	void invert();
 	void invert(const cxMtx& m);
+	void invert_fast();
+	void invert_lu();
+	void invert_lu_hi();
 
 	void mul(const cxMtx& mtx);
 	void mul(const cxMtx& m1, const cxMtx& m2);

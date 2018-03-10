@@ -913,6 +913,16 @@ void cxMtx::invert() {
 		::memset(*this, 0, sizeof(cxMtx));
 	}
 #else
+	invert_fast();
+#endif
+}
+
+void cxMtx::invert(const cxMtx& mtx) {
+	::memcpy(this, mtx, sizeof(cxMtx));
+	invert();
+}
+
+void cxMtx::invert_fast() {
 	float det;
 	float a0, a1, a2, a3, a4, a5;
 	float b0, b1, b2, b3, b4, b5;
@@ -965,12 +975,42 @@ void cxMtx::invert() {
 			pDst[i] = pSrc[i] * idet;
 		}
 	}
-#endif
 }
 
-void cxMtx::invert(const cxMtx& mtx) {
-	::memcpy(this, mtx, sizeof(cxMtx));
-	invert();
+void cxMtx::invert_lu() {
+	float lu[4 * 4];
+	nxLA::mtx_cpy(lu, (float*)this, 4, 4);
+	float wk[4];
+	int idx[4];
+	bool ok = nxLA::lu_decomp(lu, 4, wk, idx);
+	if (!ok) {
+		::memset(*this, 0, sizeof(cxMtx));
+		return;
+	}
+	for (int i = 0; i < 4; ++i) {
+		nxLA::lu_solve_vec(m[i], lu, nxCalc::s_identityMtx[i], idx, 4);
+	}
+	transpose();
+}
+
+void cxMtx::invert_lu_hi() {
+	double lu[4 * 4];
+	nxLA::mtx_cpy(lu, (float*)this, 4, 4);
+	double wk[4];
+	int idx[4];
+	bool ok = nxLA::lu_decomp(lu, 4, wk, idx);
+	if (!ok) {
+		::memset(*this, 0, sizeof(cxMtx));
+		return;
+	}
+	double inv[4][4];
+	double b[4][4];
+	nxLA::mtx_cpy(&b[0][0], &nxCalc::s_identityMtx[0][0], 4, 4);
+	for (int i = 0; i < 4; ++i) {
+		nxLA::lu_solve_vec(inv[i], lu, b[i], idx, 4);
+	}
+	nxLA::mtx_cpy((float*)this, &inv[0][0], 4, 4);
+	transpose();
 }
 
 void cxMtx::mul(const cxMtx& mtx) {
