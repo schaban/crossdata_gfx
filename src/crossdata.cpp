@@ -686,6 +686,19 @@ cxVec get_axis(exAxis axis) {
 	return v;
 }
 
+cxVec from_polar_uv(float u, float v) {
+	float azimuth = u * 2.0f * XD_PI;
+	float sinAzi = ::sinf(azimuth);
+	float cosAzi = ::cosf(azimuth);
+	float elevation = (v - 1.0f) * XD_PI;
+	float sinEle = ::sinf(elevation);
+	float cosEle = ::cosf(elevation);
+	float nx = cosAzi*sinEle;
+	float ny = cosEle;
+	float nz = sinAzi*sinEle;
+	return cxVec(nx, ny, nz);
+}
+
 cxVec reflect(const cxVec& vec, const cxVec& nrm) {
 	return vec - nrm*vec.dot(nrm)*2.0f;
 }

@@ -946,6 +946,7 @@ float dist2(const cxVec& pos0, const cxVec& pos1);
 float dist(const cxVec& pos0, const cxVec& pos1);
 
 cxVec get_axis(exAxis axis);
+cxVec from_polar_uv(float u, float v);
 cxVec reflect(const cxVec& vec, const cxVec& nrm);
 
 } // nxVec
