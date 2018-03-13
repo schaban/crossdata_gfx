@@ -51,7 +51,7 @@
 #define XD_ALIGN(_x, _n) ( ((uintptr_t)(_x) + ((_n) - 1)) & (~((_n) - 1)) )
 
 #define XD_BIT_ARY_SIZE(_storage_t, _nbits) ((((int)(_nbits)-1)/(sizeof(_storage_t)*8))+1)
-#define XD_BIT_ARY_DECL(_storage_t, _name, _nbits) _name[XD_BIT_ARY_SIZE(storage_t, _nbits)]
+#define XD_BIT_ARY_DECL(_storage_t, _name, _nbits) _storage_t _name[XD_BIT_ARY_SIZE(_storage_t, _nbits)]
 #define XD_BIT_ARY_IDX(_storage_t, _no) ((_no) / (sizeof(_storage_t)*8))
 #define XD_BIT_ARY_MASK(_storage_t, _no) (1 << ((_no)&((sizeof(_storage_t)*8) - 1)))
 #define XD_BIT_ARY_ST(_storage_t, _ary, _no) (_ary)[XD_BIT_ARY_IDX(_storage_t, _no)] |= XD_BIT_ARY_MASK(_storage_t, _no)
@@ -196,6 +196,18 @@ float calc_fovy(float focal, float aperture, float aspect);
 
 namespace nxLA {
 
+template<typename T> inline T* mtx_alloc(int M, int N) {
+	int a = nxCalc::min(int(sizeof(T) * 4), 0x10);
+	return reinterpret_cast<T*>(nxCore::mem_alloc(M * N * sizeof(T), XD_FOURCC('L', 'A', 'm', 'x'), a));
+}
+
+template<typename DST_T, typename SRC_T> inline void mtx_cpy(DST_T* pDst, const SRC_T* pSrc, int M, int N) {
+	int n = M * N;
+	for (int i = 0; i < n; ++i) {
+		pDst[i] = DST_T(pSrc[i]);
+	}
+}
+
 // https://blogs.msdn.microsoft.com/nativeconcurrency/2014/09/04/raking-through-the-parallelism-tool-shed-the-curious-case-of-matrix-matrix-multiplication/
 template<typename DST_T, typename SRC_L_T, typename SRC_R_T>
 XD_FORCEINLINE
@@ -251,13 +263,6 @@ inline void mul_mv(DST_VEC_T* pDstVec, const MTX_T* pMtx, const SRC_VEC_T* pSrcV
 	mul_mm(pDstVec, pMtx, pSrcVec, M, N, 1);
 }
 
-template<typename DST_T, typename SRC_T> inline void mtx_cpy(DST_T* pDst, const SRC_T* pSrc, int M, int N) {
-	int n = M * N;
-	for (int i = 0; i < n; ++i) {
-		pDst[i] = DST_T(pSrc[i]);
-	}
-}
-
 template<typename T> inline void identity(T* pMtx, int N) {
 	for (int i = 0; i < N * N; ++i) {
 		pMtx[i] = 0;
@@ -265,6 +270,53 @@ template<typename T> inline void identity(T* pMtx, int N) {
 	for (int i = 0; i < N; ++i) {
 		pMtx[(i * N) + i] = 1;
 	}
+}
+
+template<typename T>
+inline
+bool transpose(T* pMtx, int M, int N, uint32_t* pFlgWk = nullptr) {
+	if (M == N) {
+		for (int i = 0; i < N - 1; ++i) {
+			for (int j = i + 1; j < N; ++j) {
+				int ij = i*N + j;
+				int ji = j*N + i;
+				T t = pMtx[ij];
+				pMtx[ij] = pMtx[ji];
+				pMtx[ji] = t;
+			}
+		}
+	} else {
+		XD_BIT_ARY_DECL(uint32_t, flg, 64*32);
+		uint32_t* pFlg = flg;
+		size_t flgSize = XD_BIT_ARY_SIZE(uint32_t, M*N);
+		size_t maxSize = XD_ARY_LEN(flg);
+		if (flgSize > maxSize) {
+			pFlg = pFlgWk;
+		}
+		if (!pFlg) {
+			nxSys::dbgmsg("LA::transpose - insufficient memory.\n");
+			return false;
+		}
+		for (size_t i = 0; i < flgSize; ++i) {
+			pFlg[i] = 0;
+		}
+		int q = M*N - 1;
+		for (int i = 1; i < q;) {
+			int i0 = i;
+			int org = i;
+			T t = pMtx[org];
+			do {
+				int i1 = (i*M) % q;
+				T t1 = pMtx[i1];
+				pMtx[i1] = t;
+				t = t1;
+				XD_BIT_ARY_ST(uint32_t, pFlg, i);
+				i = i1;
+			} while (i != org);
+			for (i = i0 + 1; i < q && XD_BIT_ARY_CK(uint32_t, pFlg, i); ++i) {}
+		}
+	}
+	return true;
 }
 
 template<typename T>
