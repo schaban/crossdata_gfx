@@ -1679,7 +1679,10 @@ public:
 
 class cxColor {
 public:
-	float r, g, b, a;
+	union {
+		struct { float r, g, b, a; };
+		float ch[4];
+	};
 
 public:
 	cxColor() {}
@@ -1695,10 +1698,9 @@ public:
 	void set(float val) { set(val, val, val); }
 
 	void zero() {
-		r = 0.0f;
-		g = 0.0f;
-		b = 0.0f;
-		a = 0.0f;
+		for (int i = 0; i < 4; ++i) {
+			ch[i] = 0.0f;
+		}
 	}
 
 	float luma() const { return r*0.299f + g*0.587f + b*0.114f; }
@@ -1706,10 +1708,9 @@ public:
 	float average() const { return (r + g + b) / 3.0f; }
 
 	void scl(float s) {
-		r *= s;
-		g *= s;
-		b *= s;
-		a *= s;
+		for (int i = 0; i < 4; ++i) {
+			ch[i] *= s;
+		}
 	}
 
 	void scl_rgb(float s) {
@@ -1725,10 +1726,9 @@ public:
 	}
 
 	void add(const cxColor& c) {
-		r += c.r;
-		g += c.g;
-		b += c.b;
-		a += c.a;
+		for (int i = 0; i < 4; ++i) {
+			ch[i] += c.ch[i];
+		}
 	}
 
 	void add_rgb(const cxColor& c) {
