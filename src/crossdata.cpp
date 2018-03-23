@@ -551,6 +551,52 @@ uint32_t fetch_bits32(uint8_t* pTop, uint32_t org, uint32_t len) {
 	return (uint32_t)res;
 }
 
+static sxRNG s_rng = { /* seed(1) -> */ 0x910A2DEC89025CC1ULL, 0xBEEB8DA1658EEC67ULL };
+
+void rng_seed(sxRNG* pState, uint64_t seed) {
+	if (!pState) {
+		pState = &s_rng;
+	}
+	if (seed == 0) {
+		seed = 1;
+	}
+	uint64_t st = seed;
+	for (int i = 0; i < 2; ++i) {
+		/* splitmix64 */
+		st += 0x9E3779B97F4A7C15ULL;
+		uint64_t z = st;
+		z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+		z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+		z ^= (z >> 31);
+		pState->s[i] = z;
+	}
+}
+
+/* xoroshiro128+ */
+uint64_t rng_next(sxRNG* pState) {
+	if (!pState) {
+		pState = &s_rng;
+	}
+	uint64_t s0 = pState->s[0];
+	uint64_t s1 = pState->s[1];
+	uint64_t r = s0 + s1;
+	s1 ^= s0;
+	s0 = (s0 << 55) | (s0 >> 9);
+	s0 ^= s1 ^ (s1 << 14);
+	s1 = (s1 << 36) | (s1 >> 28);
+	pState->s[0] = s0;
+	pState->s[1] = s1;
+	return r;
+}
+
+float rng_f01(sxRNG* pState) {
+	uint32_t bits = (uint32_t)rng_next(pState);
+	bits &= 0x7FFFFF;
+	bits |= f32_get_bits(1.0f);
+	float f = f32_set_bits(bits);
+	return f - 1.0f;
+}
+
 } // nxCore
 
 

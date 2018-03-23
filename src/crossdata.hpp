@@ -109,6 +109,8 @@ FILE* fopen_w_bin(const char* fpath);
 } // nxSys
 
 
+struct sxRNG { uint64_t s[2]; };
+
 namespace nxCore {
 
 void* mem_alloc(size_t size, uint32_t tag = XD_DEF_MEM_TAG, int alignment = 0x10);
@@ -146,6 +148,11 @@ inline int f32_get_exp(float x) { return (int)f32_get_exp_bits(x) - 127; }
 inline float f32_mk_nan() { return f32_set_bits(0xFFC00000); }
 
 uint32_t fetch_bits32(uint8_t* pTop, uint32_t org, uint32_t len);
+
+void rng_seed(sxRNG* pState, uint64_t seed);
+inline void rng_seed(uint64_t seed) { rng_seed(nullptr, seed); }
+uint64_t rng_next(sxRNG* pState = nullptr);
+float rng_f01(sxRNG* pState = nullptr);
 
 } // nxCore
 
