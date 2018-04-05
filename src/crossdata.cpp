@@ -1047,7 +1047,7 @@ void cxMtx::invert_lu() {
 		return;
 	}
 	for (int i = 0; i < 4; ++i) {
-		nxLA::lu_solve_vec(m[i], lu, nxCalc::s_identityMtx[i], idx, 4);
+		nxLA::lu_solve(m[i], lu, nxCalc::s_identityMtx[i], idx, 4);
 	}
 	transpose();
 }
@@ -1066,7 +1066,7 @@ void cxMtx::invert_lu_hi() {
 	double b[4][4];
 	nxLA::mtx_cpy(&b[0][0], &nxCalc::s_identityMtx[0][0], 4, 4);
 	for (int i = 0; i < 4; ++i) {
-		nxLA::lu_solve_vec(inv[i], lu, b[i], idx, 4);
+		nxLA::lu_solve(inv[i], lu, b[i], idx, 4);
 	}
 	nxLA::mtx_cpy((float*)this, &inv[0][0], 4, 4);
 	transpose();
