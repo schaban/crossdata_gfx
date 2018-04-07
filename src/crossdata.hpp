@@ -459,8 +459,10 @@ bool lu_decomp(T* pMtx, int N, T* pWk /* [N] */, int* pIdx /* [N] */, T* pDetSgn
 			int ri = i * N;
 			T s = pMtx[ri + k] / pMtx[rk + k];
 			pMtx[ri + k] = s;
+			T* pDst = &pMtx[ri + k + 1];
+			T* pSrc = &pMtx[rk + k + 1];
 			for (int j = k + 1; j < N; ++j) {
-				pMtx[ri + j] -= pMtx[rk + j] * s;
+				*pDst++ -= *pSrc++ * s;
 			}
 		}
 	}
