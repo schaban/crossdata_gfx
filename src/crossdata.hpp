@@ -508,7 +508,7 @@ void lu_solve(T* pAns, const T* pLU, const T* pRHS, const int* pIdx, int N) {
 
 template<typename T>
 inline
-bool symm_ldlt_decomp(T* pMtx, int N, float* pDet /* [N] */, int* pIdx /* [N] */) {
+bool symm_ldlt_decomp(T* pMtx, int N, T* pDet /* [N] */, int* pIdx /* [N] */) {
 	const T zthr = T(1.0e-16);
 	const T aprm = T(1 + ::sqrt(17.0)) / 8;
 	int eposi = 0;
@@ -587,7 +587,7 @@ bool symm_ldlt_decomp(T* pMtx, int N, float* pDet /* [N] */, int* pIdx /* [N] */
 						pMtx[ri + i1] = t;
 					}
 					T t = pMtx[ri + i1];
-					T det = pMtx[ri + i] * pMtx[ri1 + i1] - t*t;
+					T det = pMtx[ri + i]*pMtx[ri1 + i1] - t*t;
 					T idet = T(1) / det;
 					aii = pMtx[ri + i] * idet;
 					T aii1 = pMtx[ri + i1] * idet;
@@ -659,7 +659,7 @@ bool symm_ldlt_decomp(T* pMtx, int N, float* pDet /* [N] */, int* pIdx /* [N] */
 
 template<typename T>
 inline
-void symm_ldlt_solve(T* pAns, const T* pMtx, const float* pRHS, const float* pDet /* [N] */, const int* pIdx /* [N] */, int N) {
+void symm_ldlt_solve(T* pAns, const T* pMtx, const T* pRHS, const T* pDet /* [N] */, const int* pIdx /* [N] */, int N) {
 	if (pAns != pRHS) {
 		for (int i = 0; i < N; ++i) {
 			pAns[i] = pRHS[i];
