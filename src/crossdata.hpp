@@ -600,11 +600,15 @@ bool symm_ldlt_decomp(T* pMtx, int N, T* pDet /* [N] */, int* pIdx /* [N] */) {
 						T u = aii1*pMtx[ri1 + k] - ai1i1*pMtx[ri + k];
 						T v = aii1*pMtx[ri + k] - aii*pMtx[ri1 + k];
 						int rk = k*N;
+						T* pDst = &pMtx[rk + k];
+						T* pSrc = &pMtx[ri + k];
 						for (int m = k; m < N; ++m) {
-							pMtx[rk + m] += pMtx[ri + m] * u;
+							*pDst++ += *pSrc++ * u;
 						}
+						pDst = &pMtx[rk + k];
+						pSrc = &pMtx[ri1 + k];
 						for (int m = k; m < N; ++m) {
-							pMtx[rk + m] += pMtx[ri1 + m] * v;
+							*pDst++ += *pSrc++ * v;
 						}
 						pMtx[ri + k] = u;
 						pMtx[ri1 + k] = v;
@@ -632,8 +636,10 @@ bool symm_ldlt_decomp(T* pMtx, int N, T* pDet /* [N] */, int* pIdx /* [N] */) {
 			for (int k = i1; k < N; ++k) {
 				int rk = k*N;
 				T t = pMtx[ri + k] * s;
+				T* pDst = &pMtx[rk + k];
+				T* pSrc = &pMtx[ri + k];
 				for (int m = k; m < N; ++m) {
-					pMtx[rk + m] += pMtx[ri + m] * t;
+					*pDst++ += *pSrc++ * t;
 				}
 				pMtx[ri + k] = t;
 			}
