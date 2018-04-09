@@ -332,8 +332,8 @@ bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
 	int* pPiv = pWk;
 	int* pCol = pWk + N;
 	int* pRow = pWk + N*2;
-	int ri = 0;
-	int ci = 0;
+	int ir = 0;
+	int ic = 0;
 	for (int i = 0; i < N; ++i) {
 		pPiv[i] = 0;
 	}
@@ -341,61 +341,62 @@ bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
 		T amax = 0;
 		for (int j = 0; j < N; ++j) {
 			if (pPiv[j] != 1) {
-				int ra = j * N;
+				int rj = j * N;
 				for (int k = 0; k < N; ++k) {
 					if (0 == pPiv[k]) {
-						T a = pMtx[ra + k];
+						T a = pMtx[rj + k];
 						if (a < 0) a = -a;
 						if (a >= amax) {
 							amax = a;
-							ri = j;
-							ci = k;
+							ir = j;
+							ic = k;
 						}
 					}
 				}
 			}
 		}
-		++pPiv[ci];
-		if (ri != ci) {
-			int ra = ri * N;
-			int ca = ci * N;
+		++pPiv[ic];
+		if (ir != ic) {
+			int rr = ir * N;
+			int rc = ic * N;
 			for (int j = 0; j < N; ++j) {
-				T t = pMtx[ra + j];
-				pMtx[ra + j] = pMtx[ca + j];
-				pMtx[ca + j] = t;
+				T t = pMtx[rr + j];
+				pMtx[rr + j] = pMtx[rc + j];
+				pMtx[rc + j] = t;
 			}
 		}
-		pRow[i] = ri;
-		pCol[i] = ci;
-		int ra = ci * N;
-		T piv = pMtx[ra + ci];
+		pRow[i] = ir;
+		pCol[i] = ic;
+		int rc = ic * N;
+		T piv = pMtx[rc + ic];
 		if (piv == 0) return false; /* singular */
 		T ipiv = 1 / piv;
-		pMtx[ra + ci] = 1;
+		pMtx[rc + ic] = 1;
 		for (int j = 0; j < N; ++j) {
-			pMtx[ra + j] *= ipiv;
+			pMtx[rc + j] *= ipiv;
 		}
-		int ca = ci * N;
 		for (int j = 0; j < N; ++j) {
-			if (j != ci) {
-				int ra = j * N;
-				T d = pMtx[ra + ci];
-				pMtx[ra + ci] = 0;
+			if (j != ic) {
+				int rj = j * N;
+				T d = pMtx[rj + ic];
+				pMtx[rj + ic] = 0;
+				T* pDst = &pMtx[rj];
+				T* pSrc = &pMtx[rc];
 				for (int k = 0; k < N; ++k) {
-					pMtx[ra + k] -= pMtx[ca + k] * d;
+					*pDst++ -= *pSrc++ * d;
 				}
 			}
 		}
 	}
 	for (int i = N; --i >= 0;) {
-		int ri = pRow[i];
-		int ci = pCol[i];
-		if (ri != ci) {
+		ir = pRow[i];
+		ic = pCol[i];
+		if (ir != ic) {
 			for (int j = 0; j < N; ++j) {
-				int ra = j * N;
-				T t = pMtx[ra + ri];
-				pMtx[ra + ri] = pMtx[ra + ci];
-				pMtx[ra + ci] = t;
+				int rj = j * N;
+				T t = pMtx[rj + ir];
+				pMtx[rj + ir] = pMtx[rj + ic];
+				pMtx[rj + ic] = t;
 			}
 		}
 	}
