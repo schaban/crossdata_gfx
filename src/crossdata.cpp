@@ -5025,30 +5025,85 @@ const char* sxGeometryData::DisplayList::get_bat_mtl_name(int batIdx) const {
 }
 
 
+void sxDDSHead::init(uint32_t w, uint32_t h) {
+	::memset(this, 0, sizeof(sxDDSHead));
+	mMagic = XD_FOURCC('D', 'D', 'S', ' ');
+	mSize = sizeof(sxDDSHead) - 4;
+	mHeight = h;
+	mWidth = w;
+}
+
+void sxDDSHead::init_dds128(uint32_t w, uint32_t h) {
+	init(w, h);
+	mFlags = 0x081007;
+	mPitchLin = w * h * (sizeof(float)*4);
+	mFormat.mSize = 0x20;
+	mFormat.mFlags = 4;
+	mFormat.mFourCC = 0x74;
+	mCaps1 = 0x1000;
+}
+
+void sxDDSHead::init_dds64(uint32_t w, uint32_t h) {
+	init(w, h);
+	mFlags = 0x081007;
+	mPitchLin = w * h * (sizeof(xt_half) * 4);
+	mFormat.mSize = 0x20;
+	mFormat.mFlags = 4;
+	mFormat.mFourCC = 0x71;
+	mCaps1 = 0x1000;
+}
+
+
 namespace nxTexture {
 
-sxDDSHead* alloc_dds128(int w, int h, uint32_t* pSize) {
+sxDDSHead* alloc_dds128(uint32_t w, uint32_t h, uint32_t* pSize) {
+	sxDDSHead* pDDS = nullptr;
 	uint32_t npix = w * h;
-	uint32_t dataSize = npix * sizeof(cxColor);
-	uint32_t size = sizeof(sxDDSHead) + dataSize;
-	sxDDSHead* pDDS = reinterpret_cast<sxDDSHead*>(nxCore::mem_alloc(size, XD_FOURCC('X', 'D', 'D', 'S')));
-	if (pDDS) {
-		::memset(pDDS, 0, sizeof(sxDDSHead));
-		pDDS->mMagic = XD_FOURCC('D', 'D', 'S', ' ');
-		pDDS->mSize = sizeof(sxDDSHead) - 4;
-		pDDS->mFlags = 0x081007;
-		pDDS->mHeight = h;
-		pDDS->mWidth = w;
-		pDDS->mPitchLin = dataSize;
-		pDDS->mFormat.mSize = 0x20;
-		pDDS->mFormat.mFlags = 4;
-		pDDS->mFormat.mFourCC = 0x74;
-		pDDS->mCaps1 = 0x1000;
-		if (pSize) {
-			*pSize = size;
+	if ((int)npix > 0) {
+		uint32_t dataSize = npix * sizeof(cxColor);
+		uint32_t size = sizeof(sxDDSHead) + dataSize;
+		sxDDSHead* pDDS = reinterpret_cast<sxDDSHead*>(nxCore::mem_alloc(size, XD_FOURCC('X', 'D', 'D', 'S')));
+		if (pDDS) {
+			pDDS->init_dds128(w, h);
+			if (pSize) {
+				*pSize = size;
+			}
 		}
 	}
 	return pDDS;
+}
+
+void save_dds128(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds128(w, h);
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			::fwrite(pClr, sizeof(cxColor), npix, pOut);
+			::fclose(pOut);
+		}
+	}
+}
+
+void save_dds64(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds64(w, h);
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			xt_half4 h;
+			for (uint32_t i = 0; i < npix; ++i) {
+				cxColor c = pClr[i];
+				h.set(c.r, c.g, c.b, c.a);
+				::fwrite(&h, sizeof(h), 1, pOut);
+			}
+			::fclose(pOut);
+		}
+	}
 }
 
 } // nxTexture

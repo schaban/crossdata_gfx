@@ -2593,11 +2593,17 @@ struct sxDDSHead {
 	uint32_t mCaps1;
 	uint32_t mCaps2;
 	uint32_t mReserved2[3];
+
+	void init(uint32_t w, uint32_t h);
+	void init_dds128(uint32_t w, uint32_t h);
+	void init_dds64(uint32_t w, uint32_t h);
 };
 
 namespace nxTexture {
 
-sxDDSHead* alloc_dds128(int w, int h, uint32_t* pSize);
+sxDDSHead* alloc_dds128(uint32_t w, uint32_t h, uint32_t* pSize = nullptr);
+void save_dds128(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
+void save_dds64(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
 
 } // nxTexture
 
