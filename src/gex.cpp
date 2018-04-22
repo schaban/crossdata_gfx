@@ -1564,10 +1564,13 @@ struct GEX_TEX {
 	int mWidth;
 	int mHeight;
 	int mLvlNum;
+	int mFormat;
 };
 
-GEX_TEX* gexTexCreate(const sxTextureData& tex) {
+GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact) {
+	bool hdrFlg = tex.is_hdr();
 	bool halfFlg = true;
+	bool byteFlg = compact && !hdrFlg;
 	GEX_TEX* pTex = gexTypeAlloc<GEX_TEX>(D_GEX_TEX_TAG);
 	sxTextureData::Pyramid* pPmd = tex.get_pyramid();
 	if (pTex && pPmd) {
@@ -1585,7 +1588,7 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex) {
 		pTex->mWidth = w;
 		pTex->mHeight = h;
 		pTex->mLvlNum = nlvl;
-		int pixelSize = halfFlg ? sizeof(xt_half4) : sizeof(xt_float4);
+		int pixelSize = byteFlg ? sizeof(uint32_t) : (halfFlg ? sizeof(xt_half4) : sizeof(xt_float4));
 
 		D3D11_SUBRESOURCE_DATA* pSub = gexTypeAlloc<D3D11_SUBRESOURCE_DATA>(XD_TMP_MEM_TAG, nlvl);
 		for (int i = 0; i < nlvl; ++i) {
@@ -1594,21 +1597,27 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex) {
 			pPmd->get_lvl_dims(i, &lvlW, &lvlH);
 			cxColor* pClr = pPmd->get_lvl(i);
 			pSub[i].SysMemPitch = lvlW*pixelSize;
-			if (halfFlg) {
-				void* pLvlMem = nxCore::mem_alloc(lvlW*lvlH*pixelSize, XD_TMP_MEM_TAG);
-				pSub[i].pSysMem = pLvlMem;
+			void* pLvlMem = (halfFlg || byteFlg) ? nxCore::mem_alloc(lvlW*lvlH*pixelSize, XD_TMP_MEM_TAG) : pClr;
+			pSub[i].pSysMem = pLvlMem;
+			if (byteFlg) {
+				for (int j = 0; j < lvlW*lvlH; ++j) {
+					uxVal32 iclr;
+					for (int k = 0; k < 4; ++k) {
+						iclr.b[k] = uint8_t(pClr[j].ch[k] * 255.0f);
+					}
+					((uint32_t*)pLvlMem)[j] = iclr.u;
+				}
+			} else if (halfFlg) {
 				for (int j = 0; j < lvlW*lvlH; ++j) {
 					gexEncodeHalf4(&((xt_half4*)pLvlMem)[j], *((xt_float4*)&pClr[j]));
 				}
-			} else {
-				pSub[i].pSysMem = pClr;
 			}
 		}
 
 		D3D11_TEXTURE2D_DESC dsc;
 		::ZeroMemory(&dsc, sizeof(dsc));
 		dsc.ArraySize = 1;
-		dsc.Format = halfFlg ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT;
+		dsc.Format = byteFlg ? DXGI_FORMAT_R8G8B8A8_UNORM : halfFlg ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT;
 		dsc.Width = w;
 		dsc.Height = h;
 		dsc.MipLevels = nlvl;
@@ -1616,6 +1625,7 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex) {
 		dsc.SampleDesc.Quality = 0;
 		dsc.Usage = D3D11_USAGE_DEFAULT;
 		dsc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		pTex->mFormat = dsc.Format;
 
 		ID3D11Texture2D* pTex2D = nullptr;
 		HRESULT hres = GWK.mpDev->CreateTexture2D(&dsc, pSub, &pTex2D);
@@ -1633,7 +1643,7 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex) {
 			pTex2D->Release();
 		}
 
-		if (halfFlg) {
+		if (byteFlg || halfFlg) {
 			for (int i = 0; i < nlvl; ++i) {
 				nxCore::mem_free((void*)pSub[i].pSysMem);
 			}

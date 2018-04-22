@@ -2682,6 +2682,8 @@ struct sxTextureData : public sxData {
 	Plane find_plane(const char* pName) const;
 	PlaneInfo* get_plane_info(int idx) const { return ck_plane_idx(idx) ? reinterpret_cast<PlaneInfo*>(XD_INCR_PTR(this, mPlaneOffs)) + idx : nullptr; }
 	Plane get_plane(int idx) const;
+	bool is_plane_hdr(int idx) const;
+	bool is_hdr() const;
 	void get_rgba(float* pDst) const;
 	cxColor* get_rgba() const;
 	DDS get_dds() const;

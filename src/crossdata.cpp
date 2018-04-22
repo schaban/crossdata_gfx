@@ -5233,6 +5233,23 @@ sxTextureData::Plane sxTextureData::get_plane(int idx) const {
 	return plane;
 }
 
+bool sxTextureData::is_plane_hdr(int idx) const {
+	bool res = false;
+	PlaneInfo* pInfo = get_plane_info(idx);
+	if (pInfo) {
+		res = pInfo->mMinVal < 0.0f || pInfo->mMaxVal > 1.0f;
+	}
+	return res;
+}
+
+bool sxTextureData::is_hdr() const {
+	int n = mPlaneNum;
+	for (int i = 0; i < n; ++i) {
+		if (is_plane_hdr(i)) return true;
+	}
+	return false;
+}
+
 void sxTextureData::get_rgba(float* pDst) const {
 	if (!pDst) return;
 	int w = get_width();
