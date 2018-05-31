@@ -3041,6 +3041,8 @@ inline int band_idx_from_ary_idx(int idx) { return (int)::sqrtf((float)idx); }
 inline int func_idx_from_ary_band(int idx, int l) { return idx - l*(l + 1); }
 
 void calc_weights(float* pWgt, int order, float s, float scl = 1.0f);
+void calc_consts(int order, float* pConsts);
+void calc_consts(int order, double* pConsts);
 
 } // nxSH
 

@@ -2442,6 +2442,119 @@ void calc_weights(float* pWgt, int order, float s, float scl) {
 	}
 }
 
+double calc_K(int l, int m) {
+	int am = ::abs(m);
+	double v = 1.0;
+	for (int k = l + am; k > l - am; --k) {
+		v *= k;
+	}
+	return ::sqrt((2.0*l + 1.0) / (4.0*M_PI*v));
+}
+
+double calc_Pmm(int m) {
+	double v = 1.0;
+	for (int k = 0; k <= m; ++k) {
+		v *= 1.0 - 2.0*k;
+	}
+	return v;
+}
+
+double calc_constA(int m) {
+	return calc_Pmm(m) * calc_K(m, m) * ::sqrt(2.0);
+}
+
+double calc_constB(int m) {
+	return double(2*m + 1) * calc_Pmm(m) * calc_K(m+1, m);
+}
+
+double calc_constC1(int l, int m) {
+	double c = calc_K(l, m) / calc_K(l-1, m) * double(2*l-1) / double(l-m);
+	if (l > 80) {
+		if (::isnan(c)) c = 0.0;
+	}
+	return c;
+}
+
+double calc_constC2(int l, int m) {
+	double c = -calc_K(l, m) / calc_K(l-2, m) * double(l+m-1) / double(l-m);
+	if (l > 80) {
+		if (::isnan(c)) c = 0.0;
+	}
+	return c;
+}
+
+double calc_constD1(int m) {
+	return double((2*m+3)*(2*m+1)) * calc_Pmm(m) / 2.0 * calc_K(m+2, m);
+}
+
+double calc_constD2(int m) {
+	return double(-(2*m + 1)) * calc_Pmm(m) / 2.0 * calc_K(m+2, m);
+}
+
+double calc_constE1(int m) {
+	return double((2*m+5)*(2*m+3)*(2*m+1)) * calc_Pmm(m) / 6.0 * calc_K(m+3,m);
+}
+
+double calc_constE2(int m) {
+	double pmm = calc_Pmm(m);
+	return (double((2*m+5)*(2*m+1))*pmm/6.0 + double((2*m+2)*(2*m+1))*pmm/3.0) * -calc_K(m+3, m);
+}
+
+template<typename CONST_T>
+void calc_consts_t(int order, CONST_T* pConsts) {
+	if (order < 1 || !pConsts) return;
+	int idx = 0;
+	pConsts[idx++] = (CONST_T)calc_K(0, 0);
+	if (order > 1) {
+		// 1, 0
+		pConsts[idx++] = (CONST_T)(calc_Pmm(0) * calc_K(1, 0));
+	}
+	if (order > 2) {
+		// 2, 0
+		pConsts[idx++] = (CONST_T)calc_constD1(0);
+		pConsts[idx++] = (CONST_T)calc_constD2(0);
+	}
+	if (order > 3) {
+		// 2, 0
+		pConsts[idx++] = (CONST_T)calc_constE1(0);
+		pConsts[idx++] = (CONST_T)calc_constE2(0);
+	}
+	for (int l = 4; l < order; ++l) {
+		pConsts[idx++] = (CONST_T)calc_constC1(l, 0);
+		pConsts[idx++] = (CONST_T)calc_constC2(l, 0);
+	}
+	const double scl = ::sqrt(2.0);
+	for (int m = 1; m < order-1; ++m) {
+		pConsts[idx++] = (CONST_T)calc_constA(m);
+		if (m + 1 < order) {
+			pConsts[idx++] = (CONST_T)(calc_constB(m) * scl);
+		}
+		if (m + 2 < order) {
+			pConsts[idx++] = (CONST_T)(calc_constD1(m) * scl);
+			pConsts[idx++] = (CONST_T)(calc_constD2(m) * scl);
+		}
+		if (m + 3 < order) {
+			pConsts[idx++] = (CONST_T)(calc_constE1(m) * scl);
+			pConsts[idx++] = (CONST_T)(calc_constE2(m) * scl);
+		}
+		for (int l = m+4; l < order; ++l) {
+			pConsts[idx++] = (CONST_T)calc_constC1(l, m);
+			pConsts[idx++] = (CONST_T)calc_constC2(l, m);
+		}
+	}
+	if (order > 1) {
+		pConsts[idx++] = (CONST_T)calc_constA(order - 1);
+	}
+}
+
+void calc_consts(int order, float* pConsts) {
+	calc_consts_t(order, pConsts);
+}
+
+void calc_consts(int order, double* pConsts) {
+	calc_consts_t(order, pConsts);
+}
+
 } // nxSH
 
 
@@ -4171,8 +4284,8 @@ int sxGeometryData::get_pnt_skin_jnt(int pntIdx, int wgtIdx) const {
 			if (nnodes <= (1 << 8)) {
 				idx = pIdx[wgtIdx];
 			} else {
-				idx = pIdx[wgtIdx * 2];
-				idx |= pIdx[wgtIdx * 2 + 1] << 8;
+				idx = pIdx[wgtIdx*2];
+				idx |= pIdx[wgtIdx*2 + 1] << 8;
 			}
 		}
 	}
