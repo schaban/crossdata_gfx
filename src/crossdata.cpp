@@ -1716,6 +1716,95 @@ cxVec cxQuat::apply(const cxVec& v) const {
 	return ((qv*d + v*ww) - nxVec::cross(v, qv)*w)*2.0f - v;
 }
 
+// http://www.geometrictools.com/Documentation/ConstrainedQuaternions.pdf
+
+static inline cxQuat closest_quat_by_axis(const cxQuat& qsrc, int axis) {
+	cxQuat qres;
+	qres.identity();
+	float e = qsrc.get_at(axis);
+	float w = qsrc.w;
+	float sqmag = nxCalc::sq(e) + nxCalc::sq(w);
+	if (sqmag > 0.0f) {
+		float s = nxCalc::rcp0(::sqrtf(sqmag));
+		qres.set_at(axis, e*s);
+		qres.w = w*s;
+	}
+	return qres;
+}
+
+cxQuat cxQuat::get_closest_x() const { return closest_quat_by_axis(*this, 0); }
+
+cxQuat cxQuat::get_closest_y() const { return closest_quat_by_axis(*this, 1); }
+
+cxQuat cxQuat::get_closest_z() const { return closest_quat_by_axis(*this, 2); }
+
+cxQuat cxQuat::get_closest_xy() const {
+	cxQuat q;
+	float det = ::fabsf(-x*y - z*w);
+	float s;
+	if (det < 0.5f) {
+		float d = ::sqrtf(::fabsf(1.0f - 4.0f*nxCalc::sq(det)));
+		float a = x*w - y*z;
+		float b = nxCalc::sq(w) - nxCalc::sq(x) + nxCalc::sq(y) - nxCalc::sq(z);
+		float s0, c0;
+		if (b >= 0.0f) {
+			s0 = a;
+			c0 = (d + b)*0.5f;
+		} else {
+			s0 = (d - b)*0.5f;
+			c0 = a;
+		}
+		s = nxCalc::rcp0(nxCalc::hypot(s0, c0));
+		s0 *= s;
+		c0 *= s;
+
+		float s1 = y*c0 - z*s0;
+		float c1 = w*c0 + x*s0;
+		s = nxCalc::rcp0(nxCalc::hypot(s1, c1));
+		s1 *= s;
+		c1 *= s;
+
+		q.set(s0*c1, c0*s1, -s0*s1, c0*c1);
+	} else {
+		s = nxCalc::rcp0(::sqrtf(det));
+		q.set(x*s, 0.0f, 0.0f, w*s);
+	}
+	return q;
+}
+
+cxQuat cxQuat::get_closest_yx() const {
+	cxQuat q = cxQuat(x, y, -z, w).get_closest_xy();
+	q.z = -q.z;
+	return q;
+}
+
+cxQuat cxQuat::get_closest_xz() const {
+	cxQuat q = cxQuat(x, z, y, w).get_closest_yx();
+	float t = q.y;
+	q.y = q.z;
+	q.z = t;
+	return q;
+}
+
+cxQuat cxQuat::get_closest_zx() const {
+	cxQuat q = cxQuat(x, z, y, w).get_closest_xy();
+	float t = q.y;
+	q.y = q.z;
+	q.z = t;
+	return q;
+}
+
+cxQuat cxQuat::get_closest_yz() const {
+	cxQuat q = cxQuat(y, z, x, w).get_closest_xy();
+	return cxQuat(q.z, q.x, q.y, q.w);
+}
+
+cxQuat cxQuat::get_closest_zy() const {
+	cxQuat q = cxQuat(y, z, x, w).get_closest_yx();
+	return cxQuat(q.z, q.x, q.y, q.w);
+}
+
+
 namespace nxQuat {
 
 cxQuat log(const cxQuat& q) {

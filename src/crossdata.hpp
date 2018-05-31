@@ -176,6 +176,12 @@ inline float div0(float x, float y) { return y != 0.0f ? x / y : 0.0f; }
 
 inline float rcp0(float x) { return div0(1.0f, x); }
 
+inline float hypot(float x, float y) {
+	float m = max(::fabsf(x), ::fabsf(y));
+	float im = rcp0(m);
+	return ::sqrtf(sq(x*im) + sq(y*im)) * m;
+}
+
 inline float lerp(float a, float b, float t) { return a + (b - a)*t; }
 
 inline float sinc(float x) {
@@ -1091,7 +1097,7 @@ public:
 	}
 
 	float azimuth() const { return ::atan2f(x, z); }
-	float elevation() const { return -::atan2f(y, ::hypotf(x, z)); }
+	float elevation() const { return -::atan2f(y, nxCalc::hypot(x, z)); }
 
 	void min(const cxVec& v) {
 		x = nxCalc::min(x, v.x);
@@ -1540,6 +1546,16 @@ public:
 	void slerp(const cxQuat& q1, const cxQuat& q2, float t);
 
 	cxVec apply(const cxVec& v) const;
+
+	cxQuat get_closest_x() const;
+	cxQuat get_closest_y() const;
+	cxQuat get_closest_z() const;
+	cxQuat get_closest_xy() const;
+	cxQuat get_closest_yx() const;
+	cxQuat get_closest_xz() const;
+	cxQuat get_closest_zx() const;
+	cxQuat get_closest_yz() const;
+	cxQuat get_closest_zy() const;
 };
 
 inline cxQuat operator * (const cxQuat& q1, const cxQuat& q2) { cxQuat q = q1; q.mul(q2); return q; }
