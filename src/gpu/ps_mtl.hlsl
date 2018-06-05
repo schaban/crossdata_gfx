@@ -490,7 +490,6 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 
 	if (mtl.receiveShadows) {
 		float3 wpos = wk.geom.pos;
-		float3 sdist = -mul(float4(wpos, 1), g_cam[0].view).z;
 		float4 spos = mul(float4(wpos, 1), g_sdw[0].xform);
 		float4 scp = spos.xyzz/spos.w;
 		//if (!(scp.x < 0 || scp.x > 1 || scp.y < 0 || scp.y > 1 || scp.z < 0 || scp.z > 1)) {
@@ -500,6 +499,14 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 				float sval = shadowVal(spos);
 				float sdens = g_sdw[0].color.a * g_mtl[0].shadowDensity;
 				sval *= sdens;
+				float2 sfade = g_sdw[0].fade;
+				float fadeInvRange = sfade.y;
+				if (fadeInvRange > 0) {
+					float sdist = -mul(float4(wpos, 1), g_cam[0].view).z;
+					float fadeStart = sfade.x;
+					float fadeVal = 1.0 - saturate((sdist - fadeStart) * fadeInvRange);
+					sval *= fadeVal;
+				}
 				tgtClr.rgb = lerp(tgtClr.rgb, g_sdw[0].color.rgb, sval);
 				//tgtClr.rgb = float3(scp.x, scp.y, sval);//////////////////
 			}

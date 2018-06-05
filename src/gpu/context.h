@@ -47,6 +47,7 @@ struct SDW_CTX {
 	xt_mtx xform;
 	xt_float4 color;
 	xt_float3 dir;
+	xt_float2 fade; // start, invRange
 	xt_float size;
 	xt_float invSize;
 };

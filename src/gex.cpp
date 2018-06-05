@@ -562,6 +562,7 @@ void gexInit(const GEX_CONFIG& cfg) {
 		gexLinearGain(1.0f);
 		gexLinearBias(0.0f);
 		gexGamma(2.2f);
+		gexShadowFade(0.0f, 0.0f);
 		gexUpdateGlobals();
 	}
 
@@ -761,8 +762,6 @@ void gexInit(const GEX_CONFIG& cfg) {
 	GWK.mpDefTexWhite = gexTexCreateConst(cxColor(1.0f), "<white>");
 	GWK.mpDefTexBlack = gexTexCreateConst(cxColor(0.0f), "<black>");
 
-	GWK.mShadowFadeStart = 50.0f;
-	GWK.mShadowFadeEnd = 100.0f;
 	GWK.mShadowViewSize = 2.0f;
 	GWK.mShadowDir = GWK.mDefLightDir;
 	GWK.mShadowColor = cxColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -1215,6 +1214,11 @@ void gexShadowColor(const cxColor& clr) {
 
 void gexShadowProjection(GEX_SHADOW_PROJ prj) {
 	GWK.mShadowProj = prj;
+}
+
+void gexShadowFade(float start, float end) {
+	GWK.mShadowFadeStart = start;
+	GWK.mShadowFadeEnd = end;
 }
 
 
@@ -3519,6 +3523,7 @@ void gexShadowCastStart(GEX_DISP_ENTRY& ent) {
 	gexStoreTMtx(&sdw.xform, GWK.mShadowMtx);
 	gexStoreVec(&sdw.dir, GWK.mShadowDir);
 	gexStoreRGBA(&sdw.color, GWK.mShadowColor);
+	sdw.fade.set(GWK.mShadowFadeStart, nxCalc::rcp0(GWK.mShadowFadeEnd - GWK.mShadowFadeStart));
 	sdw.color.w *= GWK.mShadowDensity;
 	sdw.size = (float)GWK.mShadowMapSize;
 	sdw.invSize = nxCalc::rcp0(sdw.size);
