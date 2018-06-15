@@ -2486,6 +2486,104 @@ bool cxFrustum::overlaps(const cxAABB& box) const {
 }
 
 
+namespace nxColor {
+
+void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims, cxVec* pWhite) {
+	cxVec rx, ry, rz;
+	if (pPrims) {
+		rx = pPrims[0];
+		ry = pPrims[1];
+		rz = pPrims[2];
+	} else {
+		/* 709 primaries */
+		rx.set(0.640f, 0.330f, 0.030f);
+		ry.set(0.300f, 0.600f, 0.100f);
+		rz.set(0.150f, 0.060f, 0.790f);
+	}
+
+	cxVec w;
+	if (pWhite) {
+		w = *pWhite;
+	} else {
+		/* D65 */
+		w.set(0.3127f, 0.3290f, 0.3582f);
+	}
+	w.scl(nxCalc::rcp0(w.y));
+
+	cxMtx cm;
+	cm.set_rot_frame(rx, ry, rz);
+
+	cxMtx im = cm.get_inverted();
+	cxVec j = im.calc_vec(w);
+	cxMtx tm;
+	tm.mk_scl(j);
+	tm.mul(cm);
+	if (pRGB2XYZ) {
+		*pRGB2XYZ = tm;
+	}
+	if (pXYZ2RGB) {
+		*pXYZ2RGB = tm.get_inverted();
+	}
+}
+
+cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ) {
+	cxVec white = cxColor(1.0f).XYZ(pRGB2XYZ);
+	cxVec l = xyz * nxVec::rcp0(white);
+	for (int i = 0; i < 3; ++i) {
+		float e = l.get_at(i);
+		if (e > 0.008856f) {
+			e = nxCalc::cb_root(e);
+		} else {
+			e = e*7.787f + (16.0f / 116);
+		}
+		l.set_at(i, e);
+	}
+	float lx = l.x;
+	float ly = l.y;
+	float lz = l.z;
+	return cxVec(116.0f*ly - 16.0f, 500.0f*(lx - ly), 200.0f*(ly - lz));
+}
+
+cxVec Lab_to_XYZ(const cxVec& lab, cxMtx* pRGB2XYZ) {
+	cxVec white = cxColor(1.0f).XYZ(pRGB2XYZ);
+	float L = lab.x;
+	float a = lab.y;
+	float b = lab.z;
+	float ly = (L + 16.0f) / 116.0f;
+	cxVec t(a/500.0f + ly, ly, -b/200.0f + ly);
+	for (int i = 0; i < 3; ++i) {
+		float e = t.get_at(i);
+		if (e > 0.206893f) {
+			e = nxCalc::cb(e);
+		} else {
+			e = (e - (16.0f/116)) / 7.787f;
+		}
+		t.set_at(i, e);
+	}
+	t.mul(white);
+	return t;
+}
+
+cxVec Lab_to_Lch(const cxVec& lab) {
+	float L = lab.x;
+	float a = lab.y;
+	float b = lab.z;
+	float c = nxCalc::hypot(a, b);
+	float h = ::atan2f(b, a);
+	return cxVec(L, c, h);
+}
+
+cxVec Lch_to_Lab(const cxVec& lch) {
+	float L = lch.x;
+	float c = lch.y;
+	float h = lch.z;
+	float hs = ::sinf(h);
+	float hc = ::cosf(h);
+	return cxVec(L, c*hc, c*hs);
+}
+
+} // nxColor
+
 cxVec cxColor::YCgCo() const {
 	cxVec rgb(r, g, b);
 	return cxVec(
@@ -2519,6 +2617,50 @@ void cxColor::from_TMI(const cxVec& tmi) {
 	r = I - T*0.5f + M/3.0f;
 	g = I - M*2.0f/3.0f;
 	b = I + T*0.5f + M/3.0f;
+}
+
+static inline cxMtx* mtx_RGB2XYZ(cxMtx* pRGB2XYZ) {
+	static float tm709[] = {
+		0.412453f, 0.212671f, 0.019334f, 0.0f,
+		0.357580f, 0.715160f, 0.119193f, 0.0f,
+		0.180423f, 0.072169f, 0.950227f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+	return pRGB2XYZ ? pRGB2XYZ : (cxMtx*)tm709;
+}
+
+static inline cxMtx* mtx_XYZ2RGB(cxMtx* pXYZ2RGB) {
+	static float im709[] = {
+		 3.240479f, -0.969256f,  0.055648f, 0.0f,
+		-1.537150f,  1.875992f, -0.204043f, 0.0f,
+		-0.498535f,  0.041556f,  1.057311f, 0.0f,
+		 0.0f, 0.0f, 0.0f, 1.0f
+	};
+	return pXYZ2RGB ? pXYZ2RGB : (cxMtx*)im709;
+}
+
+cxVec cxColor::XYZ(cxMtx* pRGB2XYZ) const {
+	return mtx_RGB2XYZ(pRGB2XYZ)->calc_vec(cxVec(r, g, b));
+}
+
+void cxColor::from_XYZ(const cxVec& xyz, cxMtx* pXYZ2RGB) {
+	set(mtx_XYZ2RGB(pXYZ2RGB)->calc_vec(xyz));
+}
+
+cxVec cxColor::Lab(cxMtx* pRGB2XYZ) const {
+	return nxColor::XYZ_to_Lab(XYZ(pRGB2XYZ), pRGB2XYZ);
+}
+
+void cxColor::from_Lab(const cxVec& lab, cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB) {
+	from_XYZ(nxColor::Lab_to_XYZ(lab, pRGB2XYZ), pXYZ2RGB);
+}
+
+cxVec cxColor::Lch(cxMtx* pRGB2XYZ) const {
+	return nxColor::Lab_to_Lch(Lab(pRGB2XYZ));
+}
+
+void cxColor::from_Lch(const cxVec& lch, cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB) {
+	from_Lab(nxColor::Lch_to_Lab(lch), pRGB2XYZ, pXYZ2RGB);
 }
 
 

@@ -182,6 +182,12 @@ inline float hypot(float x, float y) {
 	return ::sqrtf(sq(x*im) + sq(y*im)) * m;
 }
 
+inline float cb_root(float x) {
+	float a = ::fabsf(x);
+	float r = ::expf(::logf(a) * (1.0f / 3.0f));
+	return x < 0.0f ? -r : r;
+}
+
 inline float lerp(float a, float b, float t) { return a + (b - a)*t; }
 
 inline float sinc(float x) {
@@ -1228,6 +1234,10 @@ inline cxVec max(const cxVec& v1, const cxVec& v2) {
 	return v;
 }
 
+inline cxVec rcp0(const cxVec& v) {
+	return cxVec(nxCalc::rcp0(v.x), nxCalc::rcp0(v.y), nxCalc::rcp0(v.z));
+}
+
 float dist2(const cxVec& pos0, const cxVec& pos1);
 float dist(const cxVec& pos0, const cxVec& pos1);
 
@@ -1921,6 +1931,16 @@ public:
 };
 
 
+namespace nxColor {
+
+void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims = nullptr, cxVec* pWhite = nullptr);
+cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ = nullptr);
+cxVec Lab_to_XYZ(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr);
+cxVec Lab_to_Lch(const cxVec& lab);
+cxVec Lch_to_Lab(const cxVec& lch);
+
+} // nxColor
+
 class cxColor {
 public:
 	union {
@@ -1939,7 +1959,12 @@ public:
 		this->b = b;
 		this->a = a;
 	}
+
 	void set(float val) { set(val, val, val); }
+
+	void set(const cxVec& v) {
+		set(v.x, v.y, v.z);
+	}
 
 	void zero() {
 		for (int i = 0; i < 4; ++i) {
@@ -1985,6 +2010,12 @@ public:
 	void from_YCgCo(const cxVec& ygo);
 	cxVec TMI() const;
 	void from_TMI(const cxVec& tmi);
+	cxVec XYZ(cxMtx* pRGB2XYZ = nullptr) const;
+	void from_XYZ(const cxVec& xyz, cxMtx* pXYZ2RGB = nullptr);
+	cxVec Lab(cxMtx* pRGB2XYZ = nullptr) const;
+	void from_Lab(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr, cxMtx* pXYZ2RGB = nullptr);
+	cxVec Lch(cxMtx* pRGB2XYZ = nullptr) const;
+	void from_Lch(const cxVec& lch, cxMtx* pRGB2XYZ = nullptr, cxMtx* pXYZ2RGB = nullptr);
 };
 
 
