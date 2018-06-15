@@ -102,6 +102,7 @@ struct MTL_CTX {
 
 struct GLB_CTX {
 	xt_float4 invGamma;
+	xt_float3 exposure;
 	xt_float3 linWhite;
 	xt_float3 linGain;
 	xt_float3 linBias;

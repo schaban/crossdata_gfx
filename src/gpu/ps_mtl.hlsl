@@ -385,6 +385,10 @@ float4 tgtColor(float4 clr) {
 	c += glb.linBias;
 	clr.rgb = c;
 
+	float3 e = glb.exposure;
+	if (all(e > 0)) {
+		clr.rgb = 1.0 - exp(clr.rgb * -e);
+	}
 	clr = max(clr, 0);
 	clr = pow(clr, glb.invGamma);
 

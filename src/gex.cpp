@@ -562,7 +562,6 @@ void gexInit(const GEX_CONFIG& cfg) {
 		gexLinearGain(1.0f);
 		gexLinearBias(0.0f);
 		gexGamma(2.2f);
-		gexShadowFade(0.0f, 0.0f);
 		gexUpdateGlobals();
 	}
 
@@ -767,6 +766,7 @@ void gexInit(const GEX_CONFIG& cfg) {
 	GWK.mShadowColor = cxColor(0.0f, 0.0f, 0.0f, 1.0f);
 	GWK.mShadowDensity = 0.5f;
 	GWK.mShadowProj = GEX_SHADOW_PROJ::UNIFORM;
+	gexShadowFade(0.0f, 0.0f);
 	if (cfg.mShadowMapSize > 0) {
 		int smapSize = nxCalc::min(cfg.mShadowMapSize, 4096*2);
 		GWK.mShadowMapSize = smapSize;
@@ -997,6 +997,14 @@ void gexGamma(float y) {
 
 void gexGammaRGBA(float yr, float yg, float yb, float ya) {
 	GWK.mGlbWk.invGamma.set(nxCalc::rcp0(yr), nxCalc::rcp0(yg), nxCalc::rcp0(yb), nxCalc::rcp0(ya));
+}
+
+void gexExposure(float e) {
+	GWK.mGlbWk.exposure.fill(e);
+}
+
+void gexExposureRGB(float er, float eg, float eb) {
+	GWK.mGlbWk.exposure.set(er, eg, eb);
 }
 
 void gexLinearWhite(float w) {

@@ -111,6 +111,8 @@ void gexClearDepth();
 void gexDiffLightFactor(const cxColor& clr);
 void gexGamma(float y);
 void gexGammaRGBA(float yr, float yg, float yb, float ya);
+void gexExposure(float e);
+void gexExposureRGB(float er, float eg, float eb);
 void gexLinearWhite(float w);
 void gexLinearWhiteRGB(float wr, float wg, float wb);
 void gexLinearGain(float gain);
