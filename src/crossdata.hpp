@@ -3083,6 +3083,7 @@ struct sxFileCatalogue : public sxData {
 namespace nxSH {
 
 inline int calc_coefs_num(int order) { return order < 1 ? 0 : nxCalc::sq(order); }
+inline constexpr int calc_consts_num(int order) { return order < 1 ? 0 : order*order - (order - 1); }
 inline int calc_ary_idx(int l, int m) { return l*(l+1) + m; }
 inline int band_idx_from_ary_idx(int idx) { return (int)::sqrtf((float)idx); }
 inline int func_idx_from_ary_band(int idx, int l) { return idx - l*(l + 1); }
@@ -3090,6 +3091,12 @@ inline int func_idx_from_ary_band(int idx, int l) { return idx - l*(l + 1); }
 void calc_weights(float* pWgt, int order, float s, float scl = 1.0f);
 void calc_consts(int order, float* pConsts);
 void calc_consts(int order, double* pConsts);
+void eval(int order, float* pCoefs, float x, float y, float z, const float* pConsts);
+void eval_ary4(int order, float* pCoefs, float x[4], float y[4], float z[4], const float* pConsts);
+void eval_ary8(int order, float* pCoefs, float x[8], float y[8], float z[8], const float* pConsts);
+void eval_sh3(float* pCoefs, float x, float y, float z, const float* pConsts);
+void eval_sh3_ary4(float* pCoefs, float x[4], float y[4], float z[4], const float* pConsts);
+void eval_sh3_ary8(float* pCoefs, float x[8], float y[8], float z[8], const float* pConsts);
 
 } // nxSH
 

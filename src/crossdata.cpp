@@ -2778,12 +2778,298 @@ void calc_consts_t(int order, CONST_T* pConsts) {
 	}
 }
 
+template<typename EVAL_T, typename CONST_T, int N>
+XD_FORCEINLINE
+void eval_t(int order, EVAL_T* pCoefs, const EVAL_T x[], const EVAL_T y[], const EVAL_T z[], const CONST_T* pConsts) {
+	EVAL_T zz[N];
+	for (int i = 0; i < N; ++i) {
+		zz[i] = z[i] * z[i];
+	}
+	EVAL_T cval = (EVAL_T)pConsts[0];
+	for (int i = 0; i < N; ++i) {
+		pCoefs[i] = cval;
+	}
+	int idx = 1;
+	int idst;
+	EVAL_T* pDst;
+	EVAL_T cval2;
+	if (order > 1) {
+		idst = calc_ary_idx(1, 0);
+		pDst = &pCoefs[idst * N];
+		cval = (EVAL_T)pConsts[idx++];
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = z[i] * cval;
+		}
+	}
+	if (order > 2) {
+		idst = calc_ary_idx(2, 0);
+		pDst = &pCoefs[idst * N];
+		cval = (EVAL_T)pConsts[idx++];
+		cval2 = (EVAL_T)pConsts[idx++];
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = zz[i]*cval;
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] += cval2;
+		}
+	}
+	if (order > 3) {
+		idst = calc_ary_idx(3, 0);
+		pDst = &pCoefs[idst * N];
+		cval = (EVAL_T)pConsts[idx++];
+		cval2 = (EVAL_T)pConsts[idx++];
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = zz[i]*cval;
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] += cval2;
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] *= z[i];
+		}
+	}
+	for (int l = 4; l < order; ++l) {
+		int isrc1 = calc_ary_idx(l-1, 0);
+		int isrc2 = calc_ary_idx(l-2, 0);
+		EVAL_T* pSrc1 = &pCoefs[isrc1 * N];
+		EVAL_T* pSrc2 = &pCoefs[isrc2 * N];
+		idst = calc_ary_idx(l, 0);
+		pDst = &pCoefs[idst * N];
+		cval = (EVAL_T)pConsts[idx++];
+		cval2 = (EVAL_T)pConsts[idx++];
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = z[i]*cval;
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] *= pSrc1[i];
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] += pSrc2[i] * cval2;
+		}
+	}
+	EVAL_T prev[3*N];
+	EVAL_T* pPrev;
+	EVAL_T s[2*N];
+	EVAL_T sin[N];
+	for (int i = 0; i < N; ++i) {
+		s[i] = y[i];
+	}
+	EVAL_T c[2*N];
+	EVAL_T cos[N];
+	for (int i = 0; i < N; ++i) {
+		c[i] = x[i];
+	}
+	int scIdx = 0;
+	for (int m = 1; m < order - 1; ++m) {
+		int l = m;
+		idst = l*l + l - m;
+		pDst = &pCoefs[idst * N];
+		cval = (EVAL_T)pConsts[idx++];
+		for (int i = 0; i < N; ++i) {
+			sin[i] = s[scIdx*N + i];
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = sin[i] * cval;
+		}
+		idst = l*l + l + m;
+		pDst = &pCoefs[idst * N];
+		for (int i = 0; i < N; ++i) {
+			cos[i] = c[scIdx*N + i];
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = cos[i] * cval;
+		}
+
+		if (m + 1 < order) {
+			// (m+1, -m), (m+1, m)
+			l = m + 1;
+			cval = (EVAL_T)pConsts[idx++];
+			pPrev = &prev[1*N];
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] = z[i] * cval;
+			}
+			idst = l*l + l - m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * sin[i];
+			}
+			idst = l*l + l + m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * cos[i];
+			}
+		}
+
+		if (m + 2 < order) {
+			// (m+2, -m), (m+2, m)
+			l = m + 2;
+			cval = (EVAL_T)pConsts[idx++];
+			cval2 = (EVAL_T)pConsts[idx++];
+			pPrev = &prev[2*N];
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] = zz[i]*cval + cval2;
+			}
+			idst = l*l + l - m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * sin[i];
+			}
+			idst = l*l + l + m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * cos[i];
+			}
+		}
+
+		if (m + 3 < order) {
+			// (m+3, -m), (m+3, m)
+			l = m + 3;
+			cval = (EVAL_T)pConsts[idx++];
+			cval2 = (EVAL_T)pConsts[idx++];
+			pPrev = &prev[0*N];
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] = zz[i]*cval;
+			}
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] += cval2;
+			}
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] *= z[i];
+			}
+			idst = l*l + l - m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * sin[i];
+			}
+			idst = l*l + l + m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * cos[i];
+			}
+		}
+
+		const unsigned prevMask = 1 | (0 << 2) | (2 << 4) | (1 << 6) | (0 << 8) | (2 << 10) | (1 << 12);
+		unsigned mask = prevMask | ((prevMask >> 2) << 14);
+		unsigned maskCnt = 0;
+		for (l = m + 4; l < order; ++l) {
+			unsigned prevIdx = mask & 3;
+			pPrev = &prev[prevIdx * N];
+			EVAL_T* pPrev1 = &prev[((mask >> 2) & 3) * N];
+			EVAL_T* pPrev2 = &prev[((mask >> 4) & 3) * N];
+			cval = (EVAL_T)pConsts[idx++];
+			cval2 = (EVAL_T)pConsts[idx++];
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] = z[i] * cval;
+			}
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] *= pPrev1[i];
+			}
+			for (int i = 0; i < N; ++i) {
+				pPrev[i] += pPrev2[i] * cval2;
+			}
+			idst = l*l + l - m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * sin[i];
+			}
+			idst = l*l + l + m;
+			pDst = &pCoefs[idst * N];
+			for (int i = 0; i < N; ++i) {
+				pDst[i] = pPrev[i] * cos[i];
+			}
+			if (order < 11) {
+				mask >>= 4;
+			} else {
+				++maskCnt;
+				if (maskCnt < 3) {
+					mask >>= 4;
+				} else {
+					mask = prevMask;
+					maskCnt = 0;
+				}
+			}
+		}
+
+		EVAL_T* pSinSrc = &s[scIdx * N];
+		EVAL_T* pCosSrc = &c[scIdx * N];
+		EVAL_T* pSinDst = &s[(scIdx^1) * N];
+		EVAL_T* pCosDst = &c[(scIdx^1) * N];
+		for (int i = 0; i < N; ++i) {
+			pSinDst[i] = x[i]*pSinSrc[i] + y[i]*pCosSrc[i];
+		}
+		for (int i = 0; i < N; ++i) {
+			pCosDst[i] = x[i]*pCosSrc[i] - y[i]*pSinSrc[i];
+		}
+		scIdx ^= 1;
+	}
+
+
+	if (order > 1) {
+		cval = (EVAL_T)pConsts[idx];
+		idst = calc_ary_idx(order - 1, -(order - 1));
+		pDst = &pCoefs[idst * N];
+		for (int i = 0; i < N; ++i) {
+			sin[i] = s[scIdx*N + i];
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = sin[i] * cval;
+		}
+		idst = calc_ary_idx(order - 1, order - 1);
+		pDst = &pCoefs[idst * N];
+		for (int i = 0; i < N; ++i) {
+			cos[i] = c[scIdx*N + i];
+		}
+		for (int i = 0; i < N; ++i) {
+			pDst[i] = cos[i] * cval;
+		}
+	}
+}
+
 void calc_consts(int order, float* pConsts) {
 	calc_consts_t(order, pConsts);
 }
 
 void calc_consts(int order, double* pConsts) {
 	calc_consts_t(order, pConsts);
+}
+
+void eval(int order, float* pCoefs, float x, float y, float z, const float* pConsts) {
+	eval_t<float, float, 1>(order, pCoefs, &x, &y, &z, pConsts);
+}
+
+void eval_ary4(int order, float* pCoefs, float x[4], float y[4], float z[4], const float* pConsts) {
+	eval_t<float, float, 4>(order, pCoefs, x, y, z, pConsts);
+}
+
+void eval_ary8(int order, float* pCoefs, float x[8], float y[8], float z[8], const float* pConsts) {
+	eval_t<float, float, 8>(order, pCoefs, x, y, z, pConsts);
+}
+
+void eval_sh3(float* pCoefs, float x, float y, float z, const float* pConsts) {
+	float tc[calc_consts_num(3)];
+	if (!pConsts) {
+		calc_consts(3, tc);
+		pConsts = tc;
+	}
+	eval_t<float, float, 1>(3, pCoefs, &x, &y, &z, pConsts);
+}
+
+void eval_sh3_ary4(float* pCoefs, float x[4], float y[4], float z[4], const float* pConsts) {
+	float tc[calc_consts_num(3)];
+	if (!pConsts) {
+		calc_consts(3, tc);
+		pConsts = tc;
+	}
+	eval_t<float, float, 4>(3, pCoefs, x, y, z, pConsts);
+}
+
+void eval_sh3_ary8(float* pCoefs, float x[8], float y[8], float z[8], const float* pConsts) {
+	float tc[calc_consts_num(3)];
+	if (!pConsts) {
+		calc_consts(3, tc);
+		pConsts = tc;
+	}
+	eval_t<float, float, 8>(3, pCoefs, x, y, z, pConsts);
 }
 
 } // nxSH
