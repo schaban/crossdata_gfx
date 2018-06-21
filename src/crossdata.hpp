@@ -1332,6 +1332,8 @@ public:
 		return m;
 	}
 
+	void from_upvec(const cxVec& n);
+
 	void orient_zy(const cxVec& axisZ, const cxVec& axisY, bool normalizeInput = true);
 	void orient_zx(const cxVec& axisZ, const cxVec& axisX, bool normalizeInput = true);
 

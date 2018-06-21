@@ -1107,6 +1107,16 @@ void cxMtx::mul(const cxMtx& m1, const cxMtx& m2) {
 #endif
 }
 
+// Ref: http://graphics.pixar.com/library/OrthonormalB/paper.pdf
+void cxMtx::from_upvec(const cxVec& n) {
+	float s = n.z < 0 ? -1.0f : 1.0f;
+	float a = -1.0f / (s - n.z);
+	float b = n.x * n.y * a;
+	cxVec nx(1.0f + s*n.x*n.x*a, s*b, s*n.x);
+	cxVec nz(b, s + n.y*n.y*a, n.y);
+	set_rot_frame(nx, n, nz);
+}
+
 void cxMtx::orient_zy(const cxVec& axisZ, const cxVec& axisY, bool normalizeInput) {
 	cxVec az = normalizeInput ? axisZ.get_normalized() : axisZ;
 	cxVec ay = normalizeInput ? axisY.get_normalized() : axisY;
@@ -3002,7 +3012,6 @@ void eval_t(int order, EVAL_T* pCoefs, const EVAL_T x[], const EVAL_T y[], const
 		}
 		scIdx ^= 1;
 	}
-
 
 	if (order > 1) {
 		cval = (EVAL_T)pConsts[idx];
