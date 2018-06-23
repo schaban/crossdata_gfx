@@ -54,6 +54,11 @@ struct MTL_LIT {
 	float3 refl;
 };
 
+struct MTL_SDW {
+	float sval;
+	float val;
+};
+
 struct MTL_FOG {
 	float3 add;
 	float3 mul;
@@ -67,6 +72,7 @@ struct MTL_WK {
 	MTL_UV uv;
 	MTL_TEX tex;
 	MTL_LIT lit;
+	MTL_SDW sdw;
 	MTL_FOG fog;
 };
 
@@ -375,12 +381,41 @@ float shadowVal(float4 spos) {
 	return shadowVal4W(spos);
 }
 
+MTL_WK calcShadow(MTL_WK wk) {
+	MTL_SDW sdw = (MTL_SDW)0;
+	if (g_mtl[0].receiveShadows) {
+		float3 wpos = wk.geom.pos;
+		float4 spos = mul(float4(wpos, 1), g_sdw[0].xform);
+		float4 scp = spos.xyzz/spos.w;
+		if (all(scp.xyz>=0) && all(scp.xyz<=1)) {
+			bool scull = g_mtl[0].cullShadows ? dot(wk.geom.nrm, -g_sdw[0].dir) < 0 : false;
+			if (!scull) {
+				float sval = shadowVal(spos);
+				sdw.sval = sval;
+				float sdens = g_sdw[0].color.a * g_mtl[0].shadowDensity;
+				sval *= sdens;
+				float2 sfade = g_sdw[0].fade;
+				float fadeInvRange = sfade.y;
+				if (fadeInvRange > 0) {
+					float sdist = -mul(float4(wpos, 1), g_cam[0].view).z;
+					float fadeStart = sfade.x;
+					float fadeVal = 1.0 - saturate((sdist - fadeStart) * fadeInvRange);
+					sval *= fadeVal;
+				}
+				sdw.val = sval;
+			}
+		}
+	}
+	wk.sdw = sdw;
+	return wk;
+}
+
 
 float4 tgtColor(float4 clr) {
 	GLB_CTX glb = g_glb[0];
 	float3 c = clr.rgb;
 
-	c = (c * (1 + c / glb.linWhite)) / (1 + c);
+	c = (c * (1.0 + c / glb.linWhite)) / (1.0 + c);
 	c *= glb.linGain;
 	c += glb.linBias;
 	clr.rgb = c;
@@ -469,6 +504,7 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 	wk.tex.spec = g_texSpec.Sample(g_smpLin, wk.uv.spec);
 	wk.tex.spec.rgb *= mtl.specColor;
 
+	wk = calcShadow(wk);
 	wk = calcLight(wk);
 	if (mtl.vclrMode) {
 		wk.lit.diff += wk.geom.vclr.rgb;
@@ -491,38 +527,7 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 	tgtClr.rgb = diff + spec;
 	wk = calcFog(wk);
 	tgtClr.rgb = tgtClr.rgb*wk.fog.mul + wk.fog.add;
-
-	if (mtl.receiveShadows) {
-		float3 wpos = wk.geom.pos;
-		float4 spos = mul(float4(wpos, 1), g_sdw[0].xform);
-		float4 scp = spos.xyzz/spos.w;
-		//if (!(scp.x < 0 || scp.x > 1 || scp.y < 0 || scp.y > 1 || scp.z < 0 || scp.z > 1)) {
-		if (all(scp.xyz>=0) && all(scp.xyz<=1)) {
-			bool scull = g_mtl[0].cullShadows ? dot(wk.geom.nrm, -g_sdw[0].dir) < 0 : false;
-			if (!scull) {
-				float sval = shadowVal(spos);
-				float sdens = g_sdw[0].color.a * g_mtl[0].shadowDensity;
-				sval *= sdens;
-				float2 sfade = g_sdw[0].fade;
-				float fadeInvRange = sfade.y;
-				if (fadeInvRange > 0) {
-					float sdist = -mul(float4(wpos, 1), g_cam[0].view).z;
-					float fadeStart = sfade.x;
-					float fadeVal = 1.0 - saturate((sdist - fadeStart) * fadeInvRange);
-					sval *= fadeVal;
-				}
-				tgtClr.rgb = lerp(tgtClr.rgb, g_sdw[0].color.rgb, sval);
-				//tgtClr.rgb = float3(scp.x, scp.y, sval);//////////////////
-			}
-		}
-	}
-
-//tgtClr.rgb = wk.lit.diff*0.25;////////////////////////
-//tgtClr.rgb = wk.lit.refl*0.25;////////////////////////
-//tgtClr.rgb = (wk.lit.diff+wk.lit.refl)*0.25;
-//tgtClr.rgb = wk.lit.spec*0.25;////////////////////////
-//tgtClr.rgb = wk.lit.diff*0.5 + wk.lit.spec*0.25;////////////////////////
-//tgtClr.rgb = calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].viewFrGain, g_mtl[0].viewFrBias) * float3(1, 0, 0);/////////////
+	tgtClr.rgb = lerp(tgtClr.rgb, g_sdw[0].color.rgb, wk.sdw.val);
 
 	tgtClr.a = alpha;
 	tgtClr = tgtColor(tgtClr);
