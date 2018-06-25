@@ -405,6 +405,8 @@ static struct GEX_GWK {
 	cxMtx mShadowMtx;
 	cxAABB mShadowCastersBBox;
 	cxAABB mShadowReceiversBBox;
+	float mShadowSpecValSel;
+	int mShadowLightIdx;
 	int mShadowMapSize;
 	GEX_SHADOW_PROJ mShadowProj;
 	ID3D11Texture2D* mpTexSM;
@@ -1227,6 +1229,11 @@ void gexShadowProjection(GEX_SHADOW_PROJ prj) {
 void gexShadowFade(float start, float end) {
 	GWK.mShadowFadeStart = start;
 	GWK.mShadowFadeEnd = end;
+}
+
+void gexShadowSpecCtrl(int lightIdx, float valSelector) {
+	GWK.mShadowLightIdx = lightIdx;
+	GWK.mShadowSpecValSel = nxCalc::saturate(valSelector);
 }
 
 
@@ -3527,12 +3534,15 @@ void gexCalcShadowMtx() {
 void gexShadowCastStart(GEX_DISP_ENTRY& ent) {
 	gexCalcShadowMtx();
 	SDW_CTX sdw;
+	::memset(&sdw, 0, sizeof(sdw));
 	gexStoreTMtx(&sdw.viewProj, GWK.mShadowViewProj);
 	gexStoreTMtx(&sdw.xform, GWK.mShadowMtx);
 	gexStoreVec(&sdw.dir, GWK.mShadowDir);
 	gexStoreRGBA(&sdw.color, GWK.mShadowColor);
-	sdw.fade.set(GWK.mShadowFadeStart, nxCalc::rcp0(GWK.mShadowFadeEnd - GWK.mShadowFadeStart));
 	sdw.color.w *= GWK.mShadowDensity;
+	sdw.fade.set(GWK.mShadowFadeStart, nxCalc::rcp0(GWK.mShadowFadeEnd - GWK.mShadowFadeStart));
+	sdw.litIdx = GWK.mShadowLightIdx;
+	sdw.specValSel = GWK.mShadowSpecValSel;
 	sdw.size = (float)GWK.mShadowMapSize;
 	sdw.invSize = nxCalc::rcp0(sdw.size);
 	GWK.mSdwBuf.copy_data(&sdw);

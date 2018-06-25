@@ -50,6 +50,8 @@ struct SDW_CTX {
 	xt_float2 fade; // start, invRange
 	xt_float size;
 	xt_float invSize;
+	xt_float specValSel; // 0:sval, 1:val
+	xt_int litIdx;
 };
 
 struct FOG_CTX {

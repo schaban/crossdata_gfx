@@ -222,6 +222,8 @@ MTL_WK calcLight(MTL_WK wk) {
 					spec *= calcSpecFresnel(lh, mtl.IOR);
 				}
 
+				spec *= 1.0 - lerp(wk.sdw.sval, wk.sdw.val, g_sdw[0].specValSel)*(i == g_sdw[0].litIdx);
+
 				diff *= distAttn;
 				diff *= angAttn;
 				spec *= distAttn;

@@ -134,6 +134,7 @@ void gexShadowViewSize(float vsize);
 void gexShadowColor(const cxColor& clr);
 void gexShadowProjection(GEX_SHADOW_PROJ prj);
 void gexShadowFade(float start, float end);
+void gexShadowSpecCtrl(int lightIdx, float valSelector = 0.0f);
 
 GEX_CAM* gexCamCreate(const char* pName = nullptr);
 void gexCamDestroy(GEX_CAM* pCam);
