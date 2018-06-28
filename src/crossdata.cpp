@@ -529,7 +529,7 @@ float half_to_float(uint16_t h) {
 	}
 	return f;
 }
-	
+
 float f32_set_bits(uint32_t x) {
 	uxVal32 v;
 	v.u = x;
@@ -2592,6 +2592,15 @@ cxVec Lch_to_Lab(const cxVec& lch) {
 	return cxVec(L, c*hc, c*hs);
 }
 
+float Lch_perceived_lightness(const cxVec& lch) {
+	float L = lch.x;
+	float c = lch.y;
+	float h = lch.z;
+	float fh = ::fabsf(::sinf((h - (XD_PI*0.5f)) * 0.5f))*0.116f + 0.085f;
+	float fL = 2.5f - (2.5f/100)*L; // 1 at 60, 0 at 100 (white)
+	return L + fh*fL*c;
+}
+
 } // nxColor
 
 cxVec cxColor::YCgCo() const {
@@ -2711,7 +2720,7 @@ double calc_constB(int m) {
 double calc_constC1(int l, int m) {
 	double c = calc_K(l, m) / calc_K(l-1, m) * double(2*l-1) / double(l-m);
 	if (l > 80) {
-		if (::isnan(c)) c = 0.0;
+		if (isnan(c)) c = 0.0;
 	}
 	return c;
 }
@@ -2719,7 +2728,7 @@ double calc_constC1(int l, int m) {
 double calc_constC2(int l, int m) {
 	double c = -calc_K(l, m) / calc_K(l-2, m) * double(l+m-1) / double(l-m);
 	if (l > 80) {
-		if (::isnan(c)) c = 0.0;
+		if (isnan(c)) c = 0.0;
 	}
 	return c;
 }

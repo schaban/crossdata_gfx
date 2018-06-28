@@ -1940,6 +1940,7 @@ cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ = nullptr);
 cxVec Lab_to_XYZ(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr);
 cxVec Lab_to_Lch(const cxVec& lab);
 cxVec Lch_to_Lab(const cxVec& lch);
+float Lch_perceived_lightness(const cxVec& lch);
 
 } // nxColor
 
