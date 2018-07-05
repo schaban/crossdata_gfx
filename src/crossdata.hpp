@@ -149,6 +149,36 @@ inline float f32_mk_nan() { return f32_set_bits(0xFFC00000); }
 
 uint32_t fetch_bits32(uint8_t* pTop, uint32_t org, uint32_t len);
 
+inline int clz32(uint32_t x) {
+	if (x == 0) return 32;
+	int n = 0;
+	int s = 16;
+	while (s) {
+		uint32_t m = ((1U << s) - 1) << (32 - s);
+		if ((x & m) == 0) {
+			n += s;
+			x <<= s;
+		}
+		s >>= 1;
+	}
+	return n;
+}
+
+inline int ctz32(uint32_t x) {
+	if (x == 0) return 32;
+	int n = 0;
+	int s = 16;
+	while (s) {
+		uint32_t m = (1U << s) - 1;
+		if ((x & m) == 0) {
+			n += s;
+			x >>= s;
+		}
+		s >>= 1;
+	}
+	return n;
+}
+
 void rng_seed(sxRNG* pState, uint64_t seed);
 inline void rng_seed(uint64_t seed) { rng_seed(nullptr, seed); }
 uint64_t rng_next(sxRNG* pState = nullptr);
@@ -1975,9 +2005,18 @@ public:
 		}
 	}
 
+	void zero_rgb() {
+		for (int i = 0; i < 3; ++i) {
+			ch[i] = 0.0f;
+		}
+		a = 1.0f;
+	}
+
 	float luma() const { return r*0.299f + g*0.587f + b*0.114f; }
 	float luminance() const { return r*0.212671f + g*0.71516f + b*0.072169f; }
 	float average() const { return (r + g + b) / 3.0f; }
+	float min() const { return nxCalc::min(r, g, b); }
+	float max() const { return nxCalc::max(r, g, b); }
 
 	void scl(float s) {
 		for (int i = 0; i < 4; ++i) {
@@ -2019,6 +2058,19 @@ public:
 	void from_Lab(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr, cxMtx* pXYZ2RGB = nullptr);
 	cxVec Lch(cxMtx* pRGB2XYZ = nullptr) const;
 	void from_Lch(const cxVec& lch, cxMtx* pRGB2XYZ = nullptr, cxMtx* pXYZ2RGB = nullptr);
+
+	uint32_t encode_rgbe() const;
+	void decode_rgbe(uint32_t rgbe);
+	uint32_t encode_bgre() const;
+	void decode_bgre(uint32_t bgre);
+	uint32_t encode_rgbi() const;
+	void decode_rgbi(uint32_t rgbi);
+	uint32_t encode_bgri() const;
+	void decode_bgri(uint32_t bgri);
+	uint32_t encode_rgba8() const;
+	void decode_rgba8(uint32_t rgba);
+	uint32_t encode_bgra8() const;
+	void decode_bgra8(uint32_t bgra);
 };
 
 
@@ -2644,9 +2696,32 @@ struct sxDDSHead {
 	uint32_t mCaps2;
 	uint32_t mReserved2[3];
 
+	bool is_dds128() const { return mFormat.mFourCC == 0x74; }
+	bool is_dds64() const { return mFormat.mFourCC == 0x71; }
+	bool is_dds32() const { return mFormat.mFourCC == 0 && mFormat.mBitCount == 32; }
+
+	void set_encoding(uint32_t code) { mReserved1[1] = code; }
+	uint32_t get_encoding() const { return mReserved1[1]; }
+
+	void set_gamma(float gamma) {
+		float* pGamma = reinterpret_cast<float*>(&mReserved1[2]);
+		*pGamma = gamma;
+	}
+
+	float get_gamma() const {
+		const float* pGamma = reinterpret_cast<const float*>(&mReserved1[2]);
+		return *pGamma;
+	}
+
 	void init(uint32_t w, uint32_t h);
 	void init_dds128(uint32_t w, uint32_t h);
 	void init_dds64(uint32_t w, uint32_t h);
+	void init_dds32(uint32_t w, uint32_t h, bool encRGB = true);
+
+	static const uint32_t ENC_RGBE = XD_FOURCC('R', 'G', 'B', 'E');
+	static const uint32_t ENC_BGRE = XD_FOURCC('B', 'G', 'R', 'E');
+	static const uint32_t ENC_RGBI = XD_FOURCC('R', 'G', 'B', 'I');
+	static const uint32_t ENC_BGRI = XD_FOURCC('B', 'G', 'R', 'I');
 };
 
 namespace nxTexture {
@@ -2654,6 +2729,14 @@ namespace nxTexture {
 sxDDSHead* alloc_dds128(uint32_t w, uint32_t h, uint32_t* pSize = nullptr);
 void save_dds128(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
 void save_dds64(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
+void save_dds32_rgbe(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
+void save_dds32_bgre(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
+void save_dds32_rgbi(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
+void save_dds32_bgri(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h);
+void save_dds32_rgba8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, float gamma = 2.2f);
+void save_dds32_bgra8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, float gamma = 2.2f);
+
+cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float gamma = 2.2f);
 
 } // nxTexture
 

@@ -2682,6 +2682,137 @@ void cxColor::from_Lch(const cxVec& lch, cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB) {
 	from_Lab(nxColor::Lch_to_Lab(lch), pRGB2XYZ, pXYZ2RGB);
 }
 
+uint32_t cxColor::encode_rgbe() const {
+	float m = max();
+	if (m < 1.0e-32f) return 0;
+	float t[3];
+	int e;
+	float s = (::frexpf(m, &e) * 256.0f) / m;
+	for (int i = 0; i < 3; ++i) {
+		t[i] = ch[i] * s;
+	}
+	uxVal32 res;
+	for (int i = 0; i < 3; ++i) {
+		res.b[i] = (uint8_t)t[i];
+	}
+	res.b[3] = e + 128;
+	return res.u;
+}
+
+void cxColor::decode_rgbe(uint32_t rgbe) {
+	if (rgbe) {
+		uxVal32 v;
+		v.u = rgbe;
+		int e = v.b[3];
+		float s = ::ldexpf(1.0f, e - (128 + 8));
+		float t[3];
+		for (int i = 0; i < 3; ++i) {
+			t[i] = (float)v.b[i];
+		}
+		for (int i = 0; i < 3; ++i) {
+			ch[i] = t[i] * s;
+		}
+		a = 1.0f;
+	} else {
+		zero_rgb();
+	}
+}
+
+static inline uint32_t swap_enc_clr_rb(uint32_t enc) {
+	uxVal32 v;
+	v.u = enc;
+	uint8_t t = v.b[0];
+	v.b[0] = v.b[2];
+	v.b[2] = t;
+	return v.u;
+}
+
+uint32_t cxColor::encode_bgre() const {
+	return swap_enc_clr_rb(encode_rgbe());
+}
+
+void cxColor::decode_bgre(uint32_t bgre) {
+	decode_rgbe(swap_enc_clr_rb(bgre));
+}
+
+uint32_t cxColor::encode_rgbi() const {
+	float e[4];
+	for (int i = 0; i < 3; ++i) {
+		e[i] = nxCalc::clamp(ch[i], 0.0f, 100.0f);
+	}
+	e[3] = 1.0f;
+	for (int i = 0; i < 4; ++i) {
+		e[i] = ::sqrtf(e[i]); /* gamma 2.0 encoding */
+	}
+	float m = nxCalc::max(e[0], e[1], e[2]);
+	if (m > 1.0f) {
+		float s = 1.0f / m;
+		for (int i = 0; i < 4; ++i) {
+			e[i] *= s;
+		}
+	}
+	for (int i = 0; i < 4; ++i) {
+		e[i] *= 255.0f;
+	}
+	uxVal32 res;
+	for (int i = 0; i < 4; ++i) {
+		res.b[i] = (uint8_t)e[i];
+	}
+	return res.u;
+}
+
+void cxColor::decode_rgbi(uint32_t rgbi) {
+	uxVal32 v;
+	v.u = rgbi;
+	for (int i = 0; i < 4; ++i) {
+		ch[i] = (float)v.b[i];
+	}
+	scl(nxCalc::rcp0(a));
+	for (int i = 0; i < 4; ++i) {
+		ch[i] = nxCalc::sq(ch[i]); /* gamma 2.0 decoding */
+	}
+}
+
+uint32_t cxColor::encode_bgri() const {
+	return swap_enc_clr_rb(encode_rgbi());
+}
+
+void cxColor::decode_bgri(uint32_t bgri) {
+	decode_rgbi(swap_enc_clr_rb(bgri));
+}
+
+uint32_t cxColor::encode_rgba8() const {
+	float f[4];
+	for (int i = 0; i < 4; ++i) {
+		f[i] = nxCalc::saturate(ch[i]);
+	}
+	for (int i = 0; i < 4; ++i) {
+		f[i] *= 255.0f;
+	}
+	uxVal32 v;
+	for (int i = 0; i < 4; ++i) {
+		v.b[i] = (uint8_t)f[i];
+	}
+	return v.u;
+}
+
+void cxColor::decode_rgba8(uint32_t rgba) {
+	uxVal32 v;
+	v.u = rgba;
+	for (int i = 0; i < 4; ++i) {
+		ch[i] = (float)v.b[i];
+	}
+	scl(1.0f / 255.0f);
+}
+
+uint32_t cxColor::encode_bgra8() const {
+	return swap_enc_clr_rb(encode_rgba8());
+}
+
+void cxColor::decode_bgra8(uint32_t bgra) {
+	decode_rgba8(swap_enc_clr_rb(bgra));
+}
+
 
 namespace nxSH {
 
@@ -5684,7 +5815,7 @@ void sxDDSHead::init(uint32_t w, uint32_t h) {
 void sxDDSHead::init_dds128(uint32_t w, uint32_t h) {
 	init(w, h);
 	mFlags = 0x081007;
-	mPitchLin = w * h * (sizeof(float)*4);
+	mPitchLin = w * h * (sizeof(float) * 4);
 	mFormat.mSize = 0x20;
 	mFormat.mFlags = 4;
 	mFormat.mFourCC = 0x74;
@@ -5698,6 +5829,27 @@ void sxDDSHead::init_dds64(uint32_t w, uint32_t h) {
 	mFormat.mSize = 0x20;
 	mFormat.mFlags = 4;
 	mFormat.mFourCC = 0x71;
+	mCaps1 = 0x1000;
+}
+
+void sxDDSHead::init_dds32(uint32_t w, uint32_t h, bool encRGB) {
+	init(w, h);
+	mFlags = 0x081007;
+	mPitchLin = w * h * (sizeof(uint8_t) * 4);
+	mFormat.mSize = 0x20;
+	mFormat.mFlags = 0x41;
+	mFormat.mBitCount = 0x20;
+	if (encRGB) {
+		mFormat.mMaskR = 0xFF << 0;
+		mFormat.mMaskG = 0xFF << 8;
+		mFormat.mMaskB = 0xFF << 16;
+		mFormat.mMaskA = 0xFF << 24;
+	} else {
+		mFormat.mMaskR = 0xFF << 16;
+		mFormat.mMaskG = 0xFF << 8;
+		mFormat.mMaskB = 0xFF << 0;
+		mFormat.mMaskA = 0xFF << 24;
+	}
 	mCaps1 = 0x1000;
 }
 
@@ -5752,6 +5904,242 @@ void save_dds64(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
 			::fclose(pOut);
 		}
 	}
+}
+
+void save_dds32_rgbe(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds32(w, h);
+			dds.set_encoding(sxDDSHead::ENC_RGBE);
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			for (uint32_t i = 0; i < npix; ++i) {
+				uint32_t e = pClr[i].encode_rgbe();
+				::fwrite(&e, sizeof(e), 1, pOut);
+			}
+			::fclose(pOut);
+		}
+	}
+}
+
+void save_dds32_bgre(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds32(w, h, false);
+			dds.set_encoding(sxDDSHead::ENC_BGRE);
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			for (uint32_t i = 0; i < npix; ++i) {
+				uint32_t e = pClr[i].encode_bgre();
+				::fwrite(&e, sizeof(e), 1, pOut);
+			}
+			::fclose(pOut);
+		}
+	}
+}
+
+void save_dds32_rgbi(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds32(w, h);
+			dds.set_encoding(sxDDSHead::ENC_RGBI);
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			for (uint32_t i = 0; i < npix; ++i) {
+				uint32_t e = pClr[i].encode_rgbi();
+				::fwrite(&e, sizeof(e), 1, pOut);
+			}
+			::fclose(pOut);
+		}
+	}
+}
+
+void save_dds32_bgri(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds32(w, h, false);
+			dds.set_encoding(sxDDSHead::ENC_BGRI);
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			for (uint32_t i = 0; i < npix; ++i) {
+				uint32_t e = pClr[i].encode_bgri();
+				::fwrite(&e, sizeof(e), 1, pOut);
+			}
+			::fclose(pOut);
+		}
+	}
+}
+
+void save_dds32_rgba8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, float gamma) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds32(w, h);
+			if (gamma > 0.0f) {
+				dds.set_gamma(gamma);
+			} else {
+				dds.set_gamma(1.0f);
+			}
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			if (gamma > 0.0f && gamma != 1.0f) {
+				float invg = 1.0f / gamma;
+				for (uint32_t i = 0; i < npix; ++i) {
+					cxColor cc = pClr[i];
+					for (int j = 0; j < 4; ++j) {
+						cc.ch[j] = ::powf(cc.ch[j], invg);
+					}
+					uint32_t e = cc.encode_rgba8();
+					::fwrite(&e, sizeof(e), 1, pOut);
+				}
+			} else {
+				for (uint32_t i = 0; i < npix; ++i) {
+					uint32_t e = pClr[i].encode_rgba8();
+					::fwrite(&e, sizeof(e), 1, pOut);
+				}
+			}
+			::fclose(pOut);
+		}
+	}
+}
+
+void save_dds32_bgra8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, float gamma) {
+	uint32_t npix = w*h;
+	if ((int)npix > 0) {
+		FILE* pOut = nxSys::fopen_w_bin(pPath);
+		if (pOut) {
+			sxDDSHead dds = {};
+			dds.init_dds32(w, h, false);
+			if (gamma > 0.0f) {
+				dds.set_gamma(gamma);
+			} else {
+				dds.set_gamma(1.0f);
+			}
+			::fwrite(&dds, sizeof(dds), 1, pOut);
+			if (gamma > 0.0f && gamma != 1.0f) {
+				float invg = 1.0f / gamma;
+				for (uint32_t i = 0; i < npix; ++i) {
+					cxColor cc = pClr[i];
+					for (int j = 0; j < 4; ++j) {
+						cc.ch[j] = ::powf(cc.ch[j], invg);
+					}
+					uint32_t e = cc.encode_bgra8();
+					::fwrite(&e, sizeof(e), 1, pOut);
+				}
+			} else {
+				for (uint32_t i = 0; i < npix; ++i) {
+					uint32_t e = pClr[i].encode_bgra8();
+					::fwrite(&e, sizeof(e), 1, pOut);
+				}
+			}
+			::fclose(pOut);
+		}
+	}
+}
+
+cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float gamma) {
+	if (!pDDS) return nullptr;
+	int w = pDDS->mWidth;
+	int h = pDDS->mHeight;
+	int n = w * h;
+	size_t size = n * sizeof(cxColor);
+	if (pWidth) {
+		*pWidth = w;
+	}
+	if (pHeight) {
+		*pHeight = h;
+	}
+	cxColor* pClr = (cxColor*)nxCore::mem_alloc(size, XD_FOURCC('D', 'D', 'S', 'C'));
+	if (pClr) {
+		if (pDDS->is_dds128()) {
+			::memcpy(pClr, pDDS + 1, size);
+		} else if (pDDS->is_dds64()) {
+			xt_half4* pHalf = (xt_half4*)(pDDS + 1);
+			xt_float4* pFloat = (xt_float4*)pClr;
+			for (int i = 0; i < n; ++i) {
+				pFloat[i] = pHalf[i].get();
+			}
+		} else if (pDDS->is_dds32()) {
+			if (pDDS->get_encoding() == sxDDSHead::ENC_RGBE) {
+				uint32_t* pRGBE = (uint32_t*)(pDDS + 1);
+				for (int i = 0; i < n; ++i) {
+					pClr[i].decode_rgbe(pRGBE[i]);
+				}
+			} else if (pDDS->get_encoding() == sxDDSHead::ENC_BGRE) {
+				uint32_t* pBGRE = (uint32_t*)(pDDS + 1);
+				for (int i = 0; i < n; ++i) {
+					pClr[i].decode_bgre(pBGRE[i]);
+				}
+			} else if (pDDS->get_encoding() == sxDDSHead::ENC_RGBI) {
+				uint32_t* pRGBI = (uint32_t*)(pDDS + 1);
+				for (int i = 0; i < n; ++i) {
+					pClr[i].decode_rgbi(pRGBI[i]);
+				}
+			} else if (pDDS->get_encoding() == sxDDSHead::ENC_BGRI) {
+				uint32_t* pBGRI = (uint32_t*)(pDDS + 1);
+				for (int i = 0; i < n; ++i) {
+					pClr[i].decode_bgri(pBGRI[i]);
+				}
+			} else {
+				float wg = pDDS->get_gamma();
+				if (wg <= 0.0f) wg = gamma;
+				uint32_t maskR = pDDS->mFormat.mMaskR;
+				uint32_t maskG = pDDS->mFormat.mMaskG;
+				uint32_t maskB = pDDS->mFormat.mMaskB;
+				uint32_t maskA = pDDS->mFormat.mMaskA;
+				uint32_t shiftR = nxCore::ctz32(maskR);
+				uint32_t shiftG = nxCore::ctz32(maskG);
+				uint32_t shiftB = nxCore::ctz32(maskB);
+				uint32_t shiftA = nxCore::ctz32(maskA);
+				uint32_t* pEnc32 = (uint32_t*)(pDDS + 1);
+				for (int i = 0; i < n; ++i) {
+					uint32_t enc = pEnc32[i];
+					uint32_t ir = (enc & maskR) >> shiftR;
+					uint32_t ig = (enc & maskG) >> shiftG;
+					uint32_t ib = (enc & maskB) >> shiftB;
+					uint32_t ia = (enc & maskA) >> shiftA;
+					pClr[i].r = (float)(int)ir;
+					pClr[i].g = (float)(int)ig;
+					pClr[i].b = (float)(int)ib;
+					pClr[i].a = (float)(int)ia;
+				}
+				float scl[4];
+				scl[0] = nxCalc::rcp0((float)(int)(maskR >> shiftR));
+				scl[1] = nxCalc::rcp0((float)(int)(maskG >> shiftG));
+				scl[2] = nxCalc::rcp0((float)(int)(maskB >> shiftB));
+				scl[3] = nxCalc::rcp0((float)(int)(maskA >> shiftA));
+				for (int i = 0; i < n; ++i) {
+					float* pDst = pClr[i].ch;
+					for (int j = 0; j < 4; ++j) {
+						pDst[j] *= scl[j];
+					}
+				}
+				if (wg > 0.0f) {
+					for (int i = 0; i < n; ++i) {
+						float* pDst = pClr[i].ch;
+						for (int j = 0; j < 4; ++j) {
+							pDst[j] = ::powf(pDst[j], wg);
+						}
+					}
+				}
+			}
+		} else {
+			nxSys::dbgmsg("unsupported DDS format\n");
+			for (int i = 0; i < n; ++i) {
+				pClr[i].zero_rgb();
+			}
+		}
+	}
+	return pClr;
 }
 
 } // nxTexture
