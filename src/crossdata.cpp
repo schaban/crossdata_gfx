@@ -5240,6 +5240,66 @@ cxAABB sxGeometryData::calc_world_bbox(cxMtx* pMtxW, int* pIdxMap) const {
 	return bbox;
 }
 
+void sxGeometryData::calc_tangents(cxVec* pTng, bool flip, const char* pAttrName) const {
+	if (!pTng) return;
+	int npnt = get_pnt_num();
+	::memset(pTng, 0, npnt * sizeof(cxVec));
+	if (!is_all_tris()) return;
+	int nrmAttrIdx = find_pnt_attr("N");
+	if (nrmAttrIdx < 0) return;
+	int texAttrIdx = find_pnt_attr(pAttrName ? pAttrName : "uv");
+	if (texAttrIdx < 0) return;
+	int ntri = get_pol_num();
+	cxVec triPts[3];
+	xt_texcoord triUVs[3];
+	for (int i = 0; i < ntri; ++i) {
+		Polygon tri = get_pol(i);
+		for (int j = 0; j < 3; ++j) {
+			int pid = tri.get_vtx_pnt_id(j);
+			triPts[j] = get_pnt(pid);
+			float* pUVData = get_attr_data_f(texAttrIdx, eAttrClass::POINT, pid, 2);
+			if (pUVData) {
+				triUVs[j].set(pUVData[0], pUVData[1]);
+			} else {
+				triUVs[j].set(0.0f, 0.0f);
+			}
+			cxVec dp1 = triPts[1] - triPts[0];
+			cxVec dp2 = triPts[2] - triPts[0];
+			xt_texcoord dt1;
+			dt1.set(triUVs[1].u - triUVs[0].u, triUVs[1].v - triUVs[0].v);
+			xt_texcoord dt2;
+			dt2.set(triUVs[2].u - triUVs[0].u, triUVs[2].v - triUVs[0].v);
+			float d = nxCalc::rcp0(dt1.u*dt2.v - dt1.v*dt2.u);
+			cxVec tu = (dp1*dt2.v - dp2*dt1.v) * d;
+			pTng[pid] = tu;
+		}
+	}
+	for (int i = 0; i < npnt; ++i) {
+		cxVec nrm;
+		float* pData = get_attr_data_f(nrmAttrIdx, eAttrClass::POINT, i, 3);
+		if (pData) {
+			nrm.from_mem(pData);
+		} else {
+			nrm.zero();
+		}
+		float d = nrm.dot(pTng[i]);
+		nrm.scl(d);
+		if (flip) {
+			pTng[i] = nrm - pTng[i];
+		} else {
+			pTng[i].sub(nrm);
+		}
+		pTng[i].normalize();
+	}
+}
+
+cxVec* sxGeometryData::calc_tangents(bool flip, const char* pAttrName) const {
+	int npnt = get_pnt_num();
+	cxVec* pTng = (cxVec*)nxCore::mem_alloc(npnt * sizeof(cxVec), XD_FOURCC('t', 'n', 'g', 'u'));
+	calc_tangents(pTng, flip, pAttrName);
+	return pTng;
+}
+
 uint8_t* sxGeometryData::Polygon::get_vtx_lst() const {
 	uint8_t* pLst = nullptr;
 	if (is_valid()) {

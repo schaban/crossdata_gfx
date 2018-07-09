@@ -2668,6 +2668,8 @@ struct sxGeometryData : public sxData {
 	BVH* get_BVH() const { return has_BVH() ? reinterpret_cast<BVH*>(XD_INCR_PTR(this, mBVHOffs)) : nullptr; }
 	BVH::Node* get_BVH_node(int nodeId) const { return ck_BVH_node_idx(nodeId) ? &reinterpret_cast<BVH::Node*>(get_BVH() + 1)[nodeId] : nullptr; }
 	cxAABB calc_world_bbox(cxMtx* pMtxW, int* pIdxMap = nullptr) const;
+	void calc_tangents(cxVec* pTng, bool flip = false, const char* pAttrName = nullptr) const;
+	cxVec* calc_tangents(bool flip = false, const char* pAttrName = nullptr) const;
 
 	static const uint32_t KIND = XD_FOURCC('X', 'G', 'E', 'O');
 };
