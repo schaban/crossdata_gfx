@@ -300,9 +300,19 @@ class LangCBase:
 		self.applyType = "float"
 		self.applyNum = 1
 
-	def locals(self):
-		self.code += "\t" + self.coefsType + " zz = z*z;" + EOL
-		self.code += "\t" + self.coefsType + " tmp, prev0, prev1, prev2, s0 = y, s1, c0 = x, c1;" + EOL
+	def locals(self, order):
+		if order < 2: return
+		if order > 2:
+			self.code += "\t" + self.coefsType + " zz = z*z;" + EOL
+		self.code += "\t" + self.coefsType + " tmp, s0 = y, c0 = x"
+		if order > 2:
+			if order >= 5:
+				self.code += ", prev0"
+			self.code += ", prev1"
+			if order >= 4:
+				self.code += ", prev2"
+			self.code += ", s1, c1"
+		self.code += ";" + EOL
 
 	def expr(self, expr):
 		for e in expr:
@@ -347,7 +357,7 @@ class LangHLSL(LangCBase):
 			self.code += self.applyType + " shc[" + str(shNumCoefs(order)) + "], "
 			self.code += self.coefsType + " shw[" + str(order) + "], "
 			self.code += self.xyzParams() +  ") {" + EOL
-		LangCBase.locals(self)
+		LangCBase.locals(self, order)
 		if not isEval:
 			self.code += "\t" + self.coefsType + " " + self.coefsName + "[" + str(shNumCoefs(order)) + "];" + EOL
 			for e in xrange(self.applyNum):
@@ -374,7 +384,7 @@ class LangCpp(LangCBase):
 
 	def prologue(self, order, isEval):
 		self.code += "void shEval" + str(order) + "(" + self.coefsType + "* " + self.coefsName + ", " + self.xyzParams() + ") {" + EOL
-		LangCBase.locals(self)
+		LangCBase.locals(self, order)
 
 	def statement(self, expr):
 		self.code += "\t"
@@ -393,7 +403,7 @@ class LangJava(LangCBase):
 
 	def prologue(self, order, isEval):
 		self.code += "public static void shEval" + str(order) + "(" + self.coefsType + "[] " + self.coefsName + ", " + self.xyzParams() + ") {" + EOL
-		LangCBase.locals(self)
+		LangCBase.locals(self, order)
 
 	def statement(self, expr):
 		self.code += "\t"
@@ -413,7 +423,7 @@ class LangVEX(LangCBase):
 
 	def prologue(self, order, isEval):
 		self.code += "function " + self.coefsType + "[] shEval" + str(order) + "(" + self.coefsType + " x, y, z) {" + EOL
-		LangCBase.locals(self)
+		LangCBase.locals(self, order)
 		self.code += "\t" + self.coefsType + " " + self.coefsName + "[];" + EOL
 		self.code += "\tresize(" + self.coefsName + ", " + str(shNumCoefs(order)) + ");" + EOL
 
@@ -601,8 +611,17 @@ def testJava():
 	cg = Codegen(order)
 	lang = LangJava()
 	cg.genEval(lang)
-	saveStr(exePath + "/__shapply" + str(order) + lang.getFileExt(), lang.code)
+	saveStr(exePath + "/__sheval" + str(order) + lang.getFileExt(), lang.code)
+
+def testCpp():
+	order = 3
+	cg = Codegen(order)
+	lang = LangCpp()
+	cg.genEval(lang)
+	saveStr(exePath + "/__sheval" + str(order) + lang.getFileExt(), lang.code)
 
 if __name__=="__main__":
 	#genHLSL()
-	testJava()
+	#testJava()
+	testCpp()
+
