@@ -241,6 +241,39 @@ float fit(float val, float oldMin, float oldMax, float newMin, float newMax);
 
 float calc_fovy(float focal, float aperture, float aspect);
 
+template<typename FN> float panorama_scan(FN& fn, int w, int h) {
+	float da = (float)((2.0*XD_PI / w) * (XD_PI / h));
+	float iw = 1.0f / (float)w;
+	float ih = 1.0f / (float)h;
+	float sum = 0.0f;
+	for (int y = 0; y < h; ++y) {
+		float v = 1.0f - (y + 0.5f)*ih;
+		float dw = da * ::sinf(XD_PI * v);
+		float ay = (v - 1.0f) * XD_PI;
+		float sy = ::sinf(ay);
+		float cy = ::cosf(ay);
+		float ax0 = iw * XD_PI;
+		float rsx = ::sinf(ax0);
+		float rcx = ::cosf(ax0);
+		float rax = 2.0f * sq(rsx);
+		float rbx = ::sinf(ax0 * 2.0f);
+		for (int x = 0; x < w; ++x) {
+			float sx = rsx;
+			float cx = rcx;
+			float dx = cx * sy;
+			float dy = cy;
+			float dz = sx * sy;
+			float isx = rsx - (rax*rsx - rbx*rcx);
+			float icx = rcx - (rax*rcx + rbx*rsx);
+			rsx = isx;
+			rcx = icx;
+			fn(x, y, dx, dy, dz, dw);
+			sum += dw;
+		}
+	}
+	return (XD_PI * 4.0f) * rcp0(sum);
+}
+
 } // nxCalc
 
 namespace nxLA {
