@@ -1996,17 +1996,6 @@ public:
 };
 
 
-namespace nxColor {
-
-void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims = nullptr, cxVec* pWhite = nullptr);
-cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ = nullptr);
-cxVec Lab_to_XYZ(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr);
-cxVec Lab_to_Lch(const cxVec& lab);
-cxVec Lch_to_Lab(const cxVec& lch);
-float Lch_perceived_lightness(const cxVec& lch);
-
-} // nxColor
-
 class cxColor {
 public:
 	union {
@@ -2050,6 +2039,12 @@ public:
 	float average() const { return (r + g + b) / 3.0f; }
 	float min() const { return nxCalc::min(r, g, b); }
 	float max() const { return nxCalc::max(r, g, b); }
+
+	void clip_neg() {
+		for (int i = 0; i < 4; ++i) {
+			ch[i] = nxCalc::max(ch[i], 0.0f);
+		}
+	}
 
 	void scl(float s) {
 		for (int i = 0; i < 4; ++i) {
@@ -2105,6 +2100,25 @@ public:
 	uint32_t encode_bgra8() const;
 	void decode_bgra8(uint32_t bgra);
 };
+
+namespace nxColor {
+
+void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims = nullptr, cxVec* pWhite = nullptr);
+cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ = nullptr);
+cxVec Lab_to_XYZ(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr);
+cxVec Lab_to_Lch(const cxVec& lab);
+cxVec Lch_to_Lab(const cxVec& lch);
+float Lch_perceived_lightness(const cxVec& lch);
+
+inline cxColor lerp(const cxColor& cA, const cxColor& cB, float t) {
+	cxColor c;
+	for (int i = 0; i < 4; ++i) {
+		c.ch[i] = nxCalc::lerp(cA.ch[i], cB.ch[i], t);
+	}
+	return c;
+}
+
+} // nxColor
 
 
 struct sxCompiledExpression;
@@ -3210,6 +3224,8 @@ inline int band_idx_from_ary_idx(int idx) { return (int)::sqrtf((float)idx); }
 inline int func_idx_from_ary_band(int idx, int l) { return idx - l*(l + 1); }
 
 void calc_weights(float* pWgt, int order, float s, float scl = 1.0f);
+void get_diff_weights(float* pWgt, int order, float scl = 1.0f);
+void apply_weights(float* pDst, int order, const float* pSrc, const float* pWgt, int nelems = 1);
 void calc_consts(int order, float* pConsts);
 void calc_consts(int order, double* pConsts);
 void eval(int order, float* pCoefs, float x, float y, float z, const float* pConsts);

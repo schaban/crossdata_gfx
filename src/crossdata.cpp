@@ -2823,6 +2823,29 @@ void calc_weights(float* pWgt, int order, float s, float scl) {
 	}
 }
 
+void get_diff_weights(float* pWgt, int order, float scl) {
+	for (int i = 0; i < order; ++i) {
+		pWgt[i] = 0.0f;
+	}
+	if (order >= 1) pWgt[0] = scl;
+	if (order >= 2) pWgt[1] = scl / 1.5f;
+	if (order >= 3) pWgt[2] = scl / 4.0f;
+}
+
+void apply_weights(float* pDst, int order, const float* pSrc, const float* pWgt, int nelems) {
+	for (int l = 0; l < order; ++l) {
+		int i0 = calc_coefs_num(l);
+		int i1 = calc_coefs_num(l + 1);
+		float w = pWgt[l];
+		for (int i = i0; i < i1; ++i) {
+			int idx = i * nelems;
+			for (int j = 0; j < nelems; ++j) {
+				pDst[idx + j] = pSrc[idx + j] * w;
+			}
+		}
+	}
+}
+
 double calc_K(int l, int m) {
 	int am = ::abs(m);
 	double v = 1.0;
