@@ -5945,7 +5945,7 @@ sxDDSHead* alloc_dds128(uint32_t w, uint32_t h, uint32_t* pSize) {
 	if ((int)npix > 0) {
 		uint32_t dataSize = npix * sizeof(cxColor);
 		uint32_t size = sizeof(sxDDSHead) + dataSize;
-		sxDDSHead* pDDS = reinterpret_cast<sxDDSHead*>(nxCore::mem_alloc(size, XD_FOURCC('X', 'D', 'D', 'S')));
+		pDDS = reinterpret_cast<sxDDSHead*>(nxCore::mem_alloc(size, XD_FOURCC('X', 'D', 'D', 'S')));
 		if (pDDS) {
 			pDDS->init_dds128(w, h);
 			if (pSize) {
