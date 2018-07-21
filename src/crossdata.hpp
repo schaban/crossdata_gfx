@@ -2678,6 +2678,9 @@ struct sxGeometryData : public sxData {
 	int find_glb_attr(const char* pName) const { return find_attr(pName, eAttrClass::GLOBAL); }
 	int find_pnt_attr(const char* pName) const { return find_attr(pName, eAttrClass::POINT); }
 	int find_pol_attr(const char* pName) const { return find_attr(pName, eAttrClass::POLYGON); }
+	bool has_glb_attr(const char* pName) const { return find_glb_attr(pName) >= 0; }
+	bool has_pnt_attr(const char* pName) const { return find_pnt_attr(pName) >= 0; }
+	bool has_pol_attr(const char* pName) const { return find_pol_attr(pName) >= 0; }
 	AttrInfo* get_attr_info(int attrIdx, eAttrClass cls) const;
 	AttrInfo* get_glb_attr_info(int attrIdx) const { return get_attr_info(attrIdx, eAttrClass::GLOBAL); }
 	AttrInfo* get_pnt_attr_info(int attrIdx) const { return get_attr_info(attrIdx, eAttrClass::POINT); }
