@@ -67,11 +67,13 @@ struct MTL_CTX {
 	xt_float3 baseColor;
 	xt_float3 specColor;
 	xt_float3 diffRoughness;
+	xt_float diffRoughnessTexRate;
 	xt_float diffWrapGain;
 	xt_float diffWrapBias;
 	xt_float diffExpGain;
 	xt_float diffExpBias;
 	xt_float3 specRoughness;
+	xt_float specRoughnessTexRate;
 	xt_float3 IOR;
 	xt_float3 reflColor;
 	xt_float reflLvl;

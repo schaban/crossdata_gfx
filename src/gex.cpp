@@ -3258,6 +3258,26 @@ void gexMtlRoughness(GEX_MTL* pMtl, float rough) {
 	pMtl->mCtxWk.specRoughness.fill(rough);
 }
 
+void gexMtlDiffuseRoughness(GEX_MTL* pMtl, const cxColor& rgb) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.diffRoughness.set(rgb.r, rgb.g, rgb.b);
+}
+
+void gexMtlDiffuseRoughnessTexRate(GEX_MTL* pMtl, float rate) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.diffRoughnessTexRate = nxCalc::saturate(rate);
+}
+
+void gexMtlSpecularRoughness(GEX_MTL* pMtl, const cxColor& rgb) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.specRoughness.set(rgb.r, rgb.g, rgb.b);
+}
+
+void gexMtlSpecularRoughnessTexRate(GEX_MTL* pMtl, float rate) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.specRoughnessTexRate = nxCalc::saturate(rate);
+}
+
 void gexMtlIOR(GEX_MTL* pMtl, const cxVec& ior) {
 	if (!pMtl) return;
 	gexStoreVec(&pMtl->mCtxWk.IOR, ior);

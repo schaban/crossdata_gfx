@@ -123,6 +123,9 @@ MTL_WK calcLight(MTL_WK wk) {
 	float3 V = -wk.view.dir;
 	float3 R = wk.view.refl;
 
+	float3 drough = clamp(mtl.diffRoughness * lerp(1.0, wk.tex.spec.a, mtl.diffRoughnessTexRate), 1e-6, 1.0);
+	float3 srough = clamp(mtl.specRoughness * lerp(1.0, wk.tex.spec.a, mtl.specRoughnessTexRate), 1e-6, 1.0);
+
 	if (lctx.maxDynIdx >= 0) {
 		[unroll(D_GEX_MAX_DYN_LIGHTS)]
 		for (int i = 0; i < D_GEX_MAX_DYN_LIGHTS; ++i) {
@@ -169,7 +172,6 @@ MTL_WK calcLight(MTL_WK wk) {
 				}
 
 				float3 diff = 0;
-				float3 drough = max(1e-6, mtl.diffRoughness);
 				if (mtl.diffMode == D_GEX_DIFF_WRAP) {
 					float dval = abs(NL*mtl.diffWrapGain + mtl.diffWrapBias);
 					float3 dexp = (1 - drough)*mtl.diffExpGain + mtl.diffExpBias;
@@ -200,7 +202,6 @@ MTL_WK calcLight(MTL_WK wk) {
 
 				float3 spec = 0;
 				float3 sval = 0;
-				float3 srough = max(1e-6, mtl.specRoughness);
 				float3 srr = srough*srough;
 				if (mtl.specMode == D_GEX_SPEC_BLINN) {
 					sval = pow((float3)nh, max(0.001, 2.0/(srr*srr) - 2.0));
