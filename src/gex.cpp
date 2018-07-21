@@ -2001,10 +2001,12 @@ GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix) {
 	pObj->mVtxNum = nvtx;
 	GEX_VTX* pVtx = gexTypeAlloc<GEX_VTX>(XD_TMP_MEM_TAG, nvtx);
 	bool vtxAlphaFlg = false;
+	bool hasTng = geo.has_pnt_attr("tangentu");
+	cxVec* pTmpTng = hasTng ? nullptr : geo.calc_tangents();
 	for (int i = 0; i < nvtx; ++i) {
 		cxVec pos = geo.get_pnt(i);
 		cxVec nrm = geo.get_pnt_normal(i);
-		cxVec tng = geo.get_pnt_tangent(i);
+		cxVec tng = pTmpTng ? pTmpTng[i] : geo.get_pnt_tangent(i);
 		cxColor clr = geo.get_pnt_color(i);
 		xt_texcoord tex = geo.get_pnt_texcoord(i);
 		tex.flip_v();
@@ -2018,6 +2020,10 @@ GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix) {
 		if (clr.a < 1.0f) {
 			vtxAlphaFlg = true;
 		}
+	}
+	if (pTmpTng) {
+		nxCore::mem_free(pTmpTng);
+		pTmpTng = nullptr;
 	}
 	struct {
 		D3D11_BUFFER_DESC dsc;
