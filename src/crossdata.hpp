@@ -2839,7 +2839,7 @@ struct sxTextureData : public sxData {
 
 	public:
 		bool is_valid() const { return mpHead && mSize; }
-		void release();
+		void free();
 		sxDDSHead* get_data_ptr() const { return mpHead; }
 		uint32_t get_data_size() const { return mSize; }
 		int get_width() const { return is_valid() ? mpHead->mWidth : 0; }

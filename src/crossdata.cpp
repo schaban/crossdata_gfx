@@ -6407,7 +6407,7 @@ sxTextureData::DDS sxTextureData::get_dds() const {
 	return dds;
 }
 
-void sxTextureData::DDS::release() {
+void sxTextureData::DDS::free() {
 	if (mpHead) {
 		nxCore::mem_free(mpHead);
 	}
