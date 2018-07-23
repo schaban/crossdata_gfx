@@ -617,11 +617,30 @@ class FCurve:
 
 		#print self.nodePath, self.nodeName, self.chName, self.isConst()
 
+	def __init__(self, nameInfo, data):
+		self.minFrame = 0
+		self.maxFrame = len(data) - 1
+		self.slopesFlg = False
+		self.sameFuncFlg = True
+		self.cmnFunc = FCurve.F_LINEAR
+		self.prm = None
+		self.keys = None
+		self.vals = []
+		self.minVal = data[0]
+		self.maxVal = self.minVal
+		self.chName = nameInfo.chName
+		self.nodeName = nameInfo.nodeName
+		self.nodePath = nameInfo.nodePath
+		for v in data:
+			self.vals.append(v)
+			self.minVal = min(self.minVal, v)
+			self.maxVal = max(self.maxVal, v)
+
 	def isConst(self):
 		return self.maxVal - self.minVal == 0
 
 	def isAnimated(self):
-		return self.keys != None
+		return self.keys != None or self.vals != None
 
 	def isBaked(self):
 		return len(self.vals) == self.maxFrame - self.minFrame + 1
@@ -640,6 +659,19 @@ FCurve.F_CONSTANT = 0
 FCurve.F_LINEAR = 1
 FCurve.F_CUBIC = 2
 
+def fcvFromCHOPTrack(trk):
+	trkName = trk.name()
+	sep = trkName.rfind(":")
+	nodeName = trkName[:sep]
+	chanName = trkName[sep+1:]
+	sep = nodeName.rfind("/")
+	nodePath = "/obj"
+	if sep >= 0:
+		nodePath = nodeName[:sep]
+		nodeName = nodeName[sep+1:]
+	nameInfo = FcvNameInfo(chanName, nodeName, nodePath)
+	data = trk.allSamples()
+	return FCurve(nameInfo, data)
 
 class BBox:
 	def __init__(self): self.reset()

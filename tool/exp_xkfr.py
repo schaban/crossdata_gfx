@@ -145,6 +145,39 @@ class KfrExporter(xd.BaseExporter):
 					nodeMap[nodePath] = nodeId
 					self.nodeInfoLst.append(info)
 
+	def buildFromCHOP(self, path, nodeInfoFlg = True):
+		chop = hou.node(path)
+		self.fps = chop.sampleRate()
+		fcvLst = []
+		for trk in chop.tracks():
+			fcv = xh.fcvFromCHOPTrack(trk)
+			fcvLst.append(fcv)
+		self.fcv = []
+		for fcv in fcvLst:
+			if fcv.isAnimated():
+				fcv.nodePathId = self.strLst.add(fcv.nodePath)
+				fcv.nodeNameId = self.strLst.add(fcv.nodeName)
+				fcv.chNameId = self.strLst.add(fcv.chName)
+				self.fcv.append(fcv)
+		self.minFrame = 0
+		self.maxFrame = -1
+		for fcv in self.fcv:
+			self.maxFrame = max(self.maxFrame, fcv.maxFrame)
+		self.nodeInfoLst = []
+		if nodeInfoFlg:
+			nodeMap = {}
+			for fcv in self.fcv:
+				if fcv.nodePath != None and len(fcv.nodePath) > 0:
+					nodePath = fcv.nodePath + "/" + fcv.nodeName
+				else:
+					nodePath = fcv.nodeName
+				if not nodePath in nodeMap:
+					nodeId = len(self.nodeInfoLst)
+					typeId = self.strLst.add("null")
+					info = NodeInfo(self, None, fcv.nodePathId, fcv.nodeNameId, typeId)
+					nodeMap[nodePath] = nodeId
+					self.nodeInfoLst.append(info)
+
 	def hasNodeInfo(self):
 		return self.nodeInfoLst and len(self.nodeInfoLst) > 0
 
