@@ -1489,6 +1489,12 @@ void gexLightDir(GEX_LIT* pLit, int idx, const cxVec& dir) {
 	pLit->mCtxWk.dir[idx] = dir.get_normalized();
 }
 
+void gexLightDirDegrees(GEX_LIT* pLit, int idx, float dx, float dy) {
+	if (!pLit || !gexCkLightIdx(idx)) return;
+	cxVec dir = nxQuat::from_degrees(dx, dy, 0.0f).apply(nxVec::get_axis(exAxis::MINUS_Z));
+	gexLightDir(pLit, idx, dir);
+}
+
 void gexLightColor(GEX_LIT* pLit, int idx, const cxColor& clr, float diff, float spec) {
 	if (!pLit || !gexCkLightIdx(idx)) return;
 	gexStoreRGB(&pLit->mCtxWk.clr[idx], clr);
@@ -1781,7 +1787,9 @@ struct GEX_MTL {
 		mCtxWk.specColor.fill(1.0f);
 		float defRough = 0.5f;
 		mCtxWk.diffRoughness.fill(defRough);
+		mCtxWk.diffRoughnessTexRate = 1.0f;
 		mCtxWk.specRoughness.fill(defRough);
+		mCtxWk.specRoughnessTexRate = 1.0f;
 		mCtxWk.IOR.fill(1.4f);
 		mCtxWk.vclrGain.fill(1.0f);
 		mCtxWk.shadowDensity = 1.0f;

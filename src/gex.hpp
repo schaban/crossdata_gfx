@@ -154,6 +154,7 @@ bool gexCkLightIdx(int idx);
 void gexLightMode(GEX_LIT* pLit, int idx, GEX_LIGHT_MODE mode);
 void gexLightPos(GEX_LIT* pLit, int idx, const cxVec& pos);
 void gexLightDir(GEX_LIT* pLit, int idx, const cxVec& dir);
+void gexLightDirDegrees(GEX_LIT* pLit, int idx, float dx, float dy);
 void gexLightColor(GEX_LIT* pLit, int idx, const cxColor& clr, float diff = 1.0f, float spec = 1.0f);
 void gexLightRange(GEX_LIT* pLit, int idx, float attnStart, float rangeEnd);
 void gexLightCone(GEX_LIT* pLit, int idx, float angle, float range);
