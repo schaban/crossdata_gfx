@@ -1,3 +1,5 @@
+// Author: Sergey Chaban <sergey.chaban@gmail.com>
+
 #include "shader.h"
 #include "context.h"
 
@@ -122,9 +124,11 @@ MTL_WK calcLight(MTL_WK wk) {
 	float3 N = wk.geom.nrm;
 	float3 V = -wk.view.dir;
 	float3 R = wk.view.refl;
+	float NV = dot(N, V);
+	float nv = max(0.0, NV);
 
 	float3 drough = clamp(mtl.diffRoughness * lerp(1.0, wk.tex.spec.a, mtl.diffRoughnessTexRate), 1e-6, 1.0);
-	float3 srough = clamp(mtl.specRoughness * lerp(1.0, wk.tex.spec.a, mtl.specRoughnessTexRate), 1e-6, 1.0);
+	float3 srough = clamp(mtl.specRoughness * lerp(1.0, wk.tex.spec.a, mtl.specRoughnessTexRate), mtl.specRoughnessMin, 1.0);
 
 	if (lctx.maxDynIdx >= 0) {
 		[unroll(D_GEX_MAX_DYN_LIGHTS)]
@@ -148,11 +152,9 @@ MTL_WK calcLight(MTL_WK wk) {
 				float3 H = normalize(L+V);
 				float NL = dot(N, L);
 				float NH = dot(N, H);
-				float NV = dot(N, V);
 				float LH = dot(L, H);
 				float nl = max(0.0, NL);
 				float nh = max(0.0, NH);
-				float nv = max(0.0, NV);
 				float lh = max(0.0, LH);
 
 				float distAttn = 1.0;
@@ -240,6 +242,7 @@ MTL_WK calcLight(MTL_WK wk) {
 	lit.diff += hemi;
 
 	if (lctx.shMode != D_GEX_SHL_NONE) {
+		float3 shDiff = 0;
 		if (lctx.shMode == D_GEX_SHL_DIFF) {
 			float3 shc[3*3];
 			float shw[3];
@@ -247,30 +250,44 @@ MTL_WK calcLight(MTL_WK wk) {
 			shw[0] = 1.0;
 			shw[1] = 1.0 / 1.5;
 			shw[2] = 1.0 / 4.0;
-			float3 shDiff;
 			shApply3(shDiff, shc, shw, N.x, N.y, N.z);
-			lit.diff += shDiff * g_mtl[0].shDiffClr;
 		} else {
+			// D_GEX_SHL_DIFF_REFL
 			float3 shc[6*6];
 			float2 shw[6];
 			shGet6(shc, shw);
 			float shDiffDtl = g_mtl[0].shDiffDtl;
 			float shReflDtl = g_mtl[0].shReflDtl;
+#if 1
+			shReflDtl += lerp(24, 1, saturate((srough.r + srough.g + srough.b) / 3.0));
+#endif
 			[unroll(6)] for (int i = 0; i < 6; ++i) {
 				float ii = (float)(-i*i);
-				float wd = ii / (2.0 * shDiffDtl);
-				float wr = ii / (2.0 * shReflDtl);
-				shw[i].x = exp(wd);
-				shw[i].y = exp(wr);
+				float2 wdr = ii / (2.0 * float2(shDiffDtl, shReflDtl));
+				shw[i] = exp(wdr);
 			}
-			float3 shDiff;
+#if 1
+			float t = NV;
+			float r = max(0.1, (drough.r + drough.g + drough.b) / 3.0);
+			float s = 1.0 / (r*r / 2.0);
+			float f = 1.0 - 1.0/(2.0 + s*0.65);
+			float g = 1.0 / (2.22222 + s*0.1);
+			float adjDC = f + g*0.5*(1.0 + 2.0*acos(t)/PI - t);
+			float adjLin = f + (f - 1.0) * (1.0 - t);
+			shw[0].x *= adjDC;
+			shw[1].x *= adjLin;
+#endif
 			float3 shRefl;
 			shApply6(shDiff, shRefl, shc, shw, float2(N.x, R.x), float2(N.y, R.y), float2(N.z, R.z));
-			shDiff *= g_mtl[0].shDiffClr;
+			shRefl = lerp(shRefl, shRefl * calcSpecFresnel(nv, g_mtl[0].IOR), g_mtl[0].shReflFrRate);
 			shRefl *= g_mtl[0].shReflClr;
-			lit.diff += shDiff;
+			shRefl *= g_glb[0].reflSHFactor;
+			shRefl = max(shRefl, 0);
 			lit.refl += shRefl;
 		}
+		shDiff *= g_mtl[0].shDiffClr;
+		shDiff *= g_glb[0].diffSHFactor;
+		lit.diff += shDiff;
 	}
 
 	wk.lit = lit;
@@ -520,6 +537,7 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 		wk.lit.refl += refl.rgb * g_mtl[0].reflColor;
 	}
 	wk.lit.refl *= calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].reflFrGain, g_mtl[0].reflFrBias);
+	wk.lit.refl = lerp(wk.lit.refl, wk.lit.refl * (1.0 + min(wk.geom.nrm.y, 0.0)), g_mtl[0].reflDownFadeRate);
 	float3 diff = wk.lit.diff * wk.tex.base.rgb;
 	float3 spec = (wk.lit.spec + wk.lit.refl) * wk.tex.spec.rgb;
 	spec *= calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].viewFrGain, g_mtl[0].viewFrBias);

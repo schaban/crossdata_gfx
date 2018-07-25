@@ -560,6 +560,8 @@ void gexInit(const GEX_CONFIG& cfg) {
 	if (GWK.mpDev) {
 		GWK.mGlbBuf.alloc(1);
 		gexDiffLightFactor(cxColor(2.0f));
+		gexDiffSHFactor(cxColor(2.0f));
+		gexReflSHFactor(cxColor(1.0f));
 		gexLinearWhite(1.0f);
 		gexLinearGain(1.0f);
 		gexLinearBias(0.0f);
@@ -990,6 +992,14 @@ void gexClearDepth() {
 
 void gexDiffLightFactor(const cxColor& clr) {
 	gexStoreRGB(&GWK.mGlbWk.diffLightFactor, clr);
+}
+
+void gexDiffSHFactor(const cxColor& clr) {
+	gexStoreRGB(&GWK.mGlbWk.diffSHFactor, clr);
+}
+
+void gexReflSHFactor(const cxColor& clr) {
+	gexStoreRGB(&GWK.mGlbWk.reflSHFactor, clr);
 }
 
 void gexGamma(float y) {
@@ -1790,6 +1800,7 @@ struct GEX_MTL {
 		mCtxWk.diffRoughnessTexRate = 1.0f;
 		mCtxWk.specRoughness.fill(defRough);
 		mCtxWk.specRoughnessTexRate = 1.0f;
+		mCtxWk.specRoughnessMin = 1.0e-6f;
 		mCtxWk.IOR.fill(1.4f);
 		mCtxWk.vclrGain.fill(1.0f);
 		mCtxWk.shadowDensity = 1.0f;
@@ -1797,9 +1808,10 @@ struct GEX_MTL {
 		mCtxWk.reflColor.fill(1.0f);
 		mCtxWk.reflLvl = -1.0f;
 		mCtxWk.shDiffClr.fill(1.0f);
-		mCtxWk.shDiffDtl = 4.0f;
+		mCtxWk.shDiffDtl = 1.5f;
 		mCtxWk.shReflClr.fill(1.0f);
 		mCtxWk.shReflDtl = 8.0f;
+		mCtxWk.shReflFrRate = 1.0f;
 		mSortMode = GEX_SORT_MODE::NEAR_POS;
 		mSortBiasAbs = 0.0f;
 		mSortBiasRel = 0.0f;
@@ -3286,6 +3298,11 @@ void gexMtlSpecularRoughnessTexRate(GEX_MTL* pMtl, float rate) {
 	pMtl->mCtxWk.specRoughnessTexRate = nxCalc::saturate(rate);
 }
 
+void gexMtlSpecularRoughnessMin(GEX_MTL* pMtl, float min) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.specRoughnessMin = nxCalc::saturate(min);
+}
+
 void gexMtlIOR(GEX_MTL* pMtl, const cxVec& ior) {
 	if (!pMtl) return;
 	gexStoreVec(&pMtl->mCtxWk.IOR, ior);
@@ -3301,6 +3318,11 @@ void gexMtlReflFresnel(GEX_MTL* pMtl, float gain, float bias) {
 	if (!pMtl) return;
 	pMtl->mCtxWk.reflFrGain = gain;
 	pMtl->mCtxWk.reflFrBias = bias;
+}
+
+void gexMtlReflDownFadeRate(GEX_MTL* pMtl, float rate) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.reflDownFadeRate = nxCalc::saturate(rate);
 }
 
 void gexMtlDiffMode(GEX_MTL* pMtl, GEX_DIFF_MODE mode) {
@@ -3389,6 +3411,11 @@ void gexMtlSHReflectionColor(GEX_MTL* pMtl, const cxColor& clr) {
 void gexMtlSHReflectionDetail(GEX_MTL* pMtl, float dtl) {
 	if (!pMtl) return;
 	pMtl->mCtxWk.shReflDtl = dtl;
+}
+
+void gexMtlSHReflectionFresnelRate(GEX_MTL* pMtl, float rate) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.shReflFrRate = nxCalc::saturate(rate);
 }
 
 
@@ -3529,7 +3556,7 @@ void gexCalcShadowMtxPersp() {
 		xt_float4 tqv;
 		tqv.x = box[i].x - offs.x;
 		tqv.y = box[i].y - offs.y;
-		tqv.z = box[i].x - offs.z;
+		tqv.z = box[i].z - offs.z;
 		tqv.w = 1.0f;
 		tqv = tm.apply(tqv);
 		zmin = nxCalc::min(zmin, nxCalc::div0(tqv.z, tqv.w));

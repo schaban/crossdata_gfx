@@ -74,6 +74,7 @@ struct MTL_CTX {
 	xt_float diffExpBias;
 	xt_float3 specRoughness;
 	xt_float specRoughnessTexRate;
+	xt_float specRoughnessMin;
 	xt_float3 IOR;
 	xt_float3 reflColor;
 	xt_float reflLvl;
@@ -81,6 +82,8 @@ struct MTL_CTX {
 	xt_float shDiffDtl;
 	xt_float3 shReflClr;
 	xt_float shReflDtl;
+	xt_float shReflFrRate;
+	xt_float reflDownFadeRate;
 	xt_float reflFrGain;
 	xt_float reflFrBias;
 	xt_float viewFrGain;
@@ -111,4 +114,6 @@ struct GLB_CTX {
 	xt_float3 linGain;
 	xt_float3 linBias;
 	xt_float3 diffLightFactor;
+	xt_float3 diffSHFactor;
+	xt_float3 reflSHFactor;
 };
