@@ -595,6 +595,10 @@ namespace MtlParamNames {
 		"reflect_texture" /* Principled Shader */
 	};
 
+	static const char* specColor[] = {
+		"spec_color" /* Classic Shader */
+	};
+
 	static const char* specModel[] = {
 		"spec_model", /* Classic Shader */
 		"ogl_spec_model" /* Principled Shader */
@@ -650,9 +654,11 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 				if (pMtl) {
 					float roughness = cvt_roughness(D_MTL_FLOAT(grp, roughness, 0.3f));
 					cxColor baseClr = D_MTL_RGB(grp, baseColor, cxColor(0.2f));
+					cxColor specClr = D_MTL_RGB(grp, specColor, cxColor(1.0f));
 					GEX_SPEC_MODE specMode = parse_spec_mode(D_MTL_STR(grp, specModel, "phong"));
 					float IOR = D_MTL_FLOAT(grp, IOR, 1.4f);
 					gexMtlBaseColor(pMtl, baseClr);
+					gexMtlSpecularColor(pMtl, specClr);
 					gexMtlRoughness(pMtl, roughness);
 					gexMtlSpecMode(pMtl, specMode);
 					gexMtlIOR(pMtl, IOR);
