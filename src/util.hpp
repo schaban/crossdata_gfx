@@ -80,6 +80,17 @@ struct TEXTURE_LIB {
 	int get_tex_num() const { return mpCat ? mpCat->mFilesNum : 0; }
 };
 
+struct TEXDATA_LIB {
+	sxFileCatalogue* mpCat;
+	sxTextureData** mppTexs;
+
+	TEXDATA_LIB() : mpCat(nullptr), mppTexs(nullptr) {}
+
+	void init(const char* pBasePath);
+	void reset();
+	int get_tex_num() const { return mpCat ? mpCat->mFilesNum : 0; }
+};
+
 struct TRACKBALL {
 	cxQuat mSpin;
 	cxQuat mQuat;
@@ -111,6 +122,7 @@ struct SH_COEFS {
 
 	void clear();
 	void from_geo(sxGeometryData& geo, float scl = 1.0f);
+	void from_pano(const cxColor* pClr, int w, int h);
 
 	float* get_channel(int i) {
 		float* pData = nullptr;
@@ -122,10 +134,41 @@ struct SH_COEFS {
 		return pData;
 	}
 
+	cxColor get_ambient() const {
+		return cxColor(mR[0], mG[0], mB[0]);
+	}
+
+	cxVec calc_dominant_dir() const {
+		int idx = nxSH::calc_ary_idx(1, 1);
+		float lx = cxColor(mR[idx], mG[idx], mB[idx]).luminance();
+		idx = nxSH::calc_ary_idx(1, -1);
+		float ly = cxColor(mR[idx], mG[idx], mB[idx]).luminance();
+		idx = nxSH::calc_ary_idx(1, 0);
+		float lz = cxColor(mR[idx], mG[idx], mB[idx]).luminance();
+		return cxVec(-lx, -ly, lz).get_normalized();
+	}
+
+	cxColor calc_color(const cxVec dir) const;
+
 	void calc_diff_wgt(float s, float scl) { nxSH::calc_weights(mWgtDiff, ORDER, s, scl); }
 	void calc_refl_wgt(float s, float scl) { nxSH::calc_weights(mWgtRefl, ORDER, s, scl); }
 
 	void scl(const cxColor& clr);
+};
+
+struct ENV_LIGHT {
+	SH_COEFS mSH;
+	const sxTextureData* mpTex;
+	cxVec mDominantDir;
+	cxColor mDominantClr;
+	float mDominantLum;
+	cxColor mAmbientClr;
+	float mAmbientLum;
+
+	ENV_LIGHT() : mpTex(nullptr) {}
+
+	void init(const sxTextureData* pTex);
+	void apply(GEX_LIT* pLit, float diffRate = 0.0f, float specRate = 0.75f);
 };
 
 TRACKBALL* get_trackball();
@@ -161,6 +204,7 @@ TD_CAM_INFO load_td_cam(const char* pPath);
 void obj_shadow_mode(const GEX_OBJ& obj, bool castShadows, bool receiveShadows);
 void obj_shadow_params(const GEX_OBJ& obj, float density, float selfShadowFactor, bool cullShadows);
 void obj_tesselation(const GEX_OBJ& obj, GEX_TESS_MODE mode, float factor);
+void obj_diff_roughness(const GEX_OBJ& obj, const cxColor& rgb);
 void obj_diff_mode(const GEX_OBJ& obj, GEX_DIFF_MODE mode);
 void obj_sort_mode(const GEX_OBJ& obj, GEX_SORT_MODE mode);
 void obj_sort_bias(const GEX_OBJ& obj, float absBias, float relBias);

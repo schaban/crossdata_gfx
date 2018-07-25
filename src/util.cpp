@@ -209,6 +209,46 @@ void TEXTURE_LIB::reset() {
 }
 
 
+void TEXDATA_LIB::init(const char* pBasePath) {
+	if (!pBasePath) return;
+	char path[XD_MAX_PATH];
+	XD_SPRINTF(XD_SPRINTF_BUF(path, sizeof(path)), "%s/texlib.fcat", pBasePath);
+	sxData* pData = nxData::load(path);
+	if (!pData) return;
+	mpCat = pData->as<sxFileCatalogue>();
+	if (!mpCat) return;
+	int ntex = mpCat->mFilesNum;
+	size_t memsize = ntex * sizeof(sxTextureData*);
+	mppTexs = (sxTextureData**)nxCore::mem_alloc(memsize, XD_FOURCC('T', 'X', 'l', 'b'));
+	if (!mppTexs) return;
+	::memset(mppTexs, 0, memsize);
+	for (int i = 0; i < ntex; ++i) {
+		mppTexs[i] = nullptr;
+		const char* pTexFileName = mpCat->get_file_name(i);
+		XD_SPRINTF(XD_SPRINTF_BUF(path, sizeof(path)), "%s/%s", pBasePath, pTexFileName);
+		pData = nxData::load(path);
+		if (pData) {
+			sxTextureData* pTex = pData->as<sxTextureData>();
+			if (pTex) {
+				mppTexs[i] = pTex;
+			}
+		}
+	}
+}
+
+void TEXDATA_LIB::reset() {
+	if (mpCat && mppTexs) {
+		int ntex = mpCat->mFilesNum;
+		for (int i = 0; i < ntex; ++i) {
+			nxData::unload(mppTexs[i]);
+		}
+	}
+	nxCore::mem_free(mppTexs);
+	mppTexs = nullptr;
+	nxData::unload(mpCat);
+	mpCat = nullptr;
+}
+
 static cxVec tball_proj(float x, float y, float r) {
 	float d = ::hypotf(x, y);
 	float t = r / ::sqrtf(2.0f);
@@ -271,6 +311,62 @@ void SH_COEFS::from_geo(sxGeometryData& geo, float scl) {
 	}
 }
 
+static struct SH {
+	float consts[nxSH::calc_consts_num(SH_COEFS::ORDER)];
+
+	SH() {
+		nxSH::calc_consts(SH_COEFS::ORDER, consts);
+	}
+} SH;
+
+void SH_COEFS::from_pano(const cxColor* pClr, int w, int h) {
+	struct PANO_SH_FN {
+		const cxColor* pPano;
+		int w, h;
+		SH_COEFS* pCoefs;
+		XD_FORCEINLINE void operator ()(int x, int y, float dx, float dy, float dz, float dw) {
+			float dirCoefs[NCOEF];
+			nxSH::eval(ORDER, dirCoefs, dx, dy, dz, SH.consts);
+			cxColor c = pPano[y*w + x];
+			for (int i = 0; i < NCOEF; ++i) {
+				dirCoefs[i] *= dw;
+			}
+			float r = c.r;
+			for (int i = 0; i < NCOEF; ++i) {
+				pCoefs->mR[i] += dirCoefs[i] * r;
+			}
+			float g = c.g;
+			for (int i = 0; i < NCOEF; ++i) {
+				pCoefs->mG[i] += dirCoefs[i] * g;
+			}
+			float b = c.b;
+			for (int i = 0; i < NCOEF; ++i) {
+				pCoefs->mB[i] += dirCoefs[i] * b;
+			}
+		}
+	} shf = { pClr, w, h, this };
+	clear();
+	float wscl = nxCalc::panorama_scan(shf, shf.w, shf.h);
+}
+
+cxColor SH_COEFS::calc_color(const cxVec dir) const {
+	float dirCoefs[NCOEF];
+	nxSH::eval(ORDER, dirCoefs, dir.x, dir.y, dir.z, SH.consts);
+	float r = 0;
+	for (int i = 0; i < NCOEF; ++i) {
+		r += dirCoefs[i] * mR[i];
+	}
+	float g = 0;
+	for (int i = 0; i < NCOEF; ++i) {
+		g += dirCoefs[i] * mG[i];
+	}
+	float b = 0;
+	for (int i = 0; i < NCOEF; ++i) {
+		b += dirCoefs[i] * mB[i];
+	}
+	return cxColor(r, g, b);
+}
+
 void SH_COEFS::scl(const cxColor& clr) {
 	for (int i = 0; i < NCOEF; ++i) {
 		mR[i] *= clr.r;
@@ -279,6 +375,38 @@ void SH_COEFS::scl(const cxColor& clr) {
 	}
 }
 
+void ENV_LIGHT::init(const sxTextureData* pTex) {
+	if (!pTex) return;
+	mpTex = pTex;
+	sxTextureData::DDS panoDDS = mpTex->get_dds();
+	mSH.from_pano((cxColor*)(panoDDS.get_data_ptr() + 1), panoDDS.get_width(), panoDDS.get_height());
+	panoDDS.free();
+	mSH.calc_diff_wgt(2.0f, 1.0f);
+	mSH.calc_refl_wgt(5.0f, 1.0f);
+	mDominantDir = mSH.calc_dominant_dir();
+	mDominantClr = mSH.calc_color(mDominantDir);
+	mDominantLum = mDominantClr.luminance();
+	mDominantClr.scl_rgb(nxCalc::rcp0(mDominantClr.max()));
+	mAmbientClr = mSH.get_ambient();
+	mAmbientLum = mAmbientClr.luminance();
+	mAmbientClr.scl_rgb(nxCalc::rcp0(mAmbientClr.max()));
+}
+
+void ENV_LIGHT::apply(GEX_LIT* pLit, float diffRate, float specRate) {
+	if (!pLit) return;
+	gexAmbient(pLit, cxColor(0));
+	gexSHLW(pLit, GEX_SHL_MODE::DIFF_REFL, SH_COEFS::ORDER, mSH.mR, mSH.mG, mSH.mB, mSH.mWgtDiff, mSH.mWgtRefl);
+	for (int i = 0; i < D_GEX_MAX_DYN_LIGHTS; ++i) {
+		gexLightMode(pLit, i, GEX_LIGHT_MODE::NONE);
+	}
+	gexLightDir(pLit, 0, mDominantDir.neg_val());
+	gexLightColor(pLit, 0, mDominantClr, diffRate, specRate); // spec
+	if (diffRate != 0 || specRate != 0) {
+		gexLightMode(pLit, 0, GEX_LIGHT_MODE::DIST);
+	}
+	gexLitUpdate(pLit);
+	gexShadowDir(mDominantDir.neg_val());
+}
 
 float frand01() {
 	uxVal32 uf;
@@ -457,6 +585,16 @@ namespace MtlParamNames {
 		"basecolor" /* Principled Shader */
 	};
 
+	static const char* specTexFlg[] = {
+		"refl_colorUseTexture", /* Classic Shader */
+		"reflect_useTexture" /* Principled Shader */
+	};
+
+	static const char* specTexName[] = {
+		"refl_colorTexture", /* Classic Shader */
+		"reflect_texture" /* Principled Shader */
+	};
+
 	static const char* specModel[] = {
 		"spec_model", /* Classic Shader */
 		"ogl_spec_model" /* Principled Shader */
@@ -472,9 +610,24 @@ namespace MtlParamNames {
 		"ogl_ior_inner" /* Principled Shader */
 	};
 
+	static const char* bumpTexFlg[] = {
+		"baseBumpAndNormal_enable", /* Classic Shader */
+		"enableBumpOrNormalTexture" /* Principled Shader */
+	};
+
 	static const char* useAlpha[] = {
 		"diff_colorTextureUseAlpha", /* Classic Shader */
 		"ogl_cutout" /* Principled Shader */
+	};
+
+	static const char* bumpTexName[] = {
+		"baseNormal_texture", /* Classic Shader */
+		"normalTexture" /* Principled Shader */
+	};
+
+	static const char* bumpScale[] = {
+		"baseNormal_scale", /* Classic Shader */
+		"normalTexScale" /* Principled Shader */
 	};
 };
 
@@ -516,9 +669,9 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 							gexMtlBaseTexture(pMtl, pBaseTex);
 						}
 					}
-					bool specTexFlg = !!grp.get_int("reflect_useTexture");
+					bool specTexFlg = D_MTL_BOOL_(grp, specTexFlg);
 					if (specTexFlg) {
-						const char* pSpecTexName = grp.get_str("reflect_texture");
+						const char* pSpecTexName = D_MTL_STR(grp, specTexName, "");
 						GEX_TEX* pSpecTex = find_tex(pSpecTexName);
 						if (pSpecTex) {
 							gexMtlSpecularTexture(pMtl, pSpecTex);
@@ -527,13 +680,25 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 					if (useReflectColor) {
 						gexMtlSpecularColor(pMtl, cxColor(grp.get_float("reflect", 0.5f)));
 					}
+					const char* pRoughnessMinName = "gex_specRoughnessMin";
+					if (grp.find_val_idx(pRoughnessMinName) >= 0) {
+						gexMtlSpecularRoughnessMin(pMtl, grp.get_float(pRoughnessMinName));
+					}
+					gexMtlSHReflectionFresnelRate(pMtl, grp.get_float("gex_shReflFrRate", 1.0f));
+					gexMtlReflDownFadeRate(pMtl, grp.get_float("gex_reflDownFadeRate", 0.0f));
 					bool alphaFlg = D_MTL_BOOL_(grp, useAlpha);
 					gexMtlAlpha(pMtl, alphaFlg);
-					bool bumpTexFlg = !!grp.get_int("enableBumpOrNormalTexture");
+					bool bumpTexFlg = D_MTL_BOOL_(grp, bumpTexFlg);
 					if (bumpTexFlg) {
-						gexMtlBumpFactor(pMtl, grp.get_float("normalTexScale", 1.0f));
-						gexMtlTangentMode(pMtl, GEX_TANGENT_MODE::AUTO);
-						GEX_TEX* pBumpTex = find_tex(grp.get_str("normalTexture", nullptr));
+						gexMtlBumpFactor(pMtl, D_MTL_FLOAT(grp, bumpScale, 1.0f));
+						if (1) {
+							gexMtlTangentMode(pMtl, GEX_TANGENT_MODE::AUTO);
+						} else {
+							gexMtlTangentMode(pMtl, GEX_TANGENT_MODE::GEOM);
+							gexMtlTangentOptions(pMtl, false, true);
+						}
+						const char* pBumpTexName = D_MTL_STR(grp, bumpTexName, nullptr);
+						GEX_TEX* pBumpTex = find_tex(pBumpTexName);
 						if (pBumpTex) {
 							gexMtlBumpTexture(pMtl, pBumpTex);
 							gexMtlBumpMode(pMtl, GEX_BUMP_MODE::NMAP);
@@ -673,6 +838,15 @@ void obj_tesselation(const GEX_OBJ& obj, GEX_TESS_MODE mode, float factor) {
 		GEX_MTL* pMtl = gexObjMaterial(&obj, i);
 		gexMtlTesselationMode(pMtl, mode);
 		gexMtlTesselationFactor(pMtl, factor);
+		gexMtlUpdate(pMtl);
+	}
+}
+
+void obj_diff_roughness(const GEX_OBJ& obj, const cxColor& rgb) {
+	int nmtl = gexObjMtlNum(&obj);
+	for (int i = 0; i < nmtl; ++i) {
+		GEX_MTL* pMtl = gexObjMaterial(&obj, i);
+		gexMtlDiffuseRoughness(pMtl, rgb);
 		gexMtlUpdate(pMtl);
 	}
 }
