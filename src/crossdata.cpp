@@ -623,6 +623,8 @@ float hermite(float p0, float m0, float p1, float m1, float t) {
 }
 
 float fit(float val, float oldMin, float oldMax, float newMin, float newMax) {
+	if (val <= oldMin) return newMin;
+	if (val >= oldMax) return newMax;
 	float rel = (val - oldMin) / (oldMax - oldMin);
 	return lerp(newMin, newMax, rel);
 }
