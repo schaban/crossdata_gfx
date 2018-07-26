@@ -4819,6 +4819,20 @@ sxGeometryData::AttrInfo* sxGeometryData::get_attr_info(int attrIdx, eAttrClass 
 	return pAttr;
 }
 
+const char* sxGeometryData::get_attr_val_s(int attrIdx, eAttrClass cls, int itemIdx) const {
+	const char* pStr = nullptr;
+	uint32_t itemNum = get_attr_item_num(cls);
+	if ((uint32_t)itemIdx < itemNum) {
+		AttrInfo* pInfo = get_attr_info(attrIdx, cls);
+		if (pInfo && pInfo->is_string()) {
+			uint32_t* pTop = reinterpret_cast<uint32_t*>(XD_INCR_PTR(this, pInfo->mDataOffs));
+			int strId = pTop[itemIdx*pInfo->mElemNum];
+			pStr = get_str(strId);
+		}
+	}
+	return pStr;
+}
+
 float* sxGeometryData::get_attr_data_f(int attrIdx, eAttrClass cls, int itemIdx, int minElem) const {
 	float* pData = nullptr;
 	uint32_t itemNum = get_attr_item_num(cls);
