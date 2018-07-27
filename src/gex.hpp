@@ -172,7 +172,7 @@ void gexTexDestroy(GEX_TEX* pTex);
 const char* gexTexName(const GEX_TEX* pTex);
 GEX_TEX* gexTexFind(const char* pName, const char* pPath = nullptr);
 
-GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix = nullptr);
+GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix = nullptr, const char* pSortMtlsAttr = nullptr);
 void gexObjDestroy(GEX_OBJ* pObj);
 void gexObjSkinInit(GEX_OBJ* pObj, const cxMtx* pRestIW);
 void gexObjTransform(GEX_OBJ* pObj, const cxMtx* pMtx);
@@ -217,6 +217,8 @@ void gexMtlTangentOptions(GEX_MTL* pMtl, bool flipTangent, bool flipBitangent);
 void gexMtlTesselationMode(GEX_MTL* pMtl, GEX_TESS_MODE mode);
 void gexMtlTesselationFactor(GEX_MTL* pMtl, float factor);
 void gexMtlAlpha(GEX_MTL* pMtl, bool enable);
+void gexMtlAlphaBlend(GEX_MTL* pMtl, bool enable);
+void gexMtlAlphaToCoverage(GEX_MTL* pMtl, bool enable);
 void gexMtlRoughness(GEX_MTL* pMtl, float rough);
 void gexMtlDiffuseRoughness(GEX_MTL* pMtl, const cxColor& rgb);
 void gexMtlDiffuseRoughnessTexRate(GEX_MTL* pMtl, float rate);

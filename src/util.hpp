@@ -206,9 +206,12 @@ void obj_shadow_params(const GEX_OBJ& obj, float density, float selfShadowFactor
 void obj_tesselation(const GEX_OBJ& obj, GEX_TESS_MODE mode, float factor);
 void obj_diff_roughness(const GEX_OBJ& obj, const cxColor& rgb);
 void obj_diff_mode(const GEX_OBJ& obj, GEX_DIFF_MODE mode);
+void obj_spec_mode(const GEX_OBJ& obj, GEX_SPEC_MODE mode);
 void obj_sort_mode(const GEX_OBJ& obj, GEX_SORT_MODE mode);
 void obj_sort_bias(const GEX_OBJ& obj, float absBias, float relBias);
 void mtl_sort_mode(const GEX_OBJ& obj, const char* pMtlName, GEX_SORT_MODE mode);
 void mtl_sort_bias(const GEX_OBJ& obj, const char* pMtlName, float absBias, float relBias);
+void mtl_sh_diff_detail(const GEX_OBJ& obj, const char* pMtlName, float dtl);
+void mtl_sh_refl_detail(const GEX_OBJ& obj, const char* pMtlName, float dtl);
 
 void dump_riglink_info(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLink, FILE* pOut = nullptr);

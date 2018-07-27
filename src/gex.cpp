@@ -361,6 +361,8 @@ static struct GEX_GWK {
 	ID3D11SamplerState* mpSmpStatePnt;
 	ID3D11BlendState* mpBlendOpaq;
 	ID3D11BlendState* mpBlendSemi;
+	ID3D11BlendState* mpBlendSemiCov;
+	ID3D11BlendState* mpBlendSemiBlendCov;
 	StructuredBuffer<GLB_CTX> mGlbBuf;
 	GLB_CTX mGlbWk;
 	GEX_OBJ* mpObjLstHead;
@@ -746,7 +748,10 @@ void gexInit(const GEX_CONFIG& cfg) {
 		blendDsc.RenderTarget[i].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 	}
 	GWK.mpDev->CreateBlendState(&blendDsc, &GWK.mpBlendOpaq);
+	blendDsc.AlphaToCoverageEnable = TRUE;
+	GWK.mpDev->CreateBlendState(&blendDsc, &GWK.mpBlendSemiCov);
 	blendDsc.RenderTarget[0].BlendEnable = TRUE;
+	blendDsc.AlphaToCoverageEnable = FALSE;
 	blendDsc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
 	blendDsc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
 	blendDsc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
@@ -754,6 +759,8 @@ void gexInit(const GEX_CONFIG& cfg) {
 	blendDsc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
 	blendDsc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	GWK.mpDev->CreateBlendState(&blendDsc, &GWK.mpBlendSemi);
+	blendDsc.AlphaToCoverageEnable = TRUE;
+	GWK.mpDev->CreateBlendState(&blendDsc, &GWK.mpBlendSemiBlendCov);
 
 	GWK.mDispListSize = 32768*2;
 	GWK.mpDispList = gexTypeAlloc<GEX_DISP_ENTRY>(XD_FOURCC('D', 'I', 'S', 'P'), GWK.mDispListSize);
@@ -880,6 +887,12 @@ void gexReset() {
 	}
 	if (GWK.mpBlendSemi) {
 		GWK.mpBlendSemi->Release();
+	}
+	if (GWK.mpBlendSemiCov) {
+		GWK.mpBlendSemiCov->Release();
+	}
+	if (GWK.mpBlendSemiBlendCov) {
+		GWK.mpBlendSemiBlendCov->Release();
 	}
 	if (GWK.mpSmpStatePnt) {
 		GWK.mpSmpStatePnt->Release();
@@ -1781,10 +1794,13 @@ struct GEX_MTL {
 	GEX_SORT_MODE mSortMode;
 	float mSortBiasAbs;
 	float mSortBiasRel;
+	bool mSortPrims;
 	bool mDblSided;
 	bool mHidden;
 	bool mCastShadows;
 	bool mReceiveShadows;
+	bool mAlphaToCoverage;
+	bool mBlend;
 	GEX_UV_MODE mUVMode;
 	GEX_TESS_MODE mTessMode;
 
@@ -1815,10 +1831,13 @@ struct GEX_MTL {
 		mSortMode = GEX_SORT_MODE::NEAR_POS;
 		mSortBiasAbs = 0.0f;
 		mSortBiasRel = 0.0f;
+		mSortPrims = false;
 		mDblSided = false;
 		mHidden = false;
 		mCastShadows = false;
 		mReceiveShadows = false;
+		mAlphaToCoverage = false;
+		mBlend = true;
 		mUVMode = GEX_UV_MODE::WRAP;
 		mTessMode = GEX_TESS_MODE::NONE;
 	}
@@ -1827,7 +1846,7 @@ struct GEX_MTL {
 		mCtxBuf.copy_data(&mCtxWk);
 	}
 
-	cxVec calc_sort_pos(GEX_CAM& cam, cxAABB& bbox) const {
+	cxVec calc_sort_pos(const GEX_CAM& cam, cxAABB& bbox) const {
 		cxVec pos;
 		switch (mSortMode) {
 			case GEX_SORT_MODE::NEAR_POS:
@@ -1846,9 +1865,53 @@ struct GEX_MTL {
 		return pos;
 	}
 
+	cxVec calc_sort_pos(const GEX_CAM& cam, const cxVec vtx[3]) const {
+		cxVec pos;
+		float dist[3];
+		switch (mSortMode) {
+			case GEX_SORT_MODE::NEAR_POS:
+			default:
+				for (int i = 0; i < 3; ++i) {
+					dist[i] = gexCalcViewDist(&cam, vtx[0]);
+				}
+				if (dist[0] < dist[1] && dist[0] < dist[2]) {
+					pos = dist[0];
+				} else if (dist[1] < dist[0] && dist[1] < dist[2]) {
+					pos = dist[1];
+				} else {
+					pos = dist[2];
+				}
+				break;
+			case GEX_SORT_MODE::CENTER:
+				pos = vtx[0];
+				pos.add(vtx[1]);
+				pos.add(vtx[2]);
+				pos.scl(1.0f / 3.0f);
+				break;
+			case GEX_SORT_MODE::FAR_POS:
+				for (int i = 0; i < 3; ++i) {
+					dist[i] = gexCalcViewDist(&cam, vtx[0]);
+				}
+				if (dist[0] > dist[1] && dist[0] > dist[2]) {
+					pos = dist[0];
+				} else if (dist[1] > dist[0] && dist[1] > dist[2]) {
+					pos = dist[1];
+				} else{
+					pos = dist[2];
+				}
+				break;
+		}
+		return pos;
+	}
+
 	float calc_sort_bias(cxAABB& bbox) const {
 		return bbox.get_bounding_radius()*mSortBiasRel + mSortBiasAbs;
 	}
+};
+
+struct GEX_SORT_PRIM {
+	float key;
+	int idx;
 };
 
 struct GEX_BAT {
@@ -1858,6 +1921,11 @@ struct GEX_BAT {
 	cxAABB mWorldBBox;
 	cxSphere* mpSkinSphs;
 	uint16_t* mpSkinIds;
+	ID3D11Buffer* mpDynIB16;
+	ID3D11Buffer* mpDynIB32;
+	uint16_t* mpIdx16;
+	uint32_t* mpIdx32;
+	GEX_SORT_PRIM* mpSortWk;
 	int mMtlId;
 	int mMaxWghtNum;
 	int mMinIdx;
@@ -1892,6 +1960,7 @@ struct GEX_BAT {
 	}
 
 	void update_world_bbox(const cxMtx* pMtx);
+	void sort(const GEX_CAM& cam);
 
 	void cleanup() {
 		if (mpSkinIds) {
@@ -1901,6 +1970,26 @@ struct GEX_BAT {
 		if (mpSkinSphs) {
 			nxCore::mem_free(mpSkinSphs);
 			mpSkinSphs = nullptr;
+		}
+		if (mpIdx16) {
+			nxCore::mem_free(mpIdx16);
+			mpIdx16 = nullptr;
+		}
+		if (mpIdx32) {
+			nxCore::mem_free(mpIdx32);
+			mpIdx32 = nullptr;
+		}
+		if (mpSortWk) {
+			nxCore::mem_free(mpSortWk);
+			mpSortWk = nullptr;
+		}
+		if (mpDynIB16) {
+			mpDynIB16->Release();
+			mpDynIB16 = nullptr;
+		}
+		if (mpDynIB32) {
+			mpDynIB32->Release();
+			mpDynIB32 = nullptr;
 		}
 	}
 };
@@ -1927,6 +2016,7 @@ struct GEX_OBJ {
 	ID3D11Buffer* mpVB;
 	ID3D11Buffer* mpIB16;
 	ID3D11Buffer* mpIB32;
+	cxVec* mpGeoPts;
 	int mXformNum;
 	int mVtxNum;
 	int mMtlNum;
@@ -1968,6 +2058,79 @@ struct GEX_OBJ {
 	}
 };
 
+static int primcmp(const void* pA, const void* pB) {
+	GEX_SORT_PRIM* pPrim1 = (GEX_SORT_PRIM*)pA;
+	GEX_SORT_PRIM* pPrim2 = (GEX_SORT_PRIM*)pB;
+	float k1 = pPrim1->key;
+	float k2 = pPrim2->key;
+	if (k1 > k2) return 1;
+	if (k1 < k2) return -1;
+	return 0;
+}
+
+void GEX_BAT::sort(const GEX_CAM& cam) {
+	if (!mpSortWk) return;
+	if (!(mpIdx16 || mpIdx32)) return;
+	GEX_MTL* pMtl = get_mtl();
+	if (!pMtl) return;
+	int ntri = get_tri_num();
+	for (int i = 0; i < ntri; ++i) {
+		mpSortWk[i].idx = i;
+	}
+	int ipnt[3];
+	cxVec vtx[3];
+	xt_wmtx wm;
+	if (mSkinNodesNum <= 1) {
+		wm = mpSkinIds ? *((&mpObj->mpXform->mtx) + mpSkinIds[0]) : mpObj->mpXform->mtx;
+	}
+	for (int i = 0; i < ntri; ++i) {
+		if (mpIdx16) {
+			for (int j = 0; j < 3; ++j) {
+				ipnt[j] = mpIdx16[(i * 3) + j];
+			}
+		} else {
+			for (int j = 0; j < 3; ++j) {
+				ipnt[j] = mpIdx32[(i * 3) + j];
+			}
+		}
+		for (int j = 0; j < 3; ++j) {
+			vtx[j] = mpObj->mpGeoPts[ipnt[j] + mMinIdx];
+		}
+		if (mSkinNodesNum <= 1) {
+			for (int j = 0; j < 3; ++j) {
+				vtx[j] = gexWMtxCalcPnt(wm, vtx[j]);
+			}
+		}
+		cxVec spos = pMtl->calc_sort_pos(cam, vtx);
+		mpSortWk[i].key = gexCalcViewDist(&cam, spos);
+	}
+
+	::qsort(mpSortWk, ntri, sizeof(GEX_SORT_PRIM), primcmp);
+
+	D3D11_MAPPED_SUBRESOURCE map;
+	if (mpDynIB16) {
+		HRESULT hres = GWK.mpCtx->Map(mpDynIB16, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		if (SUCCEEDED(hres)) {
+			uint16_t* pDst = (uint16_t*)map.pData;
+			for (int i = 0; i < ntri; ++i) {
+				int itri = mpSortWk[i].idx;
+				::memcpy(pDst + (itri * 3), mpIdx16 + (itri * 3), sizeof(uint16_t) * 3);
+			}
+			GWK.mpCtx->Unmap(mpDynIB16, 0);
+		}
+	} else if (mpDynIB32) {
+		HRESULT hres = GWK.mpCtx->Map(mpDynIB32, 0, D3D11_MAP_WRITE_DISCARD, 0, &map);
+		if (SUCCEEDED(hres)) {
+			uint16_t* pDst = (uint16_t*)map.pData;
+			for (int i = 0; i < ntri; ++i) {
+				int itri = mpSortWk[i].idx;
+				::memcpy(pDst + (itri * 3), mpIdx32 + (itri * 3), sizeof(uint32_t) * 3);
+			}
+			GWK.mpCtx->Unmap(mpDynIB32, 0);
+		}
+	}
+}
+
 void GEX_BAT::update_world_bbox(const cxMtx* pMtx) {
 	if (mMaxWghtNum > 0) {
 		if (mpSkinSphs && mpSkinIds && mpObj->mpXform) {
@@ -1997,7 +2160,7 @@ void GEX_BAT::update_world_bbox(const cxMtx* pMtx) {
 	}
 }
 
-GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix) {
+GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix, const char* pSortMtlsAttr) {
 	HRESULT hres;
 	GEX_OBJ* pObj = gexTypeAlloc<GEX_OBJ>(D_GEX_OBJ_TAG);
 	pObj->mGeoBBox = geo.mBBox;
@@ -2155,6 +2318,34 @@ GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix) {
 		pObj->mpMtl[i].update();
 	}
 
+	int sortMtlsCnt = 0;
+	if (pSortMtlsAttr) {
+		int sortMtlsAttrId = geo.find_glb_attr(pSortMtlsAttr);
+		if (sortMtlsAttrId >= 0) {
+			char* pSortMtlBuf = nxCore::str_dup(geo.get_attr_val_s(sortMtlsAttrId, sxGeometryData::eAttrClass::GLOBAL, 0));
+			if (pSortMtlBuf) {
+				char* pSortMtlNames = pSortMtlBuf;
+				char* pNextMtlName = nullptr;
+				for (char* pMtlName = ::strtok_s(pSortMtlNames, ";", &pNextMtlName); pMtlName; pMtlName = ::strtok_s(nullptr, ";", &pNextMtlName)) {
+					GEX_MTL* pMtl = gexFindMaterial(pObj, pMtlName);
+					if (pMtl) {
+						//nxCore::dbg_msg("%d: %s\n", sortMtlsCnt, pMtlName);
+						pMtl->mSortPrims = true;
+						++sortMtlsCnt;
+					}
+				}
+				nxCore::mem_free(pSortMtlBuf);
+				pSortMtlBuf = nullptr;
+			}
+			if (sortMtlsCnt > 0) {
+				pObj->mpGeoPts = gexTypeAlloc<cxVec>(XD_FOURCC('G', 'p', 't', 's'), nvtx);
+				if (pObj->mpGeoPts) {
+					::memcpy(pObj->mpGeoPts, geo.get_pnt_top(), sizeof(cxVec) * nvtx);
+				}
+			}
+		}
+	}
+
 	int nbat = pObj->mMtlNum;
 	int batGrpCount = 0;
 	int* pBatGrpIdx = nullptr;
@@ -2303,6 +2494,16 @@ GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix) {
 				npol = geo.get_pol_num();
 			}
 		}
+		if (pBat->get_mtl()->mSortPrims) {
+			pBat->mpSortWk = gexTypeAlloc<GEX_SORT_PRIM>(XD_FOURCC('s', 'o', 'r', 't'), npol);
+			if (pBat->is_idx16()) {
+				pBat->mpIdx16 = gexTypeAlloc<uint16_t>(XD_FOURCC('i', 'x', '1', '6'), npol * 3);
+			} else {
+				pBat->mpIdx32 = gexTypeAlloc<uint32_t>(XD_FOURCC('i', 'x', '3', '2'), npol * 3);
+			}
+		}
+		int i16 = 0;
+		int i32 = 0;
 		for (int j = 0; j < npol; ++j) {
 			int polIdx = 0;
 			if (batGrpCount > 0) {
@@ -2324,6 +2525,10 @@ GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix) {
 							pIdx16[nidx16 + k] = (uint16_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
 						}
 					}
+					if (pBat->mpIdx16) {
+						::memcpy(pBat->mpIdx16 + i16, pIdx16 + nidx16, sizeof(uint16_t) * 3);
+						i16 += 3;
+					}
 					nidx16 += 3;
 				} else {
 					if (pIdx32) {
@@ -2331,8 +2536,26 @@ GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix) {
 							pIdx32[nidx32 + k] = (uint32_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
 						}
 					}
+					if (pBat->mpIdx32) {
+						::memcpy(pBat->mpIdx32 + i32, pIdx32 + nidx32, sizeof(uint32_t) * 3);
+						i32 += 3;
+					}
 					nidx32 += 3;
 				}
+			}
+		}
+		if (pBat->mpIdx16 || pBat->mpIdx32) {
+			D3D11_BUFFER_DESC dscDynIB;
+			::ZeroMemory(&dscDynIB, sizeof(dscDynIB));
+			dscDynIB.Usage = D3D11_USAGE_DYNAMIC;
+			dscDynIB.BindFlags = D3D11_BIND_INDEX_BUFFER;
+			dscDynIB.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			if (pBat->mpIdx16) {
+				dscDynIB.ByteWidth = pBat->get_tri_num() * 3 * sizeof(uint16_t);
+				hres = GWK.mpDev->CreateBuffer(&dscDynIB, nullptr, &pBat->mpDynIB16);
+			} else {
+				dscDynIB.ByteWidth = pBat->get_tri_num() * 3 * sizeof(uint32_t);
+				hres = GWK.mpDev->CreateBuffer(&dscDynIB, nullptr, &pBat->mpDynIB32);
 			}
 		}
 	}
@@ -2390,6 +2613,9 @@ void gexObjDestroy(GEX_OBJ* pObj) {
 			pObj->mpBat[i].cleanup();
 		}
 		nxCore::mem_free(pObj->mpBat);
+	}
+	if (pObj->mpGeoPts) {
+		nxCore::mem_free(pObj->mpGeoPts);
 	}
 	if (pObj->mpMtl) {
 		for (int i = 0; i < pObj->mMtlNum; ++i) {
@@ -2525,17 +2751,28 @@ void gexBatDraw(GEX_BAT* pBat, GEX_LIT* pLit) {
 	UINT stride = sizeof(GEX_VTX);
 	UINT offs = 0;
 	pCtx->IASetVertexBuffers(0, 1, &pObj->mpVB, &stride, &offs);
+	int idxOrg = pBat->mIdxOrg;
 	if (pBat->is_idx16()) {
-		pCtx->IASetIndexBuffer(pObj->mpIB16, DXGI_FORMAT_R16_UINT, 0);
+		if (pBat->mpDynIB16) {
+			pCtx->IASetIndexBuffer(pBat->mpDynIB16, DXGI_FORMAT_R16_UINT, 0);
+			idxOrg = 0;
+		} else {
+			pCtx->IASetIndexBuffer(pObj->mpIB16, DXGI_FORMAT_R16_UINT, 0);
+		}
 	} else {
-		pCtx->IASetIndexBuffer(pObj->mpIB32, DXGI_FORMAT_R32_UINT, 0);
+		if (pBat->mpDynIB32) {
+			pCtx->IASetIndexBuffer(pBat->mpDynIB32, DXGI_FORMAT_R32_UINT, 0);
+			idxOrg = 0;
+		} else {
+			pCtx->IASetIndexBuffer(pObj->mpIB32, DXGI_FORMAT_R32_UINT, 0);
+		}
 	}
 	if (tessFlg) {
 		pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
 	} else {
 		pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	}
-	pCtx->DrawIndexed(pBat->mTriNum*3, pBat->mIdxOrg, pBat->mMinIdx);
+	pCtx->DrawIndexed(pBat->mTriNum*3, idxOrg, pBat->mMinIdx);
 	GWK.mObjTriDrawCnt += pBat->mTriNum;
 }
 
@@ -2548,8 +2785,17 @@ void gexBatDLFuncOpaq(GEX_DISP_ENTRY& ent) {
 
 void gexBatDLFuncSemi(GEX_DISP_ENTRY& ent) {
 	if (!GWK.mpCtx) return;
-	GWK.mpCtx->OMSetBlendState(GWK.mpBlendSemi, nullptr, 0xFFFFFFFF);
 	GEX_BAT* pBat = (GEX_BAT*)ent.mpData;
+	GEX_MTL* pMtl = pBat->get_mtl();
+	if (pMtl && pMtl->mAlphaToCoverage) {
+		if (pMtl->mBlend) {
+			GWK.mpCtx->OMSetBlendState(GWK.mpBlendSemiBlendCov, nullptr, 0xFFFFFFFF);
+		} else {
+			GWK.mpCtx->OMSetBlendState(GWK.mpBlendSemiCov, nullptr, 0xFFFFFFFF);
+		}
+	} else {
+		GWK.mpCtx->OMSetBlendState(GWK.mpBlendSemi, nullptr, 0xFFFFFFFF);
+	}
 	gexBatDraw(pBat, ent.mpLit);
 }
 
@@ -2675,6 +2921,7 @@ void gexObjDisp(GEX_OBJ* pObj, GEX_LIT* pLit) {
 				} else {
 					ent.mpFunc = gexBatDLFuncOpaq;
 				}
+				pBat->sort(*pCam);
 				cxVec sortPos = pMtl->calc_sort_pos(*pCam, pBat->mWorldBBox);
 				float sortBias = pMtl->calc_sort_bias(pBat->mWorldBBox);
 				uint32_t layer = alphaFlg ? D_GEX_LYR_SEMI : D_GEX_LYR_OPAQ;
@@ -3268,7 +3515,17 @@ void gexMtlTesselationFactor(GEX_MTL* pMtl, float factor) {
 
 void gexMtlAlpha(GEX_MTL* pMtl, bool enable) {
 	if (!pMtl) return;
-	pMtl->mCtxWk.enableAlpha = !!enable;
+	pMtl->mCtxWk.enableAlpha = enable;
+}
+
+void gexMtlAlphaBlend(GEX_MTL* pMtl, bool enable) {
+	if (!pMtl) return;
+	pMtl->mBlend = enable;
+}
+
+void gexMtlAlphaToCoverage(GEX_MTL* pMtl, bool enable) {
+	if (!pMtl) return;
+	pMtl->mAlphaToCoverage = enable;
 }
 
 void gexMtlRoughness(GEX_MTL* pMtl, float rough) {

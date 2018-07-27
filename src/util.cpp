@@ -694,6 +694,8 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 					gexMtlReflDownFadeRate(pMtl, grp.get_float("gex_reflDownFadeRate", 0.0f));
 					bool alphaFlg = D_MTL_BOOL_(grp, useAlpha);
 					gexMtlAlpha(pMtl, alphaFlg);
+					bool alphaCovFlg = !!grp.get_int("gex_alphaCov", false);
+					gexMtlAlphaToCoverage(pMtl, alphaCovFlg);
 					bool bumpTexFlg = D_MTL_BOOL_(grp, bumpTexFlg);
 					if (bumpTexFlg) {
 						gexMtlBumpFactor(pMtl, D_MTL_FLOAT(grp, bumpScale, 1.0f));
@@ -866,6 +868,15 @@ void obj_diff_mode(const GEX_OBJ& obj, GEX_DIFF_MODE mode) {
 	}
 }
 
+void obj_spec_mode(const GEX_OBJ& obj, GEX_SPEC_MODE mode) {
+	int nmtl = gexObjMtlNum(&obj);
+	for (int i = 0; i < nmtl; ++i) {
+		GEX_MTL* pMtl = gexObjMaterial(&obj, i);
+		gexMtlSpecMode(pMtl, mode);
+		gexMtlUpdate(pMtl);
+	}
+}
+
 void obj_sort_mode(const GEX_OBJ& obj, GEX_SORT_MODE mode) {
 	int n = gexObjMtlNum(&obj);
 	for (int i = 0; i < n; ++i) {
@@ -892,6 +903,20 @@ void mtl_sort_bias(const GEX_OBJ& obj, const char* pMtlName, float absBias, floa
 	GEX_MTL* pMtl = gexFindMaterial(&obj, pMtlName);
 	if (!pMtl) return;
 	gexMtlSortBias(pMtl, absBias, relBias);
+}
+
+void mtl_sh_diff_detail(const GEX_OBJ& obj, const char* pMtlName, float dtl) {
+	GEX_MTL* pMtl = gexFindMaterial(&obj, pMtlName);
+	if (!pMtl) return;
+	gexMtlSHDiffuseDetail(pMtl, dtl);
+	gexMtlUpdate(pMtl);
+}
+
+void mtl_sh_refl_detail(const GEX_OBJ& obj, const char* pMtlName, float dtl) {
+	GEX_MTL* pMtl = gexFindMaterial(&obj, pMtlName);
+	if (!pMtl) return;
+	gexMtlSHReflectionDetail(pMtl, dtl);
+	gexMtlUpdate(pMtl);
 }
 
 
