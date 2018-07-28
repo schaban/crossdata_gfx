@@ -623,9 +623,8 @@ float hermite(float p0, float m0, float p1, float m1, float t) {
 }
 
 float fit(float val, float oldMin, float oldMax, float newMin, float newMax) {
-	if (val <= oldMin) return newMin;
-	if (val >= oldMax) return newMax;
-	float rel = (val - oldMin) / (oldMax - oldMin);
+	float rel = div0(val - oldMin, oldMax - oldMin);
+	rel = saturate(rel);
 	return lerp(newMin, newMax, rel);
 }
 
@@ -7050,6 +7049,7 @@ sxKeyframesData::RigLink* sxKeyframesData::make_rig_link(const sxRigData& rig) c
 				}
 				RigLink::Val* pVal = (RigLink::Val*)XD_INCR_PTR(pLink, valTop);
 				RigLink::Node* pLinkNode = pLink->mNodes;
+				int inode = 0;
 				for (int i = 0; i < n; ++i) {
 					NodeInfo* pNodeInfo = get_node_info_ptr(i);
 					if (pNodeInfo) {
@@ -7104,7 +7104,8 @@ sxKeyframesData::RigLink* sxKeyframesData::make_rig_link(const sxRigData& rig) c
 									pLinkNode->mSclValOffs = (uint32_t)((uint8_t*)pVal - (uint8_t*)pLinkNode);
 									++pVal;
 								}
-								pRigMap[rigNodeId] = i;
+								pRigMap[rigNodeId] = inode;
+								++inode;
 								++pLinkNode;
 							}
 						}
