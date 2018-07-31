@@ -6240,6 +6240,36 @@ cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float 
 	return pClr;
 }
 
+/* see PBRT book for details */
+void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg) {
+	float rt = float(oldRes) / float(newRes);
+	float fw = 2.0f;
+	for (int i = 0; i < newRes; ++i) {
+		float c = (float(i) + 0.5f) * rt;
+		float org = ::floorf((c - fw) + 0.5f);
+		pOrg[i] = (int16_t)org;
+		float* pW = pWgt[i];
+		float s = 0.0f;
+		for (int j = 0; j < 4; ++j) {
+			float pos = org + float(j) + 0.5f;
+			float x = ::fabsf((pos - c) / fw);
+			float w;
+			if (x < 1.0e-5f) {
+				w = 1.0f;
+			} else if (x > 1.0f) {
+				w = 1.0f;
+			} else {
+				x *= XD_PI;
+				w = nxCalc::sinc(x*2.0f) * nxCalc::sinc(x);
+			}
+			pW[j] = w;
+			s += w;
+		}
+		s = nxCalc::rcp0(s);
+		pWgt[i].scl(s);
+	}
+}
+
 } // nxTexture
 
 
@@ -6436,36 +6466,6 @@ void sxTextureData::DDS::save(const char* pOutPath) const {
 	}
 }
 
-/* see PBRT book for details */
-static void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg) {
-	float rt = float(oldRes) / float(newRes);
-	float fw = 2.0f;
-	for (int i = 0; i < newRes; ++i) {
-		float c = (float(i) + 0.5f) * rt;
-		float org = ::floorf((c - fw) + 0.5f);
-		pOrg[i] = (int16_t)org;
-		float* pW = pWgt[i];
-		float s = 0.0f;
-		for (int j = 0; j < 4; ++j) {
-			float pos = org + float(j) + 0.5f;
-			float x = ::fabsf((pos - c) / fw);
-			float w;
-			if (x < 1.0e-5f) {
-				w = 1.0f;
-			} else if (x > 1.0f) {
-				w = 1.0f;
-			} else {
-				x *= XD_PI;
-				w = nxCalc::sinc(x*2.0f) * nxCalc::sinc(x);
-			}
-			pW[j] = w;
-			s += w;
-		}
-		s = nxCalc::rcp0(s);
-		pWgt[i].scl(s);
-	}
-}
-
 sxTextureData::Pyramid* sxTextureData::get_pyramid() const {
 	sxTextureData::Pyramid* pPmd = nullptr;
 	int w0 = get_width();
@@ -6511,7 +6511,7 @@ sxTextureData::Pyramid* sxTextureData::get_pyramid() const {
 		xt_float4* pWgt = reinterpret_cast<xt_float4*>(nxCore::mem_alloc(wgtNum*sizeof(xt_float4), XD_TMP_MEM_TAG));
 		int16_t* pOrg = reinterpret_cast<int16_t*>(nxCore::mem_alloc(wgtNum*sizeof(int16_t), XD_TMP_MEM_TAG));
 		cxColor* pTmp = reinterpret_cast<cxColor*>(nxCore::mem_alloc(wgtNum*sizeof(cxColor), XD_TMP_MEM_TAG));
-		calc_resample_wgts(w0, baseW, pWgt, pOrg);
+		nxTexture::calc_resample_wgts(w0, baseW, pWgt, pOrg);
 		for (int y = 0; y < h0; ++y) {
 			for (int x = 0; x < baseW; ++x) {
 				cxColor clr;
@@ -6526,7 +6526,7 @@ sxTextureData::Pyramid* sxTextureData::get_pyramid() const {
 				pLvl[y*baseW + x] = clr;
 			}
 		}
-		calc_resample_wgts(h0, baseH, pWgt, pOrg);
+		nxTexture::calc_resample_wgts(h0, baseH, pWgt, pOrg);
 		for (int x = 0; x < baseW; ++x) {
 			for (int y = 0; y < baseH; ++y) {
 				cxColor clr;

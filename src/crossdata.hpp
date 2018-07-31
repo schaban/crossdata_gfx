@@ -2791,6 +2791,8 @@ void save_dds32_bgra8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, 
 
 cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float gamma = 2.2f);
 
+void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg);
+
 } // nxTexture
 
 struct sxTextureData : public sxData {
