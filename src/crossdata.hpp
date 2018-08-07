@@ -200,6 +200,22 @@ template<typename T> inline T clamp(T x, T lo, T hi) { return max(min(x, hi), lo
 template<typename T> inline T sq(T x) { return x*x; }
 template<typename T> inline T cb(T x) { return x*x*x; }
 
+template<typename T> T ipow(T x, int n) {
+	float wx = x;
+	int wn = n;
+	if (n < 0) {
+		wx = rcp0(x);
+		wn = -n;
+	}
+	float res = 1.0f;
+	do {
+		if ((wn & 1) != 0) res *= wx;
+		wx *= wx;
+		wn >>= 1;
+	} while (wn > 0);
+	return res;
+}
+
 inline float saturate(float x) { return clamp(x, 0.0f, 1.0f); }
 
 inline float div0(float x, float y) { return y != 0.0f ? x / y : 0.0f; }
@@ -2104,6 +2120,8 @@ public:
 namespace nxColor {
 
 void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims = nullptr, cxVec* pWhite = nullptr);
+void init_XYZ_transform_xy_w(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, float wx = 0.31271f, float wy = 0.32902f);
+void init_XYZ_transform_xy(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, float rx = 0.64f, float ry = 0.33f, float gx = 0.3f, float gy = 0.6f, float bx = 0.15f, float by = 0.06f, float wx = 0.31271f, float wy = 0.32902f);
 cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ = nullptr);
 cxVec Lab_to_XYZ(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr);
 cxVec Lab_to_Lch(const cxVec& lab);

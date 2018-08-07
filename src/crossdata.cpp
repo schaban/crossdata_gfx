@@ -2516,7 +2516,7 @@ void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims, cxVec* 
 	if (pWhite) {
 		w = *pWhite;
 	} else {
-		/* D65 */
+		/* D65 1931 */
 		w.set(0.3127f, 0.3290f, 0.3582f);
 	}
 	w.scl(nxCalc::rcp0(w.y));
@@ -2535,6 +2535,20 @@ void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims, cxVec* 
 	if (pXYZ2RGB) {
 		*pXYZ2RGB = tm.get_inverted();
 	}
+}
+
+void init_XYZ_transform_xy_w(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, float wx, float wy) {
+	cxVec w(wx, wy, 1.0f - (wx + wy));
+	init_XYZ_transform(pRGB2XYZ, pXYZ2RGB, nullptr, &w);
+}
+
+void init_XYZ_transform_xy(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, float rx, float ry, float gx, float gy, float bx, float by, float wx, float wy) {
+	cxVec prims[3];
+	prims[0].set(rx, ry, 1.0f - (rx + ry));
+	prims[1].set(gx, gy, 1.0f - (gx + gy));
+	prims[2].set(bx, by, 1.0f - (bx + by));
+	cxVec white(wx, wy, 1.0f - (wx + wy));
+	init_XYZ_transform(pRGB2XYZ, pXYZ2RGB, prims, &white);
 }
 
 cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ) {
