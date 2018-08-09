@@ -21,6 +21,7 @@ SamplerState g_smpLin : register(s0);
 SamplerState g_smpPnt : register(s1);
 
 #include "SH.h"
+#include "color.h"
 
 struct MTL_GEOM {
 	float3 pos;
@@ -207,6 +208,7 @@ MTL_WK calcLight(MTL_WK wk) {
 				float3 srr = srough*srough;
 				if (mtl.specMode == D_GEX_SPEC_BLINN) {
 					sval = pow((float3)nh, max(0.001, 2.0/(srr*srr) - 2.0));
+					sval *= mtl.specFresnelMode ? 12 : 1; //TODO
 				} else if (mtl.specMode == D_GEX_SPEC_GGX) {
 					float3 srr2 = srr*srr;
 					float3 dv = nh*nh*(srr2-1.0) + 1.0;
@@ -219,6 +221,7 @@ MTL_WK calcLight(MTL_WK wk) {
 					/* Phong/default */
 					float vr = max(0.0, dot(V, reflect(-L, N)));
 					sval = pow((float3)vr, max(0.001, 2.0/srr - 2.0)) / 2.0;
+					sval *= mtl.specFresnelMode ? 16 : 1; //TODO
 				}
 				spec = sval * lspec;
 				if (mtl.specFresnelMode) {
@@ -430,25 +433,6 @@ MTL_WK calcShadow(MTL_WK wk) {
 	return wk;
 }
 
-
-float4 tgtColor(float4 clr) {
-	GLB_CTX glb = g_glb[0];
-	float3 c = clr.rgb;
-
-	c = (c * (1.0 + c / glb.linWhite)) / (1.0 + c);
-	c *= glb.linGain;
-	c += glb.linBias;
-	clr.rgb = c;
-
-	float3 e = glb.exposure;
-	if (all(e > 0)) {
-		clr.rgb = 1.0 - exp(clr.rgb * -e);
-	}
-	clr = max(clr, 0);
-	clr = pow(clr, glb.invGamma);
-
-	return clr;
-}
 
 float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFaceFlg : SV_IsFrontFace) : SV_TARGET {
 	CAM_CTX cam = g_cam[0];
