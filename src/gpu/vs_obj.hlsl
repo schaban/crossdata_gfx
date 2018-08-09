@@ -9,8 +9,6 @@ StructuredBuffer<SKIN_CTX>  VSCTX(g_skin);
 #include "xform.h"
 
 void main(VTX_IN vtx, out float4 cpos : SV_POSITION, out GEO_INFO geo : TEXCOORD) {
-	CAM_CTX cam = g_cam[0];
-
 	int pid = vtx.pid;
 
 	geo = (GEO_INFO)0;
@@ -24,6 +22,6 @@ void main(VTX_IN vtx, out float4 cpos : SV_POSITION, out GEO_INFO geo : TEXCOORD
 	geo.tex = vtx.tex;
 	geo.clr = vtx.clr;
 
-	cpos = mul(float4(geo.pos, 1.0), cam.viewProj);
+	cpos = mul(float4(geo.pos, 1.0), g_cam[0].viewProj);
 }
 
