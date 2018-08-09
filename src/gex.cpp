@@ -1194,7 +1194,8 @@ static int dlcmp(const void* pA, const void* pB) {
 }
 
 void gexEndScene() {
-	if (GWK.mShadowCastCnt > 0 && GWK.mShadowRecvCnt > 0) {
+	// NOTE: if checking for no receivers here, then the same check must be done in gexBatDLFuncCast;
+	if (GWK.mShadowCastCnt > 0 /*&& GWK.mShadowRecvCnt > 0*/) {
 		GEX_DISP_ENTRY ent;
 		::memset(&ent, 0, sizeof(ent));
 		ent.mpFunc = gexShadowCastStart;
