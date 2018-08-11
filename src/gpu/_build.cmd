@@ -33,5 +33,8 @@ call :build_pix ps_mtl
 call :build_vtx vs_sdw
 call :build_pix ps_sdw
 
+call :build_vtx vs_env
+call :build_pix ps_env
+
 call :build_hul hs_pntri
 call :build_dom ds_pntri

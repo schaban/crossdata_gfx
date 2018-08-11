@@ -21,6 +21,7 @@ SamplerState g_smpLin : register(s0);
 SamplerState g_smpPnt : register(s1);
 
 #include "SH.h"
+#include "pano.h"
 #include "color.h"
 
 struct MTL_GEOM {
@@ -97,18 +98,6 @@ float3 calcDiffFresnel(float nl, float nv, float3 ior) {
 	float3 r = (ior - 1) / (ior + 1);
 	float3 f0 = r*r;
 	return (21.0/20.0f) * (1 - f0) * pow(1 - nl, 5) * pow(1 - nv, 5);
-}
-
-float4 smpPanorama(float3 dir, float lvl) {
-	float2 uv = (float2)0.0;
-	float lxz = sqrt(dir.x*dir.x + dir.z*dir.z);
-	if (lxz > 1.0e-5) uv.x = -dir.x / lxz;
-	uv.y = dir.y;
-	uv = clamp(uv, -1.0, 1.0);
-	uv = acos(uv) / PI;
-	uv.x *= 0.5;
-	if (dir.z >= 0.0) uv.x = 1.0 - uv.x;
-	return g_texRefl.SampleLevel(g_smpLin, uv, lvl, 0);
 }
 
 bool lightRadiusCk(float3 pos, int lidx) {
@@ -517,7 +506,7 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 	}
 	float reflLvl = g_mtl[0].reflLvl;
 	if (reflLvl >= 0) {
-		float4 refl = smpPanorama(wk.view.refl, reflLvl);
+		float4 refl = smpPanorama(g_texRefl, wk.view.refl, reflLvl);
 		wk.lit.refl += refl.rgb * g_mtl[0].reflColor;
 	}
 	wk.lit.refl *= calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].reflFrGain, g_mtl[0].reflFrBias);

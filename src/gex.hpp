@@ -92,6 +92,11 @@ enum class GEX_SHADOW_PROJ {
 	PERSPECTIVE = 1
 };
 
+enum class GEX_BG_MODE {
+	NONE = 0,
+	PANO = 1
+};
+
 struct GEX_CAM;
 struct GEX_LIT;
 struct GEX_OBJ;
@@ -122,6 +127,9 @@ void gexLinearGainRGB(float r, float g, float b);
 void gexLinearBias(float bias);
 void gexLinearBiasRGB(float r, float g, float b);
 void gexUpdateGlobals();
+
+void gexBgMode(GEX_BG_MODE mode);
+void gexBgPanoramaTex(GEX_TEX* pTex);
 
 float gexCalcFOVY(float focal, float aperture);
 void gexMtxMul(cxMtx* pDst, const cxMtx* pSrcA, const cxMtx* pSrcB);

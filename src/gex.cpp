@@ -18,6 +18,8 @@
 #include "gpu/code/ps_mtl.h"
 #include "gpu/code/vs_sdw.h"
 #include "gpu/code/ps_sdw.h"
+#include "gpu/code/vs_env.h"
+#include "gpu/code/ps_env.h"
 #include "gpu/code/hs_pntri.h"
 #include "gpu/code/ds_pntri.h"
 
@@ -363,6 +365,12 @@ static struct GEX_GWK {
 	ID3D11BlendState* mpBlendSemi;
 	ID3D11BlendState* mpBlendSemiCov;
 	ID3D11BlendState* mpBlendSemiBlendCov;
+	ID3D11InputLayout* mpEnvVtxLayout;
+	ID3D11VertexShader* mpEnvVS;
+	ID3D11PixelShader* mpEnvPS;
+	ID3D11Buffer* mpEnvVB;
+	ID3D11Buffer* mpEnvIB;
+	StructuredBuffer<XFORM_CTX> mEnvXformCtx;
 	StructuredBuffer<GLB_CTX> mGlbBuf;
 	GLB_CTX mGlbWk;
 	GEX_OBJ* mpObjLstHead;
@@ -417,6 +425,8 @@ static struct GEX_GWK {
 	ID3D11Texture2D* mpSMDepthTex;
 	ID3D11DepthStencilView* mpSMDepthView;
 	StructuredBuffer<SDW_CTX> mSdwBuf;
+	GEX_TEX* mpBgPanoTex;
+	GEX_BG_MODE mBgMode;
 	bool mPreciseCulling;
 } GWK;
 
@@ -715,6 +725,35 @@ void gexInit(const GEX_CONFIG& cfg) {
 		GWK.mpPNTriDS = pDS;
 	}
 
+	static D3D11_INPUT_ELEMENT_DESC envVtxDsc[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+	hres = GWK.mpDev->CreateInputLayout(envVtxDsc, XD_ARY_LEN(envVtxDsc), vs_env, sizeof(vs_env), &GWK.mpEnvVtxLayout);
+	hres = GWK.mpDev->CreateVertexShader(vs_env, sizeof(vs_env), nullptr, &GWK.mpEnvVS);
+	hres = GWK.mpDev->CreatePixelShader(ps_env, sizeof(ps_env), nullptr, &GWK.mpEnvPS);
+	GWK.mEnvXformCtx.alloc(1);
+	static float envVtx[] = { -1,-1,1, -1,1,1, 1,1,1, 1,-1,1, -1,-1,-1, -1,1,-1, 1,1,-1, 1,-1,-1 };
+	static uint16_t envIdx[] = { 0,2,1,0,3,2,4,5,6,4,6,7,0,1,5,0,5,4,6,2,3,6,3,7,1,6,5,1,2,6,0,4,7,0,7,3 };
+	struct {
+		D3D11_BUFFER_DESC dsc;
+		D3D11_SUBRESOURCE_DATA dat;
+	} envBuf;
+	::ZeroMemory(&envBuf, sizeof(envBuf));
+	envBuf.dsc.ByteWidth = sizeof(envVtx);
+	envBuf.dsc.Usage = D3D11_USAGE_DEFAULT;
+	envBuf.dsc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	envBuf.dat.pSysMem = envVtx;
+	hres = GWK.mpDev->CreateBuffer(&envBuf.dsc, &envBuf.dat, &GWK.mpEnvVB);
+	if (SUCCEEDED(hres)) {
+		::ZeroMemory(&envBuf, sizeof(envBuf));
+		envBuf.dsc.ByteWidth = sizeof(envIdx);
+		envBuf.dsc.Usage = D3D11_USAGE_DEFAULT;
+		envBuf.dsc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+		envBuf.dat.pSysMem = envIdx;
+		hres = GWK.mpDev->CreateBuffer(&envBuf.dsc, &envBuf.dat, &GWK.mpEnvIB);
+	}
+	GWK.mBgMode = GEX_BG_MODE::NONE;
+
 	D3D11_SAMPLER_DESC smpDsc;
 	::ZeroMemory(&smpDsc, sizeof(D3D11_SAMPLER_DESC));
 	smpDsc.Filter = D3D11_FILTER_ANISOTROPIC;
@@ -924,6 +963,22 @@ void gexReset() {
 	if (GWK.mpObjVtxLayout) {
 		GWK.mpObjVtxLayout->Release();
 	}
+	if (GWK.mpEnvPS) {
+		GWK.mpEnvPS->Release();
+	}
+	if (GWK.mpEnvVS) {
+		GWK.mpEnvVS->Release();
+	}
+	if (GWK.mpEnvVB) {
+		GWK.mpEnvVB->Release();
+	}
+	if (GWK.mpEnvIB) {
+		GWK.mpEnvIB->Release();
+	}
+	if (GWK.mpEnvVtxLayout) {
+		GWK.mpEnvVtxLayout->Release();
+	}
+	GWK.mEnvXformCtx.release();
 	if (GWK.mpDepthState) {
 		GWK.mpDepthState->Release();
 	}
@@ -1060,6 +1115,14 @@ void gexUpdateGlobals() {
 	GWK.mGlbBuf.copy_data(&GWK.mGlbWk);
 }
 
+void gexBgMode(GEX_BG_MODE mode) {
+	GWK.mBgMode = mode;
+}
+
+void gexBgPanoramaTex(GEX_TEX* pTex) {
+	GWK.mpBgPanoTex = pTex;
+}
+
 float gexCalcFOVY(float focal, float aperture) {
 	return nxCalc::calc_fovy(focal, aperture, GWK.mAspect);
 }
@@ -1193,6 +1256,8 @@ static int dlcmp(const void* pA, const void* pB) {
 	return 0;
 }
 
+static void gexBgDraw();
+
 void gexEndScene() {
 	// NOTE: if checking for no receivers here, then the same check must be done in gexBatDLFuncCast;
 	if (GWK.mShadowCastCnt > 0 /*&& GWK.mShadowRecvCnt > 0*/) {
@@ -1211,6 +1276,7 @@ void gexEndScene() {
 			::qsort(GWK.mpDispList, n, sizeof(GEX_DISP_ENTRY), dlcmp);
 		}
 	}
+	gexBgDraw();
 	for (int i = 0; i < n; ++i) {
 		GEX_DISP_ENTRY* pEnt = &GWK.mpDispList[i];
 		if (pEnt->mpFunc) {
@@ -3895,3 +3961,47 @@ void gexShadowCastEnd(GEX_DISP_ENTRY& ent) {
 	GWK.mpCtx->RSSetViewports(1, &vp);
 }
 
+static void gexBgDraw() {
+	GEX_CAM* pCam = GWK.mpScnCam;
+	if (!pCam) return;
+	bool flg = false;
+	switch (GWK.mBgMode) {
+		case GEX_BG_MODE::PANO:
+			if (GWK.mpBgPanoTex) {
+				flg = true;
+			}
+			break;
+	}
+	if (!flg) return;
+
+	cxMtx wm;
+	wm.mk_scl(pCam->mFar * 0.9f / 2.0f);
+	cxVec pos = pCam->mPos.neg_val();
+	wm.set_translation(pos);
+	XFORM_CTX xform;
+	gexStoreWMtx(&xform.mtx, wm);
+	GWK.mEnvXformCtx.copy_data(&xform);
+
+	ID3D11DeviceContext* pCtx = GWK.mpCtx;
+	pCtx->OMSetBlendState(GWK.mpBlendOpaq, nullptr, 0xFFFFFFFF);
+	pCtx->RSSetState(GWK.mpOneSidedRS);
+	pCtx->VSSetShader(GWK.mpEnvVS, nullptr, 0);
+	pCtx->PSSetShader(GWK.mpEnvPS, nullptr, 0);
+	pCtx->GSSetShader(nullptr, nullptr, 0);
+	pCtx->HSSetShader(nullptr, nullptr, 0);
+	pCtx->DSSetShader(nullptr, nullptr, 0);
+	pCtx->VSSetShaderResources(VSCTX_g_cam, 1, &pCam->mCtxBuf.mpSRV);
+	pCtx->VSSetShaderResources(VSCTX_g_xform, 1, &GWK.mEnvXformCtx.mpSRV);
+	pCtx->PSSetShaderResources(PSCTX_g_glb, 1, &GWK.mGlbBuf.mpSRV);
+
+	pCtx->PSSetSamplers(0, 1, &GWK.mpSmpStateLinWrap);
+	pCtx->PSSetShaderResources(PSTEX_g_texPano, 1, &GWK.mpBgPanoTex->mpSRV);
+
+	pCtx->IASetInputLayout(GWK.mpEnvVtxLayout);
+	UINT stride = sizeof(xt_float3);
+	UINT offs = 0;
+	pCtx->IASetVertexBuffers(0, 1, &GWK.mpEnvVB, &stride, &offs);
+	pCtx->IASetIndexBuffer(GWK.mpEnvIB, DXGI_FORMAT_R16_UINT, 0);
+	pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pCtx->DrawIndexed(12*3, 0, 0);
+}

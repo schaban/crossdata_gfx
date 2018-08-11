@@ -50,6 +50,7 @@
 #define PSTEX_g_texBump 9
 #define PSTEX_g_texSMap 10
 #define PSTEX_g_texRefl 11
+#define PSTEX_g_texPano 11
 
 #define HSCTX_g_cam 0
 #define HSCTX_g_mtl 1
