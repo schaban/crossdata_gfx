@@ -787,8 +787,10 @@ void cxVec::normalize(const cxVec& v) {
 	*this = n;
 }
 
-// http://lgdv.cs.fau.de/publications/publication/Pub.2010.tech.IMMD.IMMD9.onfloa/
-// http://jcgt.org/published/0003/02/01/
+// Refs:
+//   Meyer et al, "On floating-point normal vectors"
+//   Cigolle et al, "A Survey of Efficient Representations for Independent Unit Vectors"
+//   http://jcgt.org/published/0003/02/01/
 xt_float2 cxVec::encode_octa() const {
 	xt_float2 oct;
 	cxVec av = abs_val();
