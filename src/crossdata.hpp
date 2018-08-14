@@ -2128,6 +2128,13 @@ cxVec Lab_to_Lch(const cxVec& lab);
 cxVec Lch_to_Lab(const cxVec& lch);
 float Lch_perceived_lightness(const cxVec& lch);
 
+float approx_CMF_x31(float w);
+float approx_CMF_y31(float w);
+float approx_CMF_z31(float w);
+float approx_CMF_x64(float w);
+float approx_CMF_y64(float w);
+float approx_CMF_z64(float w);
+
 inline cxColor lerp(const cxColor& cA, const cxColor& cB, float t) {
 	cxColor c;
 	for (int i = 0; i < 4; ++i) {

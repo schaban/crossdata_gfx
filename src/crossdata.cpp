@@ -788,8 +788,8 @@ void cxVec::normalize(const cxVec& v) {
 }
 
 // Refs:
-//   Meyer et al, "On floating-point normal vectors"
-//   Cigolle et al, "A Survey of Efficient Representations for Independent Unit Vectors"
+//   Meyer et al. "On floating-point normal vectors"
+//   Cigolle et al. "A Survey of Efficient Representations for Independent Unit Vectors"
 //   http://jcgt.org/published/0003/02/01/
 xt_float2 cxVec::encode_octa() const {
 	xt_float2 oct;
@@ -2616,6 +2616,33 @@ float Lch_perceived_lightness(const cxVec& lch) {
 	float fh = ::fabsf(::sinf((h - (XD_PI*0.5f)) * 0.5f))*0.116f + 0.085f;
 	float fL = 2.5f - (2.5f/100)*L; // 1 at 60, 0 at 100 (white)
 	return L + fh*fL*c;
+}
+
+
+// Single-Lobe CMF fits from Wyman et al. "Simple Analytic Approximations to the CIE XYZ Color Matching Functions"
+
+float approx_CMF_x31(float w) {
+	return 1.065f*::expf(-0.5f * nxCalc::sq((w - 595.8f) / 33.33f)) + 0.366f*::expf(-0.5f * nxCalc::sq((w - 446.8f) / 19.44f));
+}
+
+float approx_CMF_y31(float w) {
+	return 1.014f*::expf(-0.5f * nxCalc::sq((::logf(w) - 6.32130766f) / 0.075f));
+}
+
+float approx_CMF_z31(float w) {
+	return 1.839f*::expf(-0.5f * nxCalc::sq((::logf(w) - 6.1088028f) / 0.051f));
+}
+
+float approx_CMF_x64(float w) {
+	return 0.398f*::expf(-1250.0f * nxCalc::sq(::logf((w + 570.1f) / 1014.0f))) + 1.132f*::expf(-234.0f * nxCalc::sq(::logf((1338.0f - w) / 743.5f)));
+}
+
+float approx_CMF_y64(float w) {
+	return 1.011f*::expf(-0.5f * nxCalc::sq((w - 556.1f) / 46.14f));
+}
+
+float approx_CMF_z64(float w) {
+	return 2.06f*::expf(-32.0f * nxCalc::sq(::logf((w - 265.8f) / 180.4f)));
 }
 
 } // nxColor
