@@ -1683,12 +1683,26 @@ struct GEX_TEX {
 };
 
 GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact) {
+	if (!GWK.mpDev) return nullptr;
 	bool hdrFlg = tex.is_hdr();
 	bool halfFlg = true;
 	bool byteFlg = compact && !hdrFlg;
 	GEX_TEX* pTex = gexTypeAlloc<GEX_TEX>(D_GEX_TEX_TAG);
 	sxTextureData::Pyramid* pPmd = tex.get_pyramid();
 	if (pTex && pPmd) {
+		UINT fmtBits = 0;
+		bool has10bit = false;
+		HRESULT hres = GWK.mpDev->CheckFormatSupport(DXGI_FORMAT_R10G10B10A2_UNORM, &fmtBits);
+		if (SUCCEEDED(hres)) {
+			has10bit = !!(fmtBits & D3D11_FORMAT_SUPPORT_TEXTURE2D);
+		}
+		bool alphaFlg = true;
+		sxTextureData::PlaneInfo* pAlphaInfo = tex.find_plane_info("a");
+		if (pAlphaInfo) {
+			if (pAlphaInfo->is_const() && pAlphaInfo->mMinVal == 1.0f) {
+				alphaFlg = false;
+			}
+		}
 		pTex->mpName = nxCore::str_dup(tex.get_name());
 		if (pTex->mpName) {
 			pTex->mNameHash = nxCore::str_hash32(pTex->mpName);
@@ -1705,6 +1719,7 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact) {
 		pTex->mLvlNum = nlvl;
 		int pixelSize = byteFlg ? sizeof(uint32_t) : (halfFlg ? sizeof(xt_half4) : sizeof(xt_float4));
 
+		DXGI_FORMAT tfmt = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		D3D11_SUBRESOURCE_DATA* pSub = gexTypeAlloc<D3D11_SUBRESOURCE_DATA>(XD_TMP_MEM_TAG, nlvl);
 		for (int i = 0; i < nlvl; ++i) {
 			int lvlW = 0;
@@ -1715,24 +1730,37 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact) {
 			void* pLvlMem = (halfFlg || byteFlg) ? nxCore::mem_alloc(lvlW*lvlH*pixelSize, XD_TMP_MEM_TAG) : pClr;
 			pSub[i].pSysMem = pLvlMem;
 			if (byteFlg) {
-				for (int j = 0; j < lvlW*lvlH; ++j) {
-					uxVal32 iclr;
-					for (int k = 0; k < 4; ++k) {
-						iclr.b[k] = uint8_t(pClr[j].ch[k] * 255.0f);
+				if (alphaFlg || !has10bit) {
+					for (int j = 0; j < lvlW*lvlH; ++j) {
+						uxVal32 iclr;
+						for (int k = 0; k < 4; ++k) {
+							iclr.b[k] = uint8_t(pClr[j].ch[k] * 255.0f);
+						}
+						((uint32_t*)pLvlMem)[j] = iclr.u;
 					}
-					((uint32_t*)pLvlMem)[j] = iclr.u;
+					tfmt = DXGI_FORMAT_R8G8B8A8_UNORM;
+				} else {
+					for (int j = 0; j < lvlW*lvlH; ++j) {
+						uint32_t iclr = 3 << 30;
+						for (int k = 0; k < 3; ++k) {
+							iclr |= uint32_t(pClr[j].ch[k] * 0x3FF) << (k * 10);
+						}
+						((uint32_t*)pLvlMem)[j] = iclr;
+					}
+					tfmt = DXGI_FORMAT_R10G10B10A2_UNORM;
 				}
 			} else if (halfFlg) {
 				for (int j = 0; j < lvlW*lvlH; ++j) {
 					gexEncodeHalf4(&((xt_half4*)pLvlMem)[j], *((xt_float4*)&pClr[j]));
 				}
+				tfmt = DXGI_FORMAT_R16G16B16A16_FLOAT;
 			}
 		}
 
 		D3D11_TEXTURE2D_DESC dsc;
 		::ZeroMemory(&dsc, sizeof(dsc));
 		dsc.ArraySize = 1;
-		dsc.Format = byteFlg ? DXGI_FORMAT_R8G8B8A8_UNORM : halfFlg ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT;
+		dsc.Format = tfmt;
 		dsc.Width = w;
 		dsc.Height = h;
 		dsc.MipLevels = nlvl;
@@ -1743,7 +1771,7 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact) {
 		pTex->mFormat = dsc.Format;
 
 		ID3D11Texture2D* pTex2D = nullptr;
-		HRESULT hres = GWK.mpDev->CreateTexture2D(&dsc, pSub, &pTex2D);
+		hres = GWK.mpDev->CreateTexture2D(&dsc, pSub, &pTex2D);
 		if (SUCCEEDED(hres)) {
 			D3D11_SHADER_RESOURCE_VIEW_DESC dscSRV;
 			::ZeroMemory(&dscSRV, sizeof(dscSRV));
