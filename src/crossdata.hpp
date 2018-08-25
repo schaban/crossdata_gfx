@@ -306,6 +306,12 @@ template<typename DST_T, typename SRC_T> inline void mtx_cpy(DST_T* pDst, const 
 	}
 }
 
+template<typename DST_T, typename SRC_T> inline void vec_cpy(DST_T* pDst, const SRC_T* pSrc, int N) {
+	for (int i = 0; i < N; ++i) {
+		pDst[i] = DST_T(pSrc[i]);
+	}
+}
+
 // https://blogs.msdn.microsoft.com/nativeconcurrency/2014/09/04/raking-through-the-parallelism-tool-shed-the-curious-case-of-matrix-matrix-multiplication/
 template<typename DST_T, typename SRC_L_T, typename SRC_R_T>
 XD_FORCEINLINE
@@ -358,7 +364,19 @@ inline void mul_vm(DST_VEC_T* pDstVec, const SRC_VEC_T* pSrcVec, const MTX_T* pM
 
 template<typename DST_VEC_T, typename MTX_T, typename SRC_VEC_T>
 inline void mul_mv(DST_VEC_T* pDstVec, const MTX_T* pMtx, const SRC_VEC_T* pSrcVec, int M, int N) {
+#if 0
 	mul_mm(pDstVec, pMtx, pSrcVec, M, N, 1);
+#else
+	for (int i = 0; i < M; ++i) {
+		pDstVec[i] = DST_VEC_T(0);
+	}
+	for (int i = 0; i < M; ++i) {
+		int r = i * N;
+		for (int j = 0; j < N; ++j) {
+			pDstVec[i] = DST_VEC_T(pDstVec[i] + pMtx[r + j]*pSrcVec[j]);
+		}
+	}
+#endif
 }
 
 template<typename T> inline void identity(T* pMtx, int N) {
