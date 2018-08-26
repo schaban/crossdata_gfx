@@ -237,7 +237,8 @@ class Polygon:
 			for ptNo in self.pntLst: bw.writeU24(ptNo)
 
 class PntSkin(xh.PntSkin):
-	def __init__(self, pnt, skinAttr):
+	def __init__(self, xgeo, pnt, skinAttr):
+		self.xgeo = xgeo
 		xh.PntSkin.__init__(self, pnt, skinAttr)
 
 	def addNodesToGrp(self, grp):
@@ -252,7 +253,7 @@ class PntSkin(xh.PntSkin):
 
 	def growSkinSphere(self, sph):
 		ptNo = self.pnt.number()
-		pos = self.pnt.position()
+		pos = self.xgeo.getPntPos(ptNo)
 		for idx in self.idx:
 			if idx == sph.nodeId:
 				sph.grow(pos)
@@ -418,6 +419,9 @@ class GeoExporter(xd.BaseExporter):
 		self.bbox = self.geo.boundingBox()
 		self.setNameFromPath(self.sop.parent().path())
 		self.pntNum = len(self.geo.points())
+		self.pnts = []
+		for pnt in self.geo.points():
+			self.pnts.append(pnt.position())
 		self.pols = []
 		self.primTbl = []
 		self.maxVtxPerPol = 0
@@ -488,7 +492,7 @@ class GeoExporter(xd.BaseExporter):
 			self.skinLst = []
 			skinAttr = xh.getSkinAttr(self.geo)
 			for pnt in self.geo.points():
-				skin = PntSkin(pnt, skinAttr)
+				skin = PntSkin(self, pnt, skinAttr)
 				self.maxSkinWgt = max(skin.getWgtNum(), self.maxSkinWgt)
 				self.skinLst.append(skin)
 			#print "max wgt:", self.maxSkinWgt
@@ -644,7 +648,9 @@ class GeoExporter(xd.BaseExporter):
 					self.strLst.add(obj.stringAttribValue(attr))
 
 
-	def getPntPos(self, ptNo): return self.geo.iterPoints()[ptNo].position()
+	#def getPntPos(self, ptNo): return self.geo.iterPoints()[ptNo].position()
+	def getPntPos(self, ptNo): return self.pnts[ptNo]
+
 	def getPntWgtNum(self, ptNo): return self.skinLst[ptNo].getWgtNum()
 	def getPntSkin(self, ptNo): return self.skinLst[ptNo]
 
@@ -678,8 +684,7 @@ class GeoExporter(xd.BaseExporter):
 	def writePntData(self, bw, top):
 		bw.align(0x10)
 		bw.patch(self.patchPos, bw.getPos() - top) # -> pnt
-		for pnt in self.geo.points():
-			bw.writeFV(pnt.position())
+		for pnt in self.pnts: bw.writeFV(pnt)
 
 	def writePolData(self, bw, top):
 		bw.align(0x10)
