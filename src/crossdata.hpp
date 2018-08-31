@@ -1484,6 +1484,12 @@ inline cxMtx from_axis_angle(const cxVec& axis, float ang) {
 	return m;
 }
 
+inline cxMtx from_quat_and_pos(const cxQuat& rot, const cxVec& pos) {
+	cxMtx m;
+	m.from_quat_and_pos(rot, pos);
+	return m;
+}
+
 inline cxMtx mk_rot_frame(const cxVec& axisX, const cxVec& axisY, const cxVec& axisZ) {
 	cxMtx m;
 	m.set_rot_frame(axisX, axisY, axisZ);
@@ -1534,8 +1540,8 @@ public:
 
 	float get_real_part() const { return w; }
 	cxVec get_imag_part() const { return cxVec(x, y, z); }
-	float get_scalar_part() const { get_real_part(); }
-	cxVec get_vector_part() const { get_imag_part(); }
+	float get_scalar_part() const { return get_real_part(); }
+	cxVec get_vector_part() const { return get_imag_part(); }
 
 	float dot(const cxQuat& q) const { return x*q.x + y*q.y + z*q.z + w*q.w; }
 
@@ -1551,6 +1557,18 @@ public:
 	}
 
 	void mul(const cxQuat& q) { mul(*this, q); }
+
+	void add(const cxQuat& qa, const cxQuat& qb) {
+		for (int i = 0; i < 4; ++i) {
+			(*this)[i] = qa[i] + qb[i];
+		}
+	}
+
+	void add(const cxQuat& q) {
+		for (int i = 0; i < 4; ++i) {
+			(*this)[i] += q[i];
+		}
+	}
 
 	void scale(float s) { scl(s); }
 
@@ -1597,7 +1615,7 @@ public:
 		w = q.w;
 	}
 
-	cxQuat get_conjugated() const {
+	cxQuat get_conjugate() const {
 		cxQuat q;
 		q.conjugate(*this);
 		return q;
