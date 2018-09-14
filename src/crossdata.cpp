@@ -1864,6 +1864,69 @@ float arc_dist(const cxQuat& a, const cxQuat& b) {
 } // nxQuat
 
 
+void cxDualQuat::mul(const cxDualQuat& dq) {
+	cxQuat r0 = mReal;
+	cxQuat d0 = mDual;
+	cxQuat r1 = dq.mReal;
+	cxQuat d1 = dq.mDual;
+	mReal = (r1 * r0).get_normalized();
+	mDual = d1*r0 + r1*d0;
+}
+
+cxVec cxDualQuat::calc_pnt(const cxVec& pos) const {
+	cxQuat t(pos.x, pos.y, pos.z, 0.0f);
+	t.scl(0.5f);
+	cxQuat d = mDual;
+	d.add(mReal * t);
+	d.scl(2.0f);
+	d.mul(mReal.get_conjugate());
+	return d.get_vector_part();
+}
+
+void cxDualQuat::interpolate(const cxDualQuat& dqA, const cxDualQuat& dqB, float t) {
+	cxDualQuat b = dqB;
+	float ab = dqA.mReal.dot(dqB.mReal);
+	if (ab < 0.0f) {
+		b.mReal.negate();
+		b.mDual.negate();
+		ab = -ab;
+	}
+
+	if (1.0f - ab < 1.0e-6f) {
+		mReal.lerp(dqA.mReal, dqB.mReal, t);
+		mDual.lerp(dqA.mDual, dqB.mDual, t);
+		normalize();
+		return;
+	}
+
+	cxDualQuat d;
+	d.mReal = dqA.mReal.get_conjugate();
+	d.mDual = dqA.mDual.get_conjugate();
+	d.mul(b);
+
+	cxVec vr = d.mReal.get_vector_part();
+	cxVec vd = d.mDual.get_vector_part();
+	float ir = nxCalc::rcp0(vr.mag());
+	float ang = 2.0f * ::acosf(d.mReal.w);
+	float tns = -2.0f * d.mDual.w * ir;
+	cxVec dir = vr * ir;
+	cxVec mom = (vd - dir*tns*d.mReal.w*0.5f) * ir;
+
+	ang *= t;
+	tns *= t;
+	float ha = ang * 0.5f;
+	float sh = ::sinf(ha);
+	float ch = ::cosf(ha);
+
+	cxDualQuat r;
+	r.mReal.from_parts(dir * sh, ch);
+	r.mDual.from_parts(mom*sh + dir*ch*tns*0.5f, -tns*0.5f*sh);
+
+	*this = dqA;
+	mul(r);
+}
+
+
 namespace nxGeom {
 
 bool seg_seg_overlap_2d(float s0x0, float s0y0, float s0x1, float s0y1, float s1x0, float s1y0, float s1x1, float s1y1) {

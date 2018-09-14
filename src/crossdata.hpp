@@ -1542,6 +1542,7 @@ public:
 	cxVec get_imag_part() const { return cxVec(x, y, z); }
 	float get_scalar_part() const { return get_real_part(); }
 	cxVec get_vector_part() const { return get_imag_part(); }
+	void from_parts(const cxVec& imag, float real) { set(imag.x, imag.y, imag.z, real); }
 
 	float dot(const cxQuat& q) const { return x*q.x + y*q.y + z*q.z + w*q.w; }
 
@@ -1672,6 +1673,15 @@ public:
 
 	void slerp(const cxQuat& q1, const cxQuat& q2, float t);
 
+	void lerp(const cxQuat& q1, const cxQuat& q2, float t) {
+		const float* p1 = q1;
+		const float* p2 = q2;
+		float* p = *this;
+		for (int i = 0; i < 4; ++i) {
+			p[i] = p1[i] + (p2[i] - p1[i])*t;
+		}
+	}
+
 	cxVec apply(const cxVec& v) const;
 
 	cxQuat get_closest_x() const;
@@ -1686,6 +1696,8 @@ public:
 };
 
 inline cxQuat operator * (const cxQuat& q1, const cxQuat& q2) { cxQuat q = q1; q.mul(q2); return q; }
+inline cxQuat operator + (const cxQuat& q1, const cxQuat& q2) { cxQuat q = q1; q.add(q2); return q; }
+inline cxQuat operator * (const cxQuat& q, const float s) { cxQuat r = q; r.scl(s); return r; }
 
 namespace nxQuat {
 
@@ -1727,6 +1739,65 @@ float arc_dist(const cxQuat& a, const cxQuat& b);
 
 } // nxQuat
 
+
+class cxDualQuat {
+protected:
+	cxQuat mReal;
+	cxQuat mDual;
+
+public:
+
+	void set(const cxQuat& rot, const cxVec& pos) {
+		mReal = rot;
+		mDual = cxQuat(pos.x, pos.y, pos.z, 0.0f) * mReal * 0.5f; // RT
+	}
+
+	void set_tr(const cxQuat& rot, const cxVec& pos) {
+		mReal = rot;
+		mDual = mReal * cxQuat(pos.x, pos.y, pos.z, 0.0f) * 0.5f; // TR
+	}
+
+	void set_parts(const cxQuat& qreal, const cxQuat& qdual) {
+		mReal = qreal;
+		mDual = qdual;
+	}
+
+	cxQuat get_real_part() const { return mReal; }
+	cxQuat get_dual_part() const { return mDual; }
+
+	void normalize() {
+		float s = nxCalc::rcp0(mReal.mag());
+		mReal.scl(s);
+		mDual.scl(s);
+	}
+
+	void mul(const cxDualQuat& dq);
+
+	cxVec get_pos() const {
+		return (mDual.get_scaled(2.0f) * mReal.get_conjugate()).get_vector_part();
+	}
+
+	cxMtx to_mtx() const {
+		cxMtx m = mReal.to_mtx();
+		m.set_translation(get_pos());
+		return m;
+	}
+
+	cxMtx get_inv_mtx() const {
+		cxDualQuat idq;
+		idq.mReal = mReal.get_conjugate();
+		idq.mDual = mDual.get_conjugate();
+		return idq.to_mtx();
+	}
+
+	cxVec calc_pnt(const cxVec& pos) const;
+
+	cxVec calc_vec(const cxVec& vec) const {
+		return mReal.apply(vec);
+	}
+
+	void interpolate(const cxDualQuat& dqA, const cxDualQuat& dqB, float t);
+};
 
 class cxLineSeg;
 class cxPlane;
