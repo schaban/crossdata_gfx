@@ -204,6 +204,7 @@ TD_CAM_INFO load_td_cam(const char* pPath);
 void obj_shadow_mode(const GEX_OBJ& obj, bool castShadows, bool receiveShadows);
 void obj_shadow_params(const GEX_OBJ& obj, float density, float selfShadowFactor, bool cullShadows);
 void obj_tesselation(const GEX_OBJ& obj, GEX_TESS_MODE mode, float factor);
+void obj_spec_fresnel_mode(const GEX_OBJ& obj, int mode);
 void obj_diff_roughness(const GEX_OBJ& obj, const cxColor& rgb);
 void obj_diff_mode(const GEX_OBJ& obj, GEX_DIFF_MODE mode);
 void obj_spec_mode(const GEX_OBJ& obj, GEX_SPEC_MODE mode);
@@ -213,5 +214,6 @@ void mtl_sort_mode(const GEX_OBJ& obj, const char* pMtlName, GEX_SORT_MODE mode)
 void mtl_sort_bias(const GEX_OBJ& obj, const char* pMtlName, float absBias, float relBias);
 void mtl_sh_diff_detail(const GEX_OBJ& obj, const char* pMtlName, float dtl);
 void mtl_sh_refl_detail(const GEX_OBJ& obj, const char* pMtlName, float dtl);
+void mtl_shadow_density(const GEX_OBJ& obj, const char* pMtlName, float density);
 
 void dump_riglink_info(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLink, FILE* pOut = nullptr);

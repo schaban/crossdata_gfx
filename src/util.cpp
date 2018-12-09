@@ -675,6 +675,14 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 							gexMtlBaseTexture(pMtl, pBaseTex);
 						}
 					}
+					const char* pSHDiffDtlName = "gex_shDiffDtl";
+					if (grp.find_val_idx(pSHDiffDtlName) >= 0) {
+						gexMtlSHDiffuseDetail(pMtl, grp.get_float(pSHDiffDtlName));
+					}
+					const char* pSHReflDtlName = "gex_shReflDtl";
+					if (grp.find_val_idx(pSHReflDtlName) >= 0) {
+						gexMtlSHReflectionDetail(pMtl, grp.get_float(pSHReflDtlName));
+					}
 					bool specTexFlg = D_MTL_BOOL_(grp, specTexFlg);
 					if (specTexFlg) {
 						const char* pSpecTexName = D_MTL_STR(grp, specTexName, "");
@@ -711,6 +719,10 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 							gexMtlBumpTexture(pMtl, pBumpTex);
 							gexMtlBumpMode(pMtl, GEX_BUMP_MODE::NMAP);
 						}
+					}
+					const char* pDblSidedName = "gex_dblSided";
+					if (grp.find_val_idx(pDblSidedName) >= 0) {
+						gexMtlDoubleSided(pMtl, grp.get_int(pDblSidedName) != 0);
 					}
 					gexMtlUpdate(pMtl);
 				}
@@ -850,6 +862,15 @@ void obj_tesselation(const GEX_OBJ& obj, GEX_TESS_MODE mode, float factor) {
 	}
 }
 
+void obj_spec_fresnel_mode(const GEX_OBJ& obj, int mode) {
+	int nmtl = gexObjMtlNum(&obj);
+	for (int i = 0; i < nmtl; ++i) {
+		GEX_MTL* pMtl = gexObjMaterial(&obj, i);
+		gexMtlSpecFresnelMode(pMtl, mode);
+		gexMtlUpdate(pMtl);
+	}
+}
+
 void obj_diff_roughness(const GEX_OBJ& obj, const cxColor& rgb) {
 	int nmtl = gexObjMtlNum(&obj);
 	for (int i = 0; i < nmtl; ++i) {
@@ -916,6 +937,13 @@ void mtl_sh_refl_detail(const GEX_OBJ& obj, const char* pMtlName, float dtl) {
 	GEX_MTL* pMtl = gexFindMaterial(&obj, pMtlName);
 	if (!pMtl) return;
 	gexMtlSHReflectionDetail(pMtl, dtl);
+	gexMtlUpdate(pMtl);
+}
+
+void mtl_shadow_density(const GEX_OBJ& obj, const char* pMtlName, float density) {
+	GEX_MTL* pMtl = gexFindMaterial(&obj, pMtlName);
+	if (!pMtl) return;
+	gexMtlShadowDensity(pMtl, density);
 	gexMtlUpdate(pMtl);
 }
 
