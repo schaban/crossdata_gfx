@@ -124,7 +124,6 @@ size_t fsize(XD_FHANDLE fh) {
 		size = s_ifc.fn_fsize(fh);
 	} else {
 		size = def_fsize(fh);
-
 	}
 	return size;
 }
@@ -374,7 +373,7 @@ void dbg_msg(const char* fmt, ...) {
 	nxSys::dbgmsg(msg);
 }
 
-void* bin_load(const char* pPath, size_t* pSize, bool appendPath, bool unpack) {
+static void* bin_load_impl(const char* pPath, size_t* pSize, bool appendPath, bool unpack, uint32_t tag) {
 	void* pData = nullptr;
 	size_t size = 0;
 	XD_FHANDLE fh = nxSys::fopen(pPath);
@@ -385,7 +384,7 @@ void* bin_load(const char* pPath, size_t* pSize, bool appendPath, bool unpack) {
 		if (appendPath) {
 			memsize += pathLen + 1;
 		}
-		pData = mem_alloc(memsize, XD_DAT_MEM_TAG);
+		pData = mem_alloc(memsize, tag);
 		if (pData) {
 			size = nxSys::fread(fh, pData, fsize);
 		}
@@ -398,8 +397,8 @@ void* bin_load(const char* pPath, size_t* pSize, bool appendPath, bool unpack) {
 				if (appendPath) {
 					memsize += pathLen + 1;
 				}
-				uint8_t* pUnpkd = (uint8_t*)mem_alloc(memsize, XD_DAT_MEM_TAG);
-				if (nxData::unpack(pPkd, XD_DAT_MEM_TAG, pUnpkd, (uint32_t)memsize)) {
+				uint8_t* pUnpkd = (uint8_t*)mem_alloc(memsize, tag);
+				if (nxData::unpack(pPkd, tag, pUnpkd, (uint32_t)memsize)) {
 					size = pPkd->mRawSize;
 					fsize = size;
 					mem_free(pData);
@@ -418,6 +417,10 @@ void* bin_load(const char* pPath, size_t* pSize, bool appendPath, bool unpack) {
 		*pSize = size;
 	}
 	return pData;
+}
+
+void* bin_load(const char* pPath, size_t* pSize, bool appendPath, bool unpack) {
+	return bin_load_impl(pPath, pSize, appendPath, unpack, XD_FOURCC('X', 'B', 'I', 'N'));
 }
 
 void bin_unload(void* pMem) {
@@ -632,6 +635,26 @@ float calc_fovy(float focal, float aperture, float aspect) {
 	float zoom = ((2.0f * focal) / aperture) * aspect;
 	float fovy = 2.0f * ::atan2f(1.0f, zoom);
 	return fovy;
+}
+
+bool is_prime(int32_t x) {
+	if (x <= 1) return false;
+	if (is_even(x)) return x == 2;
+	int n = int(::sqrt(x));
+	for (int i = 3; i < n; i += 2) {
+		if ((x % i) == 0) return false;
+	}
+	return true;
+}
+
+int32_t prime(int32_t x) {
+	if (is_prime(x)) return x;
+	int org = x > 1 ? (x & (~1)) - 1 : 0;
+	int end = int32_t(uint32_t(-1) >> 1);
+	for (int i = org; i < end; i += 2) {
+		if (is_prime(i)) return i;
+	}
+	return x;
 }
 
 } // nxCalc
@@ -3482,7 +3505,7 @@ namespace nxData {
 
 XD_NOINLINE sxData* load(const char* pPath) {
 	size_t size = 0;
-	sxData* pData = reinterpret_cast<sxData*>(nxCore::bin_load(pPath, &size, true, true));
+	sxData* pData = reinterpret_cast<sxData*>(nxCore::bin_load_impl(pPath, &size, true, true, XD_DAT_MEM_TAG));
 	if (pData) {
 		if (pData->mFileSize == size) {
 			pData->mFilePathLen = (uint32_t)::strlen(pPath);
@@ -3783,7 +3806,7 @@ uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag, uint8_t* pDstMem, uint32_t 
 				uint32_t cntSize = pk_bit_cnt_to_bytes(pPkd->mRawSize * 3);
 				uint8_t* pCode2 = pCnt2 + pk_bit_cnt_to_bytes(cntSize * 3);
 				uint8_t* pCode = pCode2 + *pCode2Size;
-				uint8_t* pCnt = (uint8_t*)nxCore::mem_alloc(cntSize);
+				uint8_t* pCnt = (uint8_t*)nxCore::mem_alloc(cntSize, XD_TMP_MEM_TAG);
 				if (pCnt) {
 					pk_decode(pCnt, cntSize, pDict2, pCnt2, pCode2);
 					pk_decode(pDst, pPkd->mRawSize, pDict, pCnt, pCode);
@@ -5439,9 +5462,18 @@ void sxGeometryData::calc_tangents(cxVec* pTng, bool flip, const char* pAttrName
 
 cxVec* sxGeometryData::calc_tangents(bool flip, const char* pAttrName) const {
 	int npnt = get_pnt_num();
-	cxVec* pTng = (cxVec*)nxCore::mem_alloc(npnt * sizeof(cxVec), XD_FOURCC('t', 'n', 'g', 'u'));
+	cxVec* pTng = (cxVec*)nxCore::mem_alloc(npnt * sizeof(cxVec), XD_FOURCC('T', 'N', 'G', 'U'));
 	calc_tangents(pTng, flip, pAttrName);
 	return pTng;
+}
+
+void* sxGeometryData::alloc_triangulation_wk() const {
+	void* pWk = nullptr;
+	int n = mMaxVtxPerPol;
+	if (n > 4) {
+		pWk = nxCore::mem_alloc(n * sizeof(int) * 2, XD_FOURCC('T', 'R', 'I', 'W'));
+	}
+	return pWk;
 }
 
 uint8_t* sxGeometryData::Polygon::get_vtx_lst() const {
@@ -5653,6 +5685,85 @@ bool sxGeometryData::Polygon::contains_xz(const cxVec& pos) const {
 	return !!(cnt & 1);
 }
 
+int sxGeometryData::Polygon::triangulate(int* pTris, void* pWk) const {
+	if (!is_valid()) return 0;
+	if (!pTris) return 0;
+	int nvtx = get_vtx_num();
+	if (nvtx < 3) return 0;
+	if (nvtx == 3) {
+		for (int i = 0; i < 3; ++i) {
+			pTris[i] = get_vtx_pnt_id(i);
+		}
+		return 1;
+	}
+	struct Lnk {
+		int prev;
+		int next;
+	} lnk[4];
+	Lnk* pLnk = lnk;
+	if (nvtx > XD_ARY_LEN(lnk)) {
+		if (pWk) {
+			pLnk = (Lnk*)pWk;
+		} else {
+			pLnk = (Lnk*)nxCore::mem_alloc(nvtx * sizeof(Lnk));
+		}
+	}
+	for (int i = 0; i < nvtx; ++i) {
+		pLnk[i].prev = i > 0 ? i - 1 : nvtx - 1;
+		pLnk[i].next = i < nvtx - 1 ? i + 1 : 0;
+	}
+	cxVec nrm = calc_normal_cw();
+	int vcnt = nvtx;
+	int tptr = 0;
+	int idx = 0;
+	while (vcnt > 3) {
+		int prev = pLnk[idx].prev;
+		int next = pLnk[idx].next;
+		cxVec v0 = get_vtx_pos(prev);
+		cxVec v1 = get_vtx_pos(idx);
+		cxVec v2 = get_vtx_pos(next);
+		cxVec tnrm = nxGeom::tri_normal_cw(v0, v1, v2);
+		bool flg = tnrm.dot(nrm) >= 0.0f;
+		if (flg) {
+			next = pLnk[next].next;
+			do {
+				cxVec v = get_vtx_pos(next);
+				if (nxGeom::pnt_in_tri(v, v0, v1, v2)) {
+					flg = false;
+					break;
+				}
+				next = pLnk[next].next;
+			} while (next != prev);
+		}
+		if (flg) {
+			pTris[tptr++] = pLnk[idx].prev;
+			pTris[tptr++] = idx;
+			pTris[tptr++] = pLnk[idx].next;
+			pLnk[pLnk[idx].prev].next = pLnk[idx].next;
+			pLnk[pLnk[idx].next].prev = pLnk[idx].prev;
+			--vcnt;
+			idx = pLnk[idx].prev;
+		} else {
+			idx = pLnk[idx].next;
+		}
+	}
+	pTris[tptr++] = pLnk[idx].prev;
+	pTris[tptr++] = idx;
+	pTris[tptr++] = pLnk[idx].next;
+	if (pLnk != lnk && !pWk) {
+		nxCore::mem_free(pLnk);
+		pLnk = nullptr;
+	}
+	return nvtx - 2;
+}
+
+int sxGeometryData::Polygon::tri_count() const {
+	if (!is_valid()) return 0;
+	int nvtx = get_vtx_num();
+	if (nvtx < 3) return 0;
+	return nvtx - 2;
+}
+
 
 void* sxGeometryData::Group::get_idx_top() const {
 	void* pIdxTop = is_valid() ? mpInfo + 1 : nullptr;
@@ -5746,11 +5857,17 @@ uint16_t* sxGeometryData::Group::get_skin_ids() const {
 	return pLst;
 }
 
-void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* pBatGrpPrefix) {
+void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* pBatGrpPrefix, bool triangulate) {
 	int nmtl = geo.get_mtl_num();
 	int nbat = nmtl > 0 ? nmtl : 1;
 	int batGrpCount = 0;
 	int* pBatGrpIdx = nullptr;
+	int* pPolTriLst = nullptr;
+	void* pPolTriWk = nullptr;
+	if (geo.mMaxVtxPerPol > 3) {
+		pPolTriLst = (int*)nxCore::mem_alloc((geo.mMaxVtxPerPol - 2) * 3 * sizeof(int), XD_TMP_MEM_TAG);
+		pPolTriWk = geo.alloc_triangulation_wk();
+	}
 	if (pBatGrpPrefix) {
 		for (int i = 0; i < geo.get_pol_grp_num(); ++i) {
 			Group polGrp = geo.get_pol_grp(i);
@@ -5813,8 +5930,8 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 				}
 			}
 			Polygon pol = geo.get_pol(polIdx);
-			if (pol.is_tri()) {
-				for (int k = 0; k < 3; ++k) {
+			if (pol.is_tri() || (triangulate && pol.tri_count() > 0)) {
+				for (int k = 0; k < pol.get_vtx_num(); ++k) {
 					int32_t vtxId = pol.get_vtx_pnt_id(k);
 					if (batIdxCnt > 0) {
 						minIdx = nxCalc::min(minIdx, vtxId);
@@ -5823,9 +5940,9 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 						minIdx = vtxId;
 						maxIdx = vtxId;
 					}
-					++batIdxCnt;
 				}
-				++ntri;
+				batIdxCnt += pol.tri_count() * 3;
+				ntri += pol.tri_count();
 			}
 		}
 		if ((maxIdx - minIdx) < (1 << 16)) {
@@ -5903,8 +6020,8 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 					}
 				}
 				Polygon pol = geo.get_pol(polIdx);
-				if (pol.is_tri()) {
-					for (int k = 0; k < 3; ++k) {
+				if (pol.is_tri() || (triangulate && pol.tri_count() > 0)) {
+					for (int k = 0; k < pol.get_vtx_num(); ++k) {
 						int32_t vtxId = pol.get_vtx_pnt_id(k);
 						if (batIdxCnt > 0) {
 							pBat->mMinIdx = nxCalc::min(pBat->mMinIdx, vtxId);
@@ -5913,9 +6030,9 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 							pBat->mMinIdx = vtxId;
 							pBat->mMaxIdx = vtxId;
 						}
-						++batIdxCnt;
 					}
-					++pBat->mTriNum;
+					batIdxCnt += pol.tri_count() * 3;
+					pBat->mTriNum += pol.tri_count();
 				}
 			}
 			if (pBat->is_idx16()) {
@@ -5960,20 +6077,41 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 					}
 				}
 				Polygon pol = geo.get_pol(polIdx);
-				if (pol.is_tri()) {
+				if (pol.is_tri() || (triangulate && pol.tri_count() > 0)) {
 					if (pBat->is_idx16()) {
 						uint16_t* pIdx16 = pData->get_idx16();
 						if (pIdx16) {
-							for (int k = 0; k < 3; ++k) {
-								pIdx16[nidx16 + k] = (uint16_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
+							if (pol.is_tri()) {
+								for (int k = 0; k < 3; ++k) {
+									pIdx16[nidx16 + k] = (uint16_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
+								}
+								nidx16 += 3;
+							} else {
+								int ntris = pol.triangulate(pPolTriLst, pPolTriWk);
+								for (int t = 0; t < ntris; ++t) {
+									for (int k = 0; k < 3; ++k) {
+										pIdx16[nidx16 + k] = (uint16_t)(pol.get_vtx_pnt_id(pPolTriLst[t*3 + k]) - pBat->mMinIdx);
+									}
+									nidx16 += 3;
+								}
 							}
 						}
-						nidx16 += 3;
 					} else {
 						uint32_t* pIdx32 = pData->get_idx32();
 						if (pIdx32) {
-							for (int k = 0; k < 3; ++k) {
-								pIdx32[nidx32 + k] = (uint32_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
+							if (pol.is_tri()) {
+								for (int k = 0; k < 3; ++k) {
+									pIdx32[nidx32 + k] = (uint32_t)(pol.get_vtx_pnt_id(k) - pBat->mMinIdx);
+								}
+								nidx32 += 3;
+							} else {
+								int ntris = pol.triangulate(pPolTriLst, pPolTriWk);
+								for (int t = 0; t < ntris; ++t) {
+									for (int k = 0; k < 3; ++k) {
+										pIdx32[nidx32 + k] = (uint32_t)(pol.get_vtx_pnt_id(pPolTriLst[t*3 + k]) - pBat->mMinIdx);
+									}
+									nidx32 += 3;
+								}
 							}
 						}
 					}
@@ -5985,6 +6123,14 @@ void sxGeometryData::DisplayList::create(const sxGeometryData& geo, const char* 
 	if (pBatGrpIdx) {
 		nxCore::mem_free(pBatGrpIdx);
 		pBatGrpIdx = nullptr;
+	}
+	if (pPolTriLst) {
+		nxCore::mem_free(pPolTriLst);
+		pPolTriLst = nullptr;
+	}
+	if (pPolTriWk) {
+		nxCore::mem_free(pPolTriWk);
+		pPolTriWk = nullptr;
 	}
 }
 
@@ -6077,7 +6223,7 @@ sxDDSHead* alloc_dds128(uint32_t w, uint32_t h, uint32_t* pSize) {
 	return pDDS;
 }
 
-void save_dds128(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+void save_dds128(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6091,7 +6237,7 @@ void save_dds128(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
 	}
 }
 
-void save_dds64(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+void save_dds64(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6110,7 +6256,7 @@ void save_dds64(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
 	}
 }
 
-void save_dds32_rgbe(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+void save_dds32_rgbe(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6128,7 +6274,7 @@ void save_dds32_rgbe(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
 	}
 }
 
-void save_dds32_bgre(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+void save_dds32_bgre(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6146,7 +6292,7 @@ void save_dds32_bgre(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
 	}
 }
 
-void save_dds32_rgbi(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+void save_dds32_rgbi(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6164,7 +6310,7 @@ void save_dds32_rgbi(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
 	}
 }
 
-void save_dds32_bgri(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
+void save_dds32_bgri(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6182,7 +6328,7 @@ void save_dds32_bgri(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h) {
 	}
 }
 
-void save_dds32_rgba8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, float gamma) {
+void save_dds32_rgba8(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, float gamma) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6199,8 +6345,12 @@ void save_dds32_rgba8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, 
 				float invg = 1.0f / gamma;
 				for (uint32_t i = 0; i < npix; ++i) {
 					cxColor cc = pClr[i];
-					for (int j = 0; j < 4; ++j) {
-						cc.ch[j] = ::powf(cc.ch[j], invg);
+					for (int j = 0; j < 3; ++j) {
+						if (cc.ch[j] > 0.0f) {
+							cc.ch[j] = ::powf(cc.ch[j], invg);
+						} else {
+							cc.ch[j] = 0.0f;
+						}
 					}
 					uint32_t e = cc.encode_rgba8();
 					::fwrite(&e, sizeof(e), 1, pOut);
@@ -6216,7 +6366,7 @@ void save_dds32_rgba8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, 
 	}
 }
 
-void save_dds32_bgra8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, float gamma) {
+void save_dds32_bgra8(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, float gamma) {
 	uint32_t npix = w*h;
 	if ((int)npix > 0) {
 		FILE* pOut = nxSys::fopen_w_bin(pPath);
@@ -6233,8 +6383,12 @@ void save_dds32_bgra8(const char* pPath, cxColor* pClr, uint32_t w, uint32_t h, 
 				float invg = 1.0f / gamma;
 				for (uint32_t i = 0; i < npix; ++i) {
 					cxColor cc = pClr[i];
-					for (int j = 0; j < 4; ++j) {
-						cc.ch[j] = ::powf(cc.ch[j], invg);
+					for (int j = 0; j < 3; ++j) {
+						if (cc.ch[j] > 0.0f) {
+							cc.ch[j] = ::powf(cc.ch[j], invg);
+						} else {
+							cc.ch[j] = 0.0f;
+						}
 					}
 					uint32_t e = cc.encode_bgra8();
 					::fwrite(&e, sizeof(e), 1, pOut);
@@ -6346,6 +6500,59 @@ cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float 
 	return pClr;
 }
 
+void save_sgi(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, float gamma) {
+	if (!pPath || !pClr || !(w*h)) return;
+	FILE* pOut = nxSys::fopen_w_bin(pPath);
+	if (!pOut) return;
+	size_t size = w * h * 4;
+	if (size < 0x200) size = 0x200;
+	void* pMem = nxCore::mem_alloc(size, XD_TMP_MEM_TAG);
+	if (pMem) {
+		::memset(pMem, 0, size);
+		uint8_t* pHead = (uint8_t*)pMem;
+		pHead[0] = 1;
+		pHead[1] = 0xDA;
+		pHead[3] = 1;
+		pHead[5] = 3;
+		pHead[0xB] = 4;
+		pHead[0x13] = 0xFF;
+		pHead[6] = (uint8_t)((w >> 8) & 0xFF);
+		pHead[7] = (uint8_t)(w & 0xFF);
+		pHead[8] = (uint8_t)((h >> 8) & 0xFF);
+		pHead[9] = (uint8_t)(h & 0xFF);
+		::fwrite(pHead, 0x200, 1, pOut);
+		uint8_t* pDst = (uint8_t*)pMem;
+		bool gflg = gamma > 0.0f && gamma != 1.0f;
+		float invg = gflg ? 1.0f / gamma : 1.0f;
+		int offs = int(w*h);
+		int idst = 0;
+		for (int y = int(h); --y >= 0;) {
+			for (int x = 0; x < int(w); ++x) {
+				uint32_t idx = y*w + x;
+				cxColor c = pClr[idx];
+				if (gflg) {
+					for (int i = 0; i < 3; ++i) {
+						if (c.ch[i] > 0.0f) {
+							c.ch[i] = ::powf(c.ch[i], invg);
+						} else {
+							c.ch[i] = 0.0f;
+						}
+					}
+				}
+				uint32_t ic = c.encode_rgba8();
+				pDst[idst] = uint8_t(ic & 0xFF);
+				pDst[idst + offs] = uint8_t((ic >> 8) & 0xFF);
+				pDst[idst + offs*2] = uint8_t((ic >> 16) & 0xFF);
+				pDst[idst + offs*3] = uint8_t((ic >> 24) & 0xFF);
+				++idst;
+			}
+		}
+		::fwrite(pMem, w*h*4, 1, pOut);
+		nxCore::mem_free(pMem);
+	}
+	::fclose(pOut);
+}
+
 /* see PBRT book for details */
 void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg) {
 	float rt = float(oldRes) / float(newRes);
@@ -6374,6 +6581,97 @@ void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg) 
 		s = nxCalc::rcp0(s);
 		pWgt[i].scl(s);
 	}
+}
+
+/* VC: must be noinline to work around AVX/x64 optimizer bug */
+static XD_NOINLINE cxColor* clr_dup(cxColor* pDst, const cxColor c, int num) {
+	for (int i = 0; i < num; ++i) {
+		*pDst++ = c;
+	}
+	return pDst;
+}
+
+cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bool filt, cxColor* pDstBuff, bool cneg) {
+	if (!pSrc) return nullptr;
+	int w = srcW * xscl;
+	int h = srcH * yscl;
+	if (w <= 0 || h <= 0) return nullptr;
+	cxColor* pDst = pDstBuff;
+	if (!pDstBuff) {
+		pDst = reinterpret_cast<cxColor*>(nxCore::mem_alloc(w * h * sizeof(cxColor), XD_FOURCC('n', 'T', 'e', 'x')));
+	}
+	if (!pDst) return nullptr;
+	if (filt) {
+		int wgtNum = nxCalc::max(w, h);
+		xt_float4* pWgt = reinterpret_cast<xt_float4*>(nxCore::mem_alloc(wgtNum * sizeof(xt_float4), XD_TMP_MEM_TAG));
+		int16_t* pOrg = reinterpret_cast<int16_t*>(nxCore::mem_alloc(wgtNum * sizeof(int16_t), XD_TMP_MEM_TAG));
+		cxColor* pTmp = reinterpret_cast<cxColor*>(nxCore::mem_alloc(wgtNum * sizeof(cxColor), XD_TMP_MEM_TAG));
+		nxTexture::calc_resample_wgts(srcW, w, pWgt, pOrg);
+		for (int y = 0; y < srcH; ++y) {
+			for (int x = 0; x < w; ++x) {
+				cxColor clr;
+				clr.zero();
+				xt_float4 wgt = pWgt[x];
+				for (int i = 0; i < 4; ++i) {
+					int x0 = nxCalc::clamp(pOrg[x] + i, 0, srcW - 1);
+					cxColor csrc = pSrc[y*srcW + x0];
+					csrc.scl(wgt[i]);
+					clr.add(csrc);
+				}
+				pDst[y*w + x] = clr;
+			}
+		}
+		nxTexture::calc_resample_wgts(srcH, h, pWgt, pOrg);
+		for (int x = 0; x < w; ++x) {
+			for (int y = 0; y < h; ++y) {
+				cxColor clr;
+				clr.zero();
+				xt_float4 wgt = pWgt[y];
+				for (int i = 0; i < 4; ++i) {
+					int y0 = nxCalc::clamp(pOrg[y] + i, 0, srcH - 1);
+					cxColor csrc = pDst[y0*w + x];
+					csrc.scl(wgt[i]);
+					clr.add(csrc);
+				}
+				pTmp[y] = clr;
+			}
+			for (int y = 0; y < h; ++y) {
+				pDst[y*w + x] = pTmp[y];
+			}
+		}
+		nxCore::mem_free(pTmp);
+		nxCore::mem_free(pOrg);
+		nxCore::mem_free(pWgt);
+	} else {
+		const cxColor* pClr = pSrc;
+		cxColor* pDstX = pDst;
+		for (int y = 0; y < srcH; ++y) {
+			for (int x = 0; x < srcW; ++x) {
+				cxColor c = *pClr++;
+				if (0) {
+					// VC: AVX/x64 optimizer bug for constant xscl
+					for (int i = 0; i < xscl; ++i) {
+						*pDstX++ = c;
+					}
+				} else {
+					pDstX = clr_dup(pDstX, c, xscl);
+				}
+			}
+			cxColor* pDstY = pDstX;
+			for (int i = 1; i < yscl; ++i) {
+				for (int j = 0; j < w; ++j) {
+					*pDstY++ = pDstX[j - w];
+				}
+			}
+			pDstX = pDstY;
+		}
+	}
+	if (cneg) {
+		for (int i = 0; i < w * h; ++i) {
+			pDst[i].clip_neg();
+		}
+	}
+	return pDst;
 }
 
 } // nxTexture
@@ -7931,5 +8229,61 @@ int sxFileCatalogue::find_name_idx(const char* pName) const {
 		}
 	}
 	return idx;
+}
+
+
+#define XD_STRSTORE_ALLOC_SIZE size_t(4096)
+#define XD_STRSTORE_TAG XD_FOURCC('S','T','O','R')
+
+cxStrStore* cxStrStore::create() {
+	const size_t defSize = XD_STRSTORE_ALLOC_SIZE;
+	size_t size = sizeof(cxStrStore) + defSize;
+	cxStrStore* pStore = reinterpret_cast<cxStrStore*>(nxCore::mem_alloc(size, XD_STRSTORE_TAG));
+	if (pStore) {
+		pStore->mSize = defSize;
+		pStore->mpNext = nullptr;
+		pStore->mPtr = 0;
+	}
+	return pStore;
+}
+
+void cxStrStore::destroy(cxStrStore* pStore) {
+	cxStrStore* p = pStore;
+	while (p) {
+		cxStrStore* pNext = p->mpNext;
+		nxCore::mem_free(p);
+		p = pNext;
+	}
+}
+
+const char* cxStrStore::add(const char* pStr) {
+	char* pRes = nullptr;
+	if (pStr) {
+		cxStrStore* pStore = this;
+		size_t len = ::strlen(pStr) + 1;
+		while (!pRes) {
+			size_t free = pStore->mSize - pStore->mPtr;
+			if (free >= len) {
+				pRes = reinterpret_cast<char*>(pStore + 1) + pStore->mPtr;
+				::memcpy(pRes, pStr, len);
+				pStore->mPtr += len;
+			} else {
+				cxStrStore* pNext = pStore->mpNext;
+				if (!pNext) {
+					size_t size = sizeof(cxStrStore) + nxCalc::max(XD_STRSTORE_ALLOC_SIZE, len);
+					pNext = reinterpret_cast<cxStrStore*>(nxCore::mem_alloc(size, XD_STRSTORE_TAG));
+					if (pNext) {
+						pNext->mSize = size;
+						pNext->mpNext = nullptr;
+						pNext->mPtr = 0;
+					} else {
+						break;
+					}
+				}
+				pStore = pNext;
+			}
+		}
+	}
+	return pRes;
 }
 
