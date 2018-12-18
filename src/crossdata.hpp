@@ -2291,6 +2291,8 @@ public:
 	void decode_rgba8(uint32_t rgba);
 	uint32_t encode_bgra8() const;
 	void decode_bgra8(uint32_t bgra);
+	uint16_t encode_bgr565() const;
+	void decode_bgr565(uint16_t bgr);
 };
 
 namespace nxColor {
@@ -2998,7 +3000,8 @@ cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float 
 void save_sgi(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, float gamma = 2.2f);
 
 void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg);
-cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bool filt = true, cxColor* pDstBuff = nullptr, bool cneg = true);
+cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bool filt = true, cxColor* pDstBuff = nullptr, void* pWrkMem = nullptr, bool cneg = true);
+size_t calc_upscale_work_size(int srcW, int srcH, int xscl, int yscl);
 
 } // nxTexture
 
@@ -3428,6 +3431,428 @@ struct sxFileCatalogue : public sxData {
 	static const uint32_t KIND = XD_FOURCC('F', 'C', 'A', 'T');
 };
 
+
+template <typename T, int PLEX_SIZE = 16>
+class cxPlexList {
+protected:
+	struct Link {
+		Link* mpPrev;
+		Link* mpNext;
+		T* mpItem;
+
+		void init(T* pItem) {
+			mpPrev = nullptr;
+			mpNext = nullptr;
+			mpItem = pItem;
+		}
+
+		void reset() {
+			mpPrev = nullptr;
+			mpNext = nullptr;
+			mpItem = nullptr;
+		}
+	};
+
+	class Plex {
+	public:
+		cxPlexList* mpList;
+		Plex* mpPrev;
+		Plex* mpNext;
+		Link mNode[PLEX_SIZE];
+		int32_t mCount;
+		XD_BIT_ARY_DECL(uint32_t, mMask, PLEX_SIZE);
+
+	protected:
+		Plex() { reset(); }
+
+		void ctor(cxPlexList* pList) {
+			mpList = pList;
+			mpPrev = nullptr;
+			mpNext = nullptr;
+			reset();
+		}
+
+		friend class cxPlexList;
+
+	public:
+		class Itr {
+		protected:
+			Plex* mpPlex;
+			int32_t mCount;
+
+		public:
+			int32_t mIdx;
+
+			Itr(Plex* pPlex) : mpPlex(pPlex) {
+				reset();
+				mIdx = mpPlex->find_first();
+				if (mIdx >= 0) {
+					++mCount;
+				}
+			}
+
+			void reset() {
+				mCount = 0;
+				mIdx = -1;
+			}
+
+			void next() {
+				if (mCount >= mpPlex->get_count()) {
+					mIdx = -1;
+				} else {
+					mIdx = mpPlex->find_next(mIdx);
+					if (mIdx >= 0) {
+						++mCount;
+					}
+				}
+			}
+
+			bool end() const { return mIdx < 0; }
+
+			T* get_item() const {
+				T* pItm = nullptr;
+				if (mIdx >= 0) {
+					pItm = (*mpPlex)[mIdx];
+				}
+				return pItm;
+			}
+		};
+
+		void reset() {
+			::memset(mMask, 0, sizeof(mMask));
+			mCount = 0;
+		}
+
+		int get_count() const { return mCount; }
+		bool is_full() const { return get_count() >= PLEX_SIZE; }
+		T* get_top() { return reinterpret_cast<T*>(this + 1); }
+		T* get_end() { return get_top() + PLEX_SIZE; }
+
+		int get_idx(T* pItm) {
+			T* pTop = get_top();
+			if (pItm >= pTop && pItm < get_end()) {
+				return (int)(pItm - pTop);
+			}
+			return -1;
+		}
+
+		T* operator[](int i) { return &get_top()[i]; }
+
+		int find_next(int last = -1) const {
+			int idx = -1;
+			if (mCount > 0) {
+				for (int i = last + 1; i < PLEX_SIZE; ++i) {
+					if (XD_BIT_ARY_CK(uint32_t, mMask, i)) {
+						idx = i;
+						break;
+					}
+				}
+			}
+			return idx;
+		}
+
+		int find_first() const { return find_next(); }
+
+		int get_slot() {
+			int idx = -1;
+			if (!is_full()) {
+				for (int i = 0; i < PLEX_SIZE; ++i) {
+					if (!XD_BIT_ARY_CK(uint32_t, mMask, i)) {
+						idx = i;
+						break;
+					}
+				}
+			}
+			return idx;
+		}
+
+		T* alloc_item() {
+			T* pItm = nullptr;
+			int idx = get_slot();
+			if (idx >= 0) {
+				XD_BIT_ARY_ST(uint32_t, mMask, idx);
+				pItm = operator[](idx);
+				++mCount;
+			}
+			if (pItm && mpList && mpList->mItmCtor) {
+				mpList->mItmCtor(pItm);
+			}
+			return pItm;
+		}
+
+		void free_item(T* pItm) {
+			int idx = get_idx(pItm);
+			if (idx >= 0) {
+				if (pItm && mpList && mpList->mItmDtor) {
+					mpList->mItmDtor(pItm);
+				}
+				XD_BIT_ARY_CL(uint32_t, mMask, idx);
+				--mCount;
+			}
+		}
+	};
+
+	Plex* mpHead;
+	Link* mpLinkHead;
+	Link* mpLinkTail;
+	void (*mItmCtor)(T*);
+	void (*mItmDtor)(T*);
+	int32_t mCount;
+	bool mAutoDelete;
+
+	Plex* alloc_plex() {
+		Plex* pPlex = nullptr;
+		size_t size = sizeof(Plex) + PLEX_SIZE*sizeof(T);
+		void* pMem = nxCore::mem_alloc(size, XD_FOURCC('P', 'L', 'E', 'X'));
+		if (pMem) {
+			pPlex = reinterpret_cast<Plex*>(pMem);
+			pPlex->ctor(this);
+		}
+		return pPlex;
+	}
+
+	void free_plex(Plex* pPlex) {
+		if (!pPlex) return;
+		nxCore::mem_free(pPlex);
+	}
+
+	void clear_plex(Plex* pPlex) {
+		if (!pPlex) return;
+		if (pPlex->get_count()) {
+			if (mItmDtor) {
+				for (typename Plex::Itr it(pPlex); !it.end(); it.next()) {
+					mItmDtor(it.get_item());
+				}
+			}
+		}
+		pPlex->reset();
+	}
+
+	void destroy_plex(Plex* pPlex) {
+		clear_plex(pPlex);
+		free_plex(pPlex);
+	}
+
+	Plex* find_plex(T* pItem) const {
+		Plex* pRes = nullptr;
+		Plex* pPlex = mpHead;
+		while (pPlex) {
+			if (pPlex->get_idx(pItem) >= 0) {
+				pRes = pPlex;
+				break;
+			}
+			pPlex = pPlex->mpNext;
+		}
+		return pRes;
+	}
+
+public:
+	class Itr {
+	protected:
+		Link* mpLink;
+	public:
+		Itr(Link* pLink) : mpLink(pLink) {}
+		T* item() const { return mpLink ? mpLink->mpItem : nullptr; }
+		bool end() const { return mpLink == nullptr; }
+		void next() {
+			if (mpLink) {
+				mpLink = mpLink->mpNext;
+			}
+		}
+	};
+
+protected:
+	void ctor(bool preAlloc, bool autoDelete) {
+		mpHead = nullptr;
+		mpLinkHead = nullptr;
+		mpLinkTail = nullptr;
+		set_item_handlers(nullptr, nullptr);
+		mCount = 0;
+		mAutoDelete = autoDelete;
+		if (preAlloc) {
+			mpHead = alloc_plex();
+		}
+	}
+
+	void dtor() {
+		purge();
+	}
+
+public:
+	cxPlexList(bool preAlloc = false, bool autoDelete = true) {
+		ctor(preAlloc, autoDelete);
+	}
+
+	~cxPlexList() {
+		dtor();
+	}
+
+	void set_item_handlers(void (*ctor)(T*), void (*dtor)(T*)) {
+		mItmCtor = ctor;
+		mItmDtor = dtor;
+	}
+
+	int get_count() const { return mCount; }
+
+	void purge() {
+		Plex* pPlex = mpHead;
+		while (pPlex) {
+			Plex* pNext = pPlex->mpNext;
+			destroy_plex(pPlex);
+			pPlex = pNext;
+		}
+		mCount = 0;
+		mpLinkHead = nullptr;
+		mpLinkTail = nullptr;
+		mpHead = nullptr;
+	}
+
+	void clear() {
+		Plex* pPlex = mpHead;
+		while (pPlex) {
+			Plex* pNext = pPlex->mpNext;
+			clear_plex(pPlex);
+			if (mAutoDelete) {
+				free_plex(pPlex);
+			}
+			pPlex = pNext;
+		}
+		mCount = 0;
+		mpLinkHead = nullptr;
+		mpLinkTail = nullptr;
+		if (mAutoDelete) {
+			mpHead = nullptr;
+		}
+	}
+
+	T* new_item() {
+		T* pItem = 0;
+		if (!mpHead) {
+			mpHead = alloc_plex();
+			mpLinkHead = 0;
+			mpLinkHead = 0;
+			mCount = 0;
+		}
+		Plex* pPlex = mpHead;
+		while (true) {
+			if (!pPlex->is_full()) {
+				break;
+			}
+			if (pPlex->mpNext) {
+				pPlex = pPlex->mpNext;
+			} else {
+				Plex* pNew = alloc_plex();
+				pNew->mpPrev = pPlex;
+				pPlex->mpNext = pNew;
+				pPlex = pNew;
+				break;
+			}
+		}
+		if (pPlex) {
+			pItem = pPlex->alloc_item();
+			if (pItem) {
+				int idx = pPlex->get_idx(pItem);
+				if (idx >= 0) {
+					Link* pLink = &pPlex->mNode[idx];
+					pLink->init(pItem);
+					if (mpLinkHead) {
+						pLink->mpPrev = mpLinkTail;
+						mpLinkTail->mpNext = pLink;
+						mpLinkTail = pLink;
+					} else {
+						mpLinkHead = pLink;
+						mpLinkTail = pLink;
+					}
+				}
+			}
+		}
+		if (pItem) {
+			++mCount;
+		}
+		return pItem;
+	}
+
+	void remove(T* pItem) {
+		if (!pItem) return;
+		if (mCount <= 0) return;
+		Plex* pPlex = find_plex(pItem);
+		if (pPlex) {
+			int idx = pPlex->get_idx(pItem);
+			if (idx >= 0) {
+				Link* pLink = &pPlex->mNode[idx];
+				Link* pNext = pLink->mpNext;
+				if (pLink->mpPrev) {
+					pLink->mpPrev->mpNext = pNext;
+					if (pNext) {
+						pNext->mpPrev = pLink->mpPrev;
+					} else {
+						mpLinkTail = pLink->mpPrev;
+					}
+				} else {
+					mpLinkHead = pNext;
+					if (mpLinkHead) {
+						mpLinkHead->mpPrev = nullptr;
+					} else {
+						mpLinkTail = nullptr;
+					}
+				}
+				pPlex->free_item(pItem);
+				pLink->reset();
+				--mCount;
+				if (pPlex->get_count() <= 0) {
+					if (mAutoDelete) {
+						Plex* pPrevPlex = pPlex->mpPrev;
+						Plex* pNextPlex = pPlex->mpNext;
+						destroy_plex(pPlex);
+						if (pPlex == mpHead) {
+							mpHead = nullptr;
+						} else {
+							if (pPrevPlex) {
+								pPrevPlex->mpNext = pNextPlex;
+							}
+							if (pNextPlex) {
+								pNextPlex->mpPrev = pPrevPlex;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	Itr get_itr() { return Itr(mpLinkHead); }
+
+	T* get_item(int idx) {
+		T* pItm = nullptr;
+		if (uint32_t(idx) < uint32_t(get_count())) {
+			int cnt = 0;
+			for (Itr it = get_itr(); !it.end(); it.next()) {
+				if (cnt == idx) {
+					pItm = it.item();
+					break;
+				}
+				++cnt;
+			}
+		}
+		return pItm;
+	}
+
+	static cxPlexList* create(bool preAlloc = false, bool autoDelete = true) {
+		cxPlexList* pLst = (cxPlexList*)nxCore::mem_alloc(sizeof(cxPlexList), XD_FOURCC('P', 'L', 'E', 'X'));
+		if (pLst) {
+			pLst->ctor(preAlloc, autoDelete);
+		}
+		return pLst;
+	}
+
+	static void destroy(cxPlexList* pLst) {
+		if (pLst) {
+			pLst->dtor();
+			nxCore::mem_free(pLst);
+		}
+	}
+};
+
 class cxStrStore {
 private:
 	cxStrStore* mpNext;
@@ -3437,7 +3862,7 @@ private:
 	cxStrStore() {}
 
 public:
-	const char* add(const char* pStr);
+	char* add(const char* pStr);
 
 	static cxStrStore* create();
 	static void destroy(cxStrStore* pStore);
@@ -3590,18 +4015,28 @@ protected:
 		return -1;
 	}
 
-public:
-	cxStrMap(int capacity = 0, float loadScl = 1.0f) : mInUse(0), mpSlots(nullptr) {
+	void ctor(int capacity, float loadScl) {
+		mInUse = 0;
+		mpSlots = nullptr;
 		capacity = nxCalc::max(capacity, 16);
 		mLoadFactor = 0.75f * nxCalc::max(loadScl, 0.1f);
 		mSize = nxCalc::prime(int(float(capacity) / mLoadFactor));
 		set_new_tbl(alloc_tbl());
 	}
 
-	~cxStrMap() {
+	void dtor() {
 		if (mpSlots) {
 			nxCore::mem_free(mpSlots);
 		}
+	}
+
+public:
+	cxStrMap(int capacity = 0, float loadScl = 1.0f) {
+		ctor(capacity, loadScl);
+	}
+
+	~cxStrMap() {
+		dtor();
 	}
 
 	int get_item_count() const {
@@ -3642,6 +4077,75 @@ public:
 			}
 			::memset(&mpSlots[idx].val, 0, sizeof(T));
 			--mInUse;
+		}
+	}
+
+	static cxStrMap* create(int capacity = 0, float loadScl = 1.0f) {
+		cxStrMap* pMap = (cxStrMap*)nxCore::mem_alloc(sizeof(cxStrMap), XD_FOURCC('S', 'M', 'A', 'P'));
+		if (pMap) {
+			pMap->ctor(capacity, loadScl);
+		}
+		return pMap;
+	}
+
+	static void destroy(cxStrMap* pMap) {
+		if (pMap) {
+			pMap->dtor();
+			nxCore::mem_free(pMap);
+		}
+	}
+};
+
+class cxCmdLine {
+protected:
+	typedef cxStrMap<char*> MapT;
+	typedef cxPlexList<char*> ListT;
+
+	char* mpProgPath;
+	cxStrStore* mpStore;
+	ListT* mpArgLst;
+	MapT* mpOptMap;
+
+	void ctor(int argc, char* argv[]);
+	void dtor();
+
+public:
+	cxCmdLine(int argc, char* argv[]) {
+		ctor(argc, argv);
+	}
+
+	~cxCmdLine() {
+		dtor();
+	}
+
+	const char* get_full_prog_path() const {
+		return mpProgPath;
+	}
+
+	int get_num_arg() const {
+		return mpArgLst ? mpArgLst->get_count() : 0;
+	}
+
+	const char* get_arg(int i) const;
+
+	int get_num_opt() const {
+		return mpOptMap ? mpOptMap->get_item_count() : 0;
+	}
+
+	const char* get_opt(const char* pName) const;
+
+	static cxCmdLine* create(int argc, char* argv[]) {
+		cxCmdLine* pCmdLine = (cxCmdLine*)nxCore::mem_alloc(sizeof(cxCmdLine), XD_FOURCC('C', 'M', 'D', 'L'));
+		if (pCmdLine) {
+			pCmdLine->ctor(argc, argv);
+		}
+		return pCmdLine;
+	}
+
+	static void destroy(cxCmdLine* pCmdLine) {
+		if (pCmdLine) {
+			pCmdLine->dtor();
+			nxCore::mem_free(pCmdLine);
 		}
 	}
 };

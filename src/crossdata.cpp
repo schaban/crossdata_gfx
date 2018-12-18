@@ -2943,6 +2943,24 @@ void cxColor::decode_bgra8(uint32_t bgra) {
 	decode_rgba8(swap_enc_clr_rb(bgra));
 }
 
+uint16_t cxColor::encode_bgr565() const {
+	uint16_t ir = (uint16_t)::roundf(nxCalc::saturate(r) * float(0x1F));
+	uint16_t ig = (uint16_t)::roundf(nxCalc::saturate(g) * float(0x3F));
+	uint16_t ib = (uint16_t)::roundf(nxCalc::saturate(b) * float(0x1F));
+	uint16_t ic = ib;
+	ic |= ig << 5;
+	ic |= ir << (5 + 6);
+	return ic;
+}
+
+void cxColor::decode_bgr565(uint16_t bgr) {
+	b = float(bgr & 0x1F);
+	g = float((bgr >> 5) & 0x3F);
+	r = float((bgr >> (5+6)) & 0x1F);
+	scl_rgb(1.0f / float(0x1F), 1.0f / float(0x3F), 1.0f / float(0x1F));
+	a = 1.0f;
+}
+
 
 namespace nxSH {
 
@@ -6591,7 +6609,7 @@ static XD_NOINLINE cxColor* clr_dup(cxColor* pDst, const cxColor c, int num) {
 	return pDst;
 }
 
-cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bool filt, cxColor* pDstBuff, bool cneg) {
+cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bool filt, cxColor* pDstBuff, void* pWrkMem, bool cneg) {
 	if (!pSrc) return nullptr;
 	int w = srcW * xscl;
 	int h = srcH * yscl;
@@ -6603,9 +6621,18 @@ cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bo
 	if (!pDst) return nullptr;
 	if (filt) {
 		int wgtNum = nxCalc::max(w, h);
-		xt_float4* pWgt = reinterpret_cast<xt_float4*>(nxCore::mem_alloc(wgtNum * sizeof(xt_float4), XD_TMP_MEM_TAG));
-		int16_t* pOrg = reinterpret_cast<int16_t*>(nxCore::mem_alloc(wgtNum * sizeof(int16_t), XD_TMP_MEM_TAG));
-		cxColor* pTmp = reinterpret_cast<cxColor*>(nxCore::mem_alloc(wgtNum * sizeof(cxColor), XD_TMP_MEM_TAG));
+		xt_float4* pWgt;
+		cxColor* pTmp;
+		int16_t* pOrg;
+		if (pWrkMem) {
+			pWgt = reinterpret_cast<xt_float4*>(pWrkMem);
+			pTmp = reinterpret_cast<cxColor*>(XD_INCR_PTR(pWgt, wgtNum * sizeof(xt_float4)));
+			pOrg = reinterpret_cast<int16_t*>(XD_INCR_PTR(pTmp, wgtNum * sizeof(cxColor)));
+		} else {
+			pWgt = reinterpret_cast<xt_float4*>(nxCore::mem_alloc(wgtNum * sizeof(xt_float4), XD_TMP_MEM_TAG));
+			pTmp = reinterpret_cast<cxColor*>(nxCore::mem_alloc(wgtNum * sizeof(cxColor), XD_TMP_MEM_TAG));
+			pOrg = reinterpret_cast<int16_t*>(nxCore::mem_alloc(wgtNum * sizeof(int16_t), XD_TMP_MEM_TAG));
+		}
 		nxTexture::calc_resample_wgts(srcW, w, pWgt, pOrg);
 		for (int y = 0; y < srcH; ++y) {
 			for (int x = 0; x < w; ++x) {
@@ -6639,9 +6666,11 @@ cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bo
 				pDst[y*w + x] = pTmp[y];
 			}
 		}
-		nxCore::mem_free(pTmp);
-		nxCore::mem_free(pOrg);
-		nxCore::mem_free(pWgt);
+		if (!pWrkMem) {
+			nxCore::mem_free(pOrg);
+			nxCore::mem_free(pTmp);
+			nxCore::mem_free(pWgt);
+		}
 	} else {
 		const cxColor* pClr = pSrc;
 		cxColor* pDstX = pDst;
@@ -6672,6 +6701,15 @@ cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bo
 		}
 	}
 	return pDst;
+}
+
+size_t calc_upscale_work_size(int srcW, int srcH, int xscl, int yscl) {
+	int w = srcW * xscl;
+	int h = srcH * yscl;
+	if (w <= 0 || h <= 0) return 0;
+	int wgtNum = nxCalc::max(w, h);
+	size_t size = wgtNum * (sizeof(xt_float4) + sizeof(cxColor) + sizeof(int16_t));
+	return XD_ALIGN(size, 0x10);
 }
 
 } // nxTexture
@@ -8256,7 +8294,7 @@ void cxStrStore::destroy(cxStrStore* pStore) {
 	}
 }
 
-const char* cxStrStore::add(const char* pStr) {
+char* cxStrStore::add(const char* pStr) {
 	char* pRes = nullptr;
 	if (pStr) {
 		cxStrStore* pStore = this;
@@ -8287,3 +8325,72 @@ const char* cxStrStore::add(const char* pStr) {
 	return pRes;
 }
 
+
+void cxCmdLine::ctor(int argc, char* argv[]) {
+	mpStore = nullptr;
+	mpOptMap = nullptr;
+	if (argc < 1 || !argv) return;
+	mpStore = cxStrStore::create();
+	if (!mpStore) return;
+	mpProgPath = mpStore->add(argv[0]);
+	if (argc < 2) return;
+	mpOptMap = MapT::create();
+	mpArgLst = ListT::create();
+	for (int i = 1; i < argc; ++i) {
+		char* pArg = argv[i];
+		if (nxCore::str_starts_with(pArg, "-")) {
+			int argLen = int(::strlen(pArg));
+			char* pVal = nullptr;
+			for (int j = argLen; --j >= 1;) {
+				if (pArg[j] == ':') {
+					pVal = &pArg[j + 1];
+					break;
+				}
+			}
+			if (pVal && pVal != pArg + argLen) {
+				char* pOptStr = mpStore->add(pArg + 1);
+				char* pValStr = &pOptStr[pVal - (pArg + 1)];
+				pValStr[-1] = 0;
+				if (mpOptMap) {
+					mpOptMap->put(pOptStr, pValStr);
+				}
+			}
+		} else {
+			char* pArgStr = mpStore->add(pArg);
+			if (pArgStr && mpArgLst) {
+				char** pp = mpArgLst->new_item();
+				if (pp) {
+					*pp = pArgStr;
+				}
+			}
+		}
+	}
+}
+
+XD_NOINLINE void cxCmdLine::dtor() {
+	ListT::destroy(mpArgLst);
+	mpArgLst = nullptr;
+	MapT::destroy(mpOptMap);
+	mpOptMap = nullptr;
+	cxStrStore::destroy(mpStore);
+	mpStore = nullptr;
+}
+
+XD_NOINLINE const char* cxCmdLine::get_arg(int i) const {
+	const char* pArg = nullptr;
+	if (mpArgLst) {
+		char** ppArg = mpArgLst->get_item(i);
+		if (ppArg) {
+			pArg = *ppArg;
+		}
+	}
+	return pArg;
+}
+
+XD_NOINLINE const char* cxCmdLine::get_opt(const char* pName) const {
+	char* pVal = nullptr;
+	if (mpOptMap) {
+		mpOptMap->get(pName, &pVal);
+	}
+	return pVal;
+}
