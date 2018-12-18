@@ -1,3 +1,5 @@
+// Author: Sergey Chaban <sergey.chaban@gmail.com>
+
 #define WIN32_LEAN_AND_MEAN 1
 #define NOMINMAX
 #define _WIN32_WINNT 0x0500
@@ -140,6 +142,17 @@ void wuReset() {
 	::CoUninitialize();
 }
 
+static void wuDefDbgMsg(const char* pMsg) {
+	::OutputDebugStringA(pMsg);
+}
+
+void wuDefaultSysIfc(sxSysIfc* pIfc) {
+	if (pIfc) {
+		ZeroMemory(pIfc, sizeof(sxSysIfc));
+		pIfc->fn_dbgmsg = wuDefDbgMsg;
+	}
+}
+
 static bool s_conFlg = false;
 
 void wuConAttach(int x, int y, int w, int h) {
@@ -158,6 +171,16 @@ void wuConClose() {
 		::FreeConsole();
 	}
 	s_conFlg = false;
+}
+
+xt_int2 wuConGetLocation() {
+	HANDLE hstd = ::GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_SCREEN_BUFFER_INFO sbi;
+	::GetConsoleScreenBufferInfo(hstd, &sbi);
+	xt_int2 loc;
+	loc.x = sbi.dwCursorPosition.X;
+	loc.y = sbi.dwCursorPosition.Y;
+	return loc;
 }
 
 void wuConLocate(int x, int y) {
@@ -182,6 +205,12 @@ void wuConTextColor(const cxColor& c) {
 
 void wuConTextRGB(float r, float g, float b) {
 	wuConTextColor(cxColor(r, g, b));
+}
+
+
+bool wuCreateDir(const char* pPath) {
+	if (!pPath) return false;
+	return ::CreateDirectoryA(pPath, nullptr) != 0;
 }
 
 bool wuSetCurDirToExePath() {
@@ -373,6 +402,23 @@ WU_IMAGE* WU_IMAGE::dup(const WU_IMAGE* pSrc) {
 		pImg = alloc(w, h);
 		if (pImg) {
 			::memcpy(pImg->mPixels, pSrc->mPixels, w * h * sizeof(cxColor));
+		}
+	}
+	return pImg;
+}
+
+WU_IMAGE* WU_IMAGE::upscale(const WU_IMAGE* pSrc, int xscl, int yscl, bool filt) {
+	WU_IMAGE* pImg = nullptr;
+	if (pSrc) {
+		int sw = pSrc->get_width();
+		int sh = pSrc->get_height();
+		int w = sw * xscl;
+		int h = sh * yscl;
+		if (w > 0 && h > 0) {
+			pImg = alloc(w, h);
+			if (pImg) {
+				nxTexture::upscale(pSrc->mPixels, sw, sh, xscl, yscl, filt, pImg->mPixels);
+			}
 		}
 	}
 	return pImg;
@@ -613,6 +659,7 @@ struct WU_MIDIOUT {
 	WU_MIDIOUT_CB cb;
 	void* pUsrData;
 	int kind;
+	int attr;
 };
 
 XD_NOINLINE int wuGetNumMidiOutDevices() {
@@ -621,6 +668,34 @@ XD_NOINLINE int wuGetNumMidiOutDevices() {
 		n = int(WUW.mMidiOut.GetNumDevs());
 	}
 	return n;
+}
+
+static int wuFindMidiOutTech(int kind) {
+	if (WUW.mMidiOutOk) {
+		int n = wuGetNumMidiOutDevices();
+		for (int i = 0; i < n; ++i) {
+			MIDIOUTCAPSA caps;
+			MMRESULT mmres = WUW.mMidiOut.GetDevCapsA((UINT_PTR)i, &caps, (UINT)sizeof(caps));
+			if (MMSYSERR_NOERROR == mmres) {
+				if (caps.wTechnology == kind) {
+					return i;
+				}
+			}
+		}
+	}
+	return -1;
+}
+
+XD_NOINLINE int wuFindMidiOutFM() {
+	return wuFindMidiOutTech(MOD_FMSYNTH);
+}
+
+XD_NOINLINE int wuFindMidiOutWT() {
+	return wuFindMidiOutTech(MOD_WAVETABLE);
+}
+
+XD_NOINLINE int wuFindMidiOutSW() {
+	return wuFindMidiOutTech(MOD_SWSYNTH);
 }
 
 static void CALLBACK midi_out_proc(HMIDIOUT hmo, UINT msg, DWORD_PTR self, DWORD_PTR param1, DWORD_PTR param2) {
@@ -667,6 +742,8 @@ XD_NOINLINE WU_MIDIOUT* wuMidiOutOpen(WU_MIDIOUT_CB* pCB, void* pUsrData, int de
 				mmres = WUW.mMidiOut.GetDevCapsA((UINT_PTR)pMO->h, &caps, (UINT)sizeof(caps));
 				if (MMSYSERR_NOERROR == mmres) {
 					pMO->kind = caps.wTechnology;
+					if (caps.dwSupport & MIDICAPS_VOLUME) pMO->attr |= 1;
+					if (caps.dwSupport & MIDICAPS_LRVOLUME) pMO->attr |= 2;
 				}
 			} else {
 				nxCore::mem_free(pMO);
@@ -683,4 +760,34 @@ XD_NOINLINE void wuMidiOutClose(WU_MIDIOUT* pMidiOut) {
 		WUW.mMidiOut.Close(pMidiOut->h);
 		nxCore::mem_free(pMidiOut);
 	}
+}
+
+XD_NOINLINE bool wuMidiOutSend(WU_MIDIOUT* pMidiOut, uint8_t* pMsg, size_t msgLen) {
+	if (!WUW.mMidiOutOk) return false;
+	if (!pMidiOut || !pMidiOut->h || !pMsg) return false;
+	MMRESULT mmres = MMSYSERR_NOERROR;
+	if (0xF0 == *pMsg) {
+		MIDIHDR mh;
+		::memset(&mh, 0, sizeof(mh));
+		mh.lpData = (LPSTR)pMsg;
+		mh.dwBufferLength = (DWORD)msgLen;
+		mmres = WUW.mMidiOut.PrepareHeader(pMidiOut->h, &mh, sizeof(mh));
+		if (MMSYSERR_NOERROR == mmres) {
+			mmres = WUW.mMidiOut.LongMsg(pMidiOut->h, &mh, sizeof(mh));
+			if (MMSYSERR_NOERROR == mmres) {
+				while (WUW.mMidiOut.UnprepareHeader(pMidiOut->h, &mh, sizeof(mh)) == MIDIERR_STILLPLAYING) {
+					::Sleep(1);
+				}
+			}
+		}
+	} else {
+		uxVal32 msgVal;
+		msgVal.u = 0;
+		int n = nxCalc::min(int(msgLen), 3);
+		for (int i = 0; i < n; ++i) {
+			msgVal.b[i] = pMsg[i];
+		}
+		mmres = WUW.mMidiOut.ShortMsg(pMidiOut->h, (DWORD)msgVal.u);
+	}
+	return (MMSYSERR_NOERROR == mmres);
 }

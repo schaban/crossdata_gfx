@@ -1,3 +1,5 @@
+// Author: Sergey Chaban <sergey.chaban@gmail.com>
+
 class WU_IMAGE {
 protected:
 	uint32_t mWidth;
@@ -23,6 +25,7 @@ public:
 
 	static WU_IMAGE* alloc(uint32_t w, uint32_t h);
 	static WU_IMAGE* dup(const WU_IMAGE* pSrc);
+	static WU_IMAGE* upscale(const WU_IMAGE* pSrc, int xscl, int yscl, bool filt = true);
 	static WU_IMAGE* load_png(const char* pPath);
 	static WU_IMAGE* load_jpg(const char* pPath);
 	static WU_IMAGE* load_tif(const char* pPath);
@@ -31,13 +34,16 @@ public:
 void wuInit();
 void wuReset();
 
+void wuDefaultSysIfc(sxSysIfc* pIfc);
+
 void wuConAttach(int x, int y, int w, int h);
 void wuConClose();
-
+xt_int2 wuConGetLocation();
 void wuConLocate(int x, int y);
 void wuConTextColor(const cxColor& c);
 void wuConTextRGB(float r, float g, float b);
 
+bool wuCreateDir(const char* pPath);
 bool wuSetCurDirToExePath();
 
 WU_IMAGE* wuImgAlloc(uint32_t w, uint32_t h);
@@ -71,6 +77,9 @@ struct WU_MIDIOUT_CB {
 bool wuTextCommandToMCI(const char* pCmd, char* pRet = nullptr, size_t retSize = 0);
 
 int wuGetNumWaveOutDevices();
+int wuFindMidiOutFM();
+int wuFindMidiOutWT();
+int wuFindMidiOutSW();
 WU_WAVEOUT* wuWaveOutOpen(int freq = 44100, bool use16Bits = true, bool useStereo = true, WU_WAVEOUT_CB* pCB = nullptr, void* pUsrData = nullptr, int nblk = 1, int devId = -1);
 void wuWaveOutClose(WU_WAVEOUT* pWaveOut);
 bool wuWaveOutBlockInit(WU_WAVEOUT* pWaveOut, int blkIdx, void* pBuf, size_t bufSize);
@@ -82,3 +91,4 @@ int wuWaveOutGetFreq(WU_WAVEOUT* pWaveOut);
 int wuGetNumMidiOutDevices();
 WU_MIDIOUT* wuMidiOutOpen(WU_MIDIOUT_CB* pCB = nullptr, void* pUsrData = nullptr, int devId = -1);
 void wuMidiOutClose(WU_MIDIOUT* pMidiOut);
+bool wuMidiOutSend(WU_MIDIOUT* pMidiOut, uint8_t* pMsg, size_t msgLen);
