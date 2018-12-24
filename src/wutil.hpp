@@ -47,7 +47,7 @@ bool wuCreateDir(const char* pPath);
 bool wuSetCurDirToExePath();
 
 WU_IMAGE* wuImgAlloc(uint32_t w, uint32_t h);
-WU_IMAGE* wuImgDup(WU_IMAGE* pSrc);
+WU_IMAGE* wuImgDup(const WU_IMAGE* pSrc);
 void wuImgFree(WU_IMAGE* pImg);
 WU_IMAGE* wuImgLoadPNG(const char* pPath);
 WU_IMAGE* wuImgLoadJPG(const char* pPath);

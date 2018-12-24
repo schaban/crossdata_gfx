@@ -440,7 +440,7 @@ XD_NOINLINE WU_IMAGE* wuImgAlloc(uint32_t w, uint32_t h) {
 	return WU_IMAGE::alloc(w, h);
 }
 
-XD_NOINLINE WU_IMAGE* wuImgDup(WU_IMAGE* pSrc) {
+XD_NOINLINE WU_IMAGE* wuImgDup(const WU_IMAGE* pSrc) {
 	return WU_IMAGE::dup(pSrc);
 }
 
