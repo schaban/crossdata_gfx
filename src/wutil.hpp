@@ -1,5 +1,7 @@
 // Author: Sergey Chaban <sergey.chaban@gmail.com>
 
+#define WU_DEF_GAMMA (2.2f)
+
 class WU_IMAGE {
 protected:
 	uint32_t mWidth;
@@ -15,20 +17,22 @@ public:
 	uint32_t get_width() const { return mWidth; }
 	uint32_t get_height() const { return mHeight; }
 	cxColor* get_pixels() { return mPixels; }
-	void to_nonlinear(float gamma = 2.2f);
-	void to_linear(float gamma = 2.2f);
+	const cxColor* get_pixels() const { return mPixels; }
+	void to_nonlinear(float gamma = WU_DEF_GAMMA);
+	void to_linear(float gamma = WU_DEF_GAMMA);
 
 	void save_dds128(const char* pPath) const;
 	void save_dds64(const char* pPath) const;
-	void save_dds32(const char* pPath, float gamma = 2.2f) const;
-	void save_sgi(const char* pPath, float gamma = 2.2f) const;
+	void save_dds32(const char* pPath, float gamma = WU_DEF_GAMMA) const;
+	void save_sgi(const char* pPath, float gamma = WU_DEF_GAMMA) const;
+	void save_png(const char* pPath, float gamma = WU_DEF_GAMMA) const;
 
 	static WU_IMAGE* alloc(uint32_t w, uint32_t h);
 	static WU_IMAGE* dup(const WU_IMAGE* pSrc);
 	static WU_IMAGE* upscale(const WU_IMAGE* pSrc, int xscl, int yscl, bool filt = true);
-	static WU_IMAGE* load_png(const char* pPath);
-	static WU_IMAGE* load_jpg(const char* pPath);
-	static WU_IMAGE* load_tif(const char* pPath);
+	static WU_IMAGE* load_png(const char* pPath, float gamma = WU_DEF_GAMMA);
+	static WU_IMAGE* load_jpg(const char* pPath, float gamma = WU_DEF_GAMMA);
+	static WU_IMAGE* load_tif(const char* pPath, float gamma = WU_DEF_GAMMA);
 };
 
 void wuInit();
@@ -49,10 +53,10 @@ bool wuSetCurDirToExePath();
 WU_IMAGE* wuImgAlloc(uint32_t w, uint32_t h);
 WU_IMAGE* wuImgDup(const WU_IMAGE* pSrc);
 void wuImgFree(WU_IMAGE* pImg);
-WU_IMAGE* wuImgLoadPNG(const char* pPath);
-WU_IMAGE* wuImgLoadJPG(const char* pPath);
-WU_IMAGE* wuImgLoadAlphaKeyPNG(const char* pPath, uint32_t aclr = 0xFF80FF);
-WU_IMAGE* wuImgLoadAlphaKeyGIF(const char* pPath, uint32_t aclr = 0xFF80FF);
+WU_IMAGE* wuImgLoadPNG(const char* pPath, float gamma = WU_DEF_GAMMA);
+WU_IMAGE* wuImgLoadJPG(const char* pPath, float gamma = WU_DEF_GAMMA);
+WU_IMAGE* wuImgLoadAlphaKeyPNG(const char* pPath, float gamma = WU_DEF_GAMMA, uint32_t aclr = 0xFF80FF);
+WU_IMAGE* wuImgLoadAlphaKeyGIF(const char* pPath, float gamma = WU_DEF_GAMMA, uint32_t aclr = 0xFF80FF);
 
 struct WU_WAVEOUT;
 

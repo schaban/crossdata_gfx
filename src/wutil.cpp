@@ -237,7 +237,7 @@ bool wuSetCurDirToExePath() {
 	return !!res;
 }
 
-static WU_IMAGE* wuImgLoad(const void* pPath, bool wflg, const IID& decoderClsId, bool linearize = true, uint32_t alphaKey = 0) {
+static WU_IMAGE* wuImgLoad(const void* pPath, bool wflg, const IID& decoderClsId, float gamma = WU_DEF_GAMMA, uint32_t alphaKey = 0) {
 	WU_IMAGE* pImg = nullptr;
 	HRESULT hres = S_OK;
 	IStream* pStrm = nullptr;
@@ -306,12 +306,9 @@ static WU_IMAGE* wuImgLoad(const void* pPath, bool wflg, const IID& decoderClsId
 											for (UINT i = 0; i < w*h; ++i) {
 												pClr[i].scl(1.0f / 255);
 											}
-											if (linearize) {
+											if (gamma > 0.0f && gamma != 1.0f) {
 												for (UINT i = 0; i < w*h; ++i) {
-													cxColor* pWk = &pClr[i];
-													for (int j = 0; j < 4; ++j) {
-														pWk->ch[j] = ::powf(pWk->ch[j], 2.2f);
-													}
+													pClr[i].to_linear(gamma);
 												}
 											}
 										}
@@ -336,12 +333,95 @@ static WU_IMAGE* wuImgLoad(const void* pPath, bool wflg, const IID& decoderClsId
 	return pImg;
 }
 
-static WU_IMAGE* wuImgLoadA(const char* pPath, const IID& decoderClsId, bool linearize = true, uint32_t alphaKey = 0) {
-	return wuImgLoad(pPath, false, decoderClsId, linearize, alphaKey);
+static WU_IMAGE* wuImgLoadA(const char* pPath, const IID& decoderClsId, float gamma = WU_DEF_GAMMA, uint32_t alphaKey = 0) {
+	return wuImgLoad(pPath, false, decoderClsId, gamma, alphaKey);
 }
 
-static WU_IMAGE* wuImgLoadW(const wchar_t* pPath, const IID& decoderClsId, bool linearize = true, uint32_t alphaKey = 0) {
-	return wuImgLoad(pPath, true, decoderClsId, linearize, alphaKey);
+static WU_IMAGE* wuImgLoadW(const wchar_t* pPath, const IID& decoderClsId, float gamma = WU_DEF_GAMMA, uint32_t alphaKey = 0) {
+	return wuImgLoad(pPath, true, decoderClsId, gamma, alphaKey);
+}
+
+static void wuImgSave(const char* pPath, bool wflg, const WU_IMAGE* pImg, const IID& encoderClsId, float gamma = WU_DEF_GAMMA) {
+	if (!pPath || !pImg) return;
+	IStream* pStrm = nullptr;
+	HRESULT hres;
+	if (wflg) {
+		if (WUW.mpSHCreateStreamOnFileW) {
+			hres = WUW.mpSHCreateStreamOnFileW((const wchar_t*)pPath, STGM_CREATE | STGM_WRITE, &pStrm);
+			if (FAILED(hres)) {
+				pStrm = nullptr;
+			}
+		}
+	} else {
+		if (WUW.mpSHCreateStreamOnFileA) {
+			hres = WUW.mpSHCreateStreamOnFileA((const char*)pPath, STGM_CREATE | STGM_WRITE, &pStrm);
+			if (FAILED(hres)) {
+				pStrm = nullptr;
+			}
+		}
+	}
+	if (pStrm) {
+		IWICBitmapEncoder* pEnc = nullptr;
+		hres = ::CoCreateInstance(encoderClsId, nullptr, CLSCTX_INPROC_SERVER, __uuidof(IWICBitmapEncoder), (void**)&pEnc);
+		if (SUCCEEDED(hres)) {
+			hres = pEnc->Initialize(pStrm, WICBitmapEncoderNoCache);
+			if (SUCCEEDED(hres)) {
+				IWICBitmapFrameEncode* pFrm = nullptr;
+				hres = pEnc->CreateNewFrame(&pFrm, nullptr);
+				if (SUCCEEDED(hres)) {
+					pFrm->Initialize(nullptr);
+					UINT w = pImg->get_width();
+					UINT h = pImg->get_height();
+					hres = hres = pFrm->SetSize(w, h);
+					if (SUCCEEDED(hres)) {
+						GUID fmt = GUID_WICPixelFormat32bppRGBA;
+						hres = pFrm->SetPixelFormat(&fmt);
+						if (SUCCEEDED(hres)) {
+							const cxColor* pSrc = pImg->get_pixels();
+							uint32_t size = w*h * sizeof(uint32_t);
+							uint32_t* pDst = reinterpret_cast<uint32_t*>(nxCore::mem_alloc(size));
+							if (pDst) {
+								for (UINT i = 0; i < w*h; ++i) {
+									cxColor csrc = pSrc[i];
+									csrc.to_nonlinear(gamma);
+									uxVal32 cdst;
+									for (int i = 0; i < 4; ++i) {
+										cdst.b[i] = uint8_t(nxCalc::saturate(csrc.ch[i]) * 255.0f);
+									}
+									uint8_t t = cdst.b[0];
+									cdst.b[0] = cdst.b[2];
+									cdst.b[2] = t;
+									pDst[i] = cdst.u;
+								}
+								UINT stride = w * sizeof(uint32_t);
+								hres = pFrm->WritePixels(h, stride, size, (BYTE*)pDst);
+								if (SUCCEEDED(hres)) {
+									hres = pFrm->Commit();
+								}
+								nxCore::mem_free(pDst);
+								pDst = nullptr;
+							}
+						}
+					}
+					pFrm->Release();
+					pFrm = nullptr;
+				}
+			}
+			hres = pEnc->Commit();
+			pEnc->Release();
+			pEnc = nullptr;
+		}
+		pStrm->Release();
+		pStrm = nullptr;
+	}
+}
+
+static void wuImgSaveA(const char* pPath, const WU_IMAGE* pImg, const IID& encoderClsId, float gamma = WU_DEF_GAMMA) {
+	wuImgSave(pPath, false, pImg, encoderClsId, gamma);
+}
+
+static void wuImgSaveW(const char* pPath, const WU_IMAGE* pImg, const IID& encoderClsId, float gamma = WU_DEF_GAMMA) {
+	wuImgSave(pPath, true, pImg, encoderClsId, gamma);
 }
 
 void WU_IMAGE::to_nonlinear(float gamma) {
@@ -379,6 +459,10 @@ void WU_IMAGE::save_dds32(const char* pPath, float gamma) const {
 
 void WU_IMAGE::save_sgi(const char* pPath, float gamma) const {
 	nxTexture::save_sgi(pPath, mPixels, mWidth, mHeight, gamma);
+}
+
+void WU_IMAGE::save_png(const char* pPath, float gamma) const {
+	wuImgSaveA(pPath, this, CLSID_WICPngEncoder, gamma);
 }
 
 WU_IMAGE* WU_IMAGE::alloc(uint32_t w, uint32_t h) {
@@ -424,16 +508,16 @@ WU_IMAGE* WU_IMAGE::upscale(const WU_IMAGE* pSrc, int xscl, int yscl, bool filt)
 	return pImg;
 }
 
-WU_IMAGE* WU_IMAGE::load_png(const char* pPath) {
-	return wuImgLoadA(pPath, CLSID_WICPngDecoder);
+WU_IMAGE* WU_IMAGE::load_png(const char* pPath, float gamma) {
+	return wuImgLoadA(pPath, CLSID_WICPngDecoder, gamma);
 }
 
-WU_IMAGE* WU_IMAGE::load_jpg(const char* pPath) {
-	return wuImgLoadA(pPath, CLSID_WICJpegDecoder);
+WU_IMAGE* WU_IMAGE::load_jpg(const char* pPath, float gamma) {
+	return wuImgLoadA(pPath, CLSID_WICJpegDecoder, gamma);
 }
 
-WU_IMAGE* WU_IMAGE::load_tif(const char* pPath) {
-	return wuImgLoadA(pPath, CLSID_WICTiffDecoder);
+WU_IMAGE* WU_IMAGE::load_tif(const char* pPath, float gamma) {
+	return wuImgLoadA(pPath, CLSID_WICTiffDecoder, gamma);
 }
 
 XD_NOINLINE WU_IMAGE* wuImgAlloc(uint32_t w, uint32_t h) {
@@ -450,20 +534,20 @@ XD_NOINLINE void wuImgFree(WU_IMAGE* pImg) {
 	}
 }
 
-XD_NOINLINE WU_IMAGE* wuImgLoadPNG(const char* pPath) {
+XD_NOINLINE WU_IMAGE* wuImgLoadPNG(const char* pPath, float gamma) {
 	return WU_IMAGE::load_png(pPath);
 }
 
-XD_NOINLINE WU_IMAGE* wuImgLoadJPG(const char* pPath) {
+XD_NOINLINE WU_IMAGE* wuImgLoadJPG(const char* pPath, float gamma) {
 	return WU_IMAGE::load_jpg(pPath);
 }
 
-XD_NOINLINE WU_IMAGE* wuImgLoadAlphaKeyPNG(const char* pPath, uint32_t aclr) {
-	return wuImgLoadA(pPath, CLSID_WICPngDecoder, true, aclr);
+XD_NOINLINE WU_IMAGE* wuImgLoadAlphaKeyPNG(const char* pPath, float gamma, uint32_t aclr) {
+	return wuImgLoadA(pPath, CLSID_WICPngDecoder, gamma, aclr);
 }
 
-XD_NOINLINE WU_IMAGE* wuImgLoadAlphaKeyGIF(const char* pPath, uint32_t aclr) {
-	return wuImgLoadA(pPath, CLSID_WICGifDecoder, true, aclr);
+XD_NOINLINE WU_IMAGE* wuImgLoadAlphaKeyGIF(const char* pPath, float gamma, uint32_t aclr) {
+	return wuImgLoadA(pPath, CLSID_WICGifDecoder, gamma, aclr);
 }
 
 
