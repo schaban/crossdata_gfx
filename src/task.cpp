@@ -319,6 +319,14 @@ int tskBrigadeGetNumWorkers(TSK_BRIGADE* pBgd) {
 	return pBgd ? pBgd->mWrkNum : 0;
 }
 
+int tskBrigadeGetNumJobsDone(TSK_BRIGADE* pBgd, int wrkId) {
+	int n = 0;
+	if (pBgd && tskBrigadeCkWrkId(pBgd, wrkId)) {
+		n = pBgd->mpCtx[wrkId].mJobsDone;
+	}
+	return n;
+}
+
 TSK_CONTEXT* tskBrigadeGetContext(TSK_BRIGADE* pBgd, int wrkId) {
 	TSK_CONTEXT* pCtx = nullptr;
 	if (tskBrigadeCkWrkId(pBgd, wrkId)) {

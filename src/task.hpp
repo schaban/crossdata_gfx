@@ -51,6 +51,7 @@ void tskBrigadeSetActiveWorkers(TSK_BRIGADE* pBgd, int num);
 void tskBrigadeResetActiveWorkers(TSK_BRIGADE* pBgd);
 int tskBrigadeGetNumActiveWorkers(TSK_BRIGADE* pBgd);
 int tskBrigadeGetNumWorkers(TSK_BRIGADE* pBgd);
+int tskBrigadeGetNumJobsDone(TSK_BRIGADE* pBgd, int wrkId);
 TSK_CONTEXT* tskBrigadeGetContext(TSK_BRIGADE* pBgd, int wrkId);
 
 TSK_QUEUE* tskQueueCreate(int nslots);
