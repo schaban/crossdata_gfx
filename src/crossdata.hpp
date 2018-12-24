@@ -204,6 +204,21 @@ template<typename T> inline T cb(T x) { return x*x*x; }
 template<typename T> inline T div0(T x, T y) { return y != T(0) ? x / y : T(0); }
 template<typename T> inline T rcp0(T x) { return div0(T(1), x); }
 
+template<typename T> inline T tfabs(T x) { return T(::fabs((double)x)); }
+inline float tfabs(float x) { return ::fabsf(x); }
+
+template<typename T> inline T tsqrt(T x) { return T(::sqrt((double)x)); }
+inline float tsqrt(float x) { return ::sqrtf(x); }
+
+template<typename T> inline T tsin(T x) { return T(::sin((double)x)); }
+inline float tsin(float x) { return ::sinf(x); }
+
+template<typename T> inline T tcos(T x) { return T(::cos((double)x)); }
+inline float tcos(float x) { return ::cosf(x); }
+
+template<typename T> inline T tpow(T x, T y) { return T(::pow((double)x, (double)y)); }
+inline float tpow(float x, float y) { return ::powf(x, y); }
+
 template<typename T> T ipow(T x, int n) {
 	T wx = x;
 	int wn = n;
@@ -416,18 +431,183 @@ inline void mul_dm(DST_T* pDst, const SRC_L_T* pDiag, const SRC_R_T* pSrc, const
 	}
 }
 
-template<typename T> inline void identity(T* pMtx, int N) {
-	for (int i = 0; i < N * N; ++i) {
-		pMtx[i] = 0;
+template<typename T, typename ACC_T = T>
+XD_FORCEINLINE
+ACC_T dot_col_col(const T* pMtx, const int N, const int icol1, const int icol2, const int iorg, const int iend) {
+	ACC_T s = ACC_T(0);
+	const T* pOrg = pMtx + (iorg*N);
+	const T* pCol1 = pOrg + icol1;
+	const T* pCol2 = pOrg + icol2;
+	for (int i = iorg; i <= iend; ++i) {
+		ACC_T a = ACC_T(*pCol1);
+		ACC_T b = ACC_T(*pCol2);
+		s += a * b;
+		pCol1 += N;
+		pCol2 += N;
 	}
-	for (int i = 0; i < N; ++i) {
-		pMtx[(i * N) + i] = 1;
+	return s;
+}
+
+template<typename T>
+XD_FORCEINLINE
+void zero_col(T* pMtx, const int N, const int icol, const int iorg, const int iend) {
+	T* p = pMtx + (iorg*N) + icol;
+	for (int i = iorg; i <= iend; ++i) {
+		*p = T(0);
+		p += N;
+	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+void neg_col(T* pMtx, const int N, const int icol, const int iorg, const int iend) {
+	T* p = pMtx + (iorg*N) + icol;
+	for (int i = iorg; i <= iend; ++i) {
+		T x = *p;
+		*p = -x;
+		p += N;
+	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+void scl_col(T* pMtx, const int N, const int icol, const int iorg, const int iend, const T s) {
+	T* p = pMtx + (iorg*N) + icol;
+	for (int i = iorg; i <= iend; ++i) {
+		*p *= s;
+		p += N;
+	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+void elim_col(T* pMtx, const int N, const int idst, const int isrc, const int iorg, const int iend, const T s) {
+	T* pOrg = pMtx + (iorg*N);
+	T* pDst = pOrg + idst;
+	T* pSrc = pOrg + isrc;
+	for (int i = iorg; i <= iend; ++i) {
+		*pDst += *pSrc * s;
+		pDst += N;
+		pSrc += N;
+	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+void rot_col(T* pMtx, const int N, const int icol1, const int icol2, const int iorg, const int iend, const T s, const T c) {
+	T* pOrg = pMtx + (iorg*N);
+	T* pCol1 = pOrg + icol1;
+	T* pCol2 = pOrg + icol2;
+	for (int i = iorg; i <= iend; ++i) {
+		T x = *pCol1;
+		T y = *pCol2;
+		*pCol1 = x*c + y*s;
+		*pCol2 = y*c - x*s;
+		pCol1 += N;
+		pCol2 += N;
 	}
 }
 
 template<typename T>
 inline
-bool transpose(T* pMtx, int M, int N, uint32_t* pFlgWk = nullptr) {
+void swap_cols(T* pMtx, const int N, const int icol1, const int icol2, const int iorg, const int iend) {
+	T* pOrg = pMtx + (iorg*N);
+	T* pCol1 = pOrg + icol1;
+	T* pCol2 = pOrg + icol2;
+	for (int i = iorg; i <= iend; ++i) {
+		T t = *pCol1;
+		*pCol1 = *pCol2;
+		*pCol2 = t;
+		pCol1 += N;
+		pCol2 += N;
+	}
+}
+
+template<typename T, typename ACC_T = T>
+XD_FORCEINLINE
+ACC_T dot_row_row(const T* pMtx, const int N, const int irow1, const int irow2, const int iorg, const int iend) {
+	ACC_T s = ACC_T(0);
+	const T* pRow1 = pMtx + (irow1*N) + iorg;
+	const T* pRow2 = pMtx + (irow2*N) + iorg;
+	for (int i = iorg; i <= iend; ++i) {
+		ACC_T a = ACC_T(*pRow1);
+		ACC_T b = ACC_T(*pRow2);
+		s += a * b;
+		++pRow1;
+		++pRow2;
+	}
+	return s;
+}
+
+template<typename T>
+XD_FORCEINLINE
+void zero_row(T* pMtx, const int N, const int irow, const int iorg, const int iend) {
+	T* p = pMtx + (irow*N) + iorg;
+	for (int i = iorg; i <= iend; ++i) {
+		*p++ = T(0);
+	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+void neg_row(T* pMtx, const int N, const int irow, const int iorg, const int iend) {
+	T* p = pMtx + (irow*N) + iorg;
+	for (int i = iorg; i <= iend; ++i) {
+		T x = *p;
+		*p = -x;
+		++p;
+	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+void scl_row(T* pMtx, const int N, const int irow, const int iorg, const int iend, const T s) {
+	T* p = pMtx + (irow*N) + iorg;
+	for (int i = iorg; i <= iend; ++i) {
+		*p++ *= s;
+	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+void elim_row(T* pMtx, const int N, const int idst, const int isrc, const int iorg, const int iend, const T s) {
+	T* pDst = pMtx + (idst*N) + iorg;
+	T* pSrc = pMtx + (isrc*N) + iorg;
+	for (int i = iorg; i <= iend; ++i) {
+		*pDst += *pSrc * s;
+		++pDst;
+		++pSrc;
+	}
+}
+
+template<typename T, typename ACC_T = T>
+XD_FORCEINLINE
+ACC_T dot_row_col(const T* pRowMtx, const T* pColMtx, const int N, const int irow, const int icol, const int iorg, const int iend) {
+	ACC_T s = ACC_T(0);
+	const T* pRow = pRowMtx + (irow*N) + iorg;
+	const T* pCol = pColMtx + (iorg*N) + icol;
+	for (int i = iorg; i <= iend; ++i) {
+		ACC_T a = ACC_T(*pRow);
+		ACC_T b = ACC_T(*pCol);
+		s += a * b;
+		++pRow;
+		pCol += N;
+	}
+	return s;
+}
+
+template<typename T> inline void identity(T* pMtx, const int N) {
+	for (int i = 0; i < N * N; ++i) {
+		pMtx[i] = T(0);
+	}
+	for (int i = 0; i < N; ++i) {
+		pMtx[(i * N) + i] = T(1);
+	}
+}
+
+template<typename T>
+inline
+bool transpose(T* pMtx, const int M, const int N, uint32_t* pFlgWk = nullptr) {
 	if (M == N) {
 		for (int i = 0; i < N - 1; ++i) {
 			for (int j = i + 1; j < N; ++j) {
@@ -474,7 +654,7 @@ bool transpose(T* pMtx, int M, int N, uint32_t* pFlgWk = nullptr) {
 
 template<typename T>
 XD_FORCEINLINE
-bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
+bool inv_gj(T* pMtx, const int N, int* pWk /* [N*3] */) {
 	int* pPiv = pWk;
 	int* pCol = pWk + N;
 	int* pRow = pWk + N*2;
@@ -551,7 +731,7 @@ bool inv_gj(T* pMtx, int N, int* pWk /* [N*3] */) {
 
 template<typename T>
 XD_FORCEINLINE
-bool lu_decomp(T* pMtx, int N, T* pWk /* [N] */, int* pIdx /* [N] */, T* pDetSgn = nullptr) {
+bool lu_decomp(T* pMtx, const int N, T* pWk /* [N] */, int* pIdx /* [N] */, T* pDetSgn = nullptr) {
 	T dsgn = 1;
 	T* pScl = pWk;
 	for (int i = 0; i < N; ++i) {
@@ -621,7 +801,7 @@ bool lu_decomp(T* pMtx, int N, T* pWk /* [N] */, int* pIdx /* [N] */, T* pDetSgn
 
 template<typename T>
 XD_FORCEINLINE
-void lu_solve(T* pAns, const T* pLU, const T* pRHS, const int* pIdx, int N) {
+void lu_solve(T* pAns, const T* pLU, const T* pRHS, const int* pIdx, const int N) {
 	if (pAns != pRHS) {
 		for (int i = 0; i < N; ++i) {
 			pAns[i] = pRHS[i];
@@ -657,7 +837,7 @@ void lu_solve(T* pAns, const T* pLU, const T* pRHS, const int* pIdx, int N) {
 
 template<typename T>
 inline
-bool symm_ldlt_decomp(T* pMtx, int N, T* pDet /* [N] */, int* pIdx /* [N] */) {
+bool symm_ldlt_decomp(T* pMtx, const int N, T* pDet /* [N] */, int* pIdx /* [N] */) {
 	const T zthr = T(1.0e-16);
 	const T aprm = T((1.0 + ::sqrt(17.0)) / 8.0);
 	int eposi = 0;
@@ -815,7 +995,7 @@ bool symm_ldlt_decomp(T* pMtx, int N, T* pDet /* [N] */, int* pIdx /* [N] */) {
 
 template<typename T>
 inline
-void symm_ldlt_solve(T* pAns, const T* pMtx, const T* pRHS, const T* pDet /* [N] */, const int* pIdx /* [N] */, int N) {
+void symm_ldlt_solve(T* pAns, const T* pMtx, const T* pRHS, const T* pDet /* [N] */, const int* pIdx /* [N] */, const int N) {
 	if (pAns != pRHS) {
 		for (int i = 0; i < N; ++i) {
 			pAns[i] = pRHS[i];
@@ -872,6 +1052,297 @@ void symm_ldlt_solve(T* pAns, const T* pMtx, const T* pRHS, const T* pDet /* [N]
 		pAns[idx] = t;
 		i = ii - 1;
 	}
+}
+
+template<typename T>
+inline
+bool sv_decomp(T* pU, T* pS, T* pV, T* pWk, const T* pA, const int M, const int N, const bool uflg = true, const bool sort = true, const int niter = 200) {
+	if (pU != pA) {
+		mtx_cpy(pU, pA, M, N);
+	}
+
+	T g = T(0);
+	T scl = T(0);
+	T nrm = T(0);
+	T s, c, f, h;
+	T* pCell;
+	for (int i = 0; i < N; ++i) {
+		int iorg = i;
+		int iend = M - 1;
+		pWk[i] = g * scl;
+		g = T(0);
+		s = T(0);
+		scl = T(0);
+		if (i < M) {
+			pCell = pU + (iorg * N) + i;
+			for (int j = iorg; j <= iend; ++j) {
+				scl += nxCalc::tfabs(*pCell);
+				pCell += N;
+			}
+		}
+		if (scl != T(0)) {
+			scl_col(pU, N, i, iorg, iend, T(1) / scl);
+			s = dot_col_col(pU, N, i, i, iorg, iend);
+			f = pU[i*N + i];
+			g = nxCalc::tsqrt(s);
+			if (f > T(0)) g = -g;
+			h = f*g - s;
+			h = T(1) / h;
+			pU[i*N + i] -= g;
+			for (int j = i + 1; j < N; ++j) {
+				s = dot_col_col(pU, N, i, j, iorg, iend);
+				elim_col(pU, N, j, i, iorg, iend, s * h);
+			}
+			scl_col(pU, N, i, iorg, iend, scl);
+		}
+		pS[i] = g * scl;
+		g = T(0);
+		s = T(0);
+		iorg = i + 1;
+		iend = N - 1;
+		scl = T(0);
+		if (i < M && i != N - 1) {
+			pCell = pU + (i*N) + iorg;
+			for (int j = iorg; j <= iend; ++j) {
+				scl += nxCalc::tfabs(*pCell);
+				++pCell;
+			}
+		}
+		if (scl != T(0)) {
+			scl_row(pU, N, i, iorg, iend, T(1) / scl);
+			s = dot_row_row(pU, N, i, i, iorg, iend);
+			f = pU[i*N + iorg];
+			g = nxCalc::tsqrt(s);
+			if (f > T(0)) g = -g;
+			h = f*g - s;
+			pU[i*N + iorg] -= g;
+			s = T(1) / h;
+			pCell = pU + (i*N);
+			for (int j = iorg; j <= iend; ++j) {
+				pWk[j] = pCell[j] * s;
+			}
+			for (int j = i + 1; j < M; ++j) {
+				s = dot_row_row(pU, N, i, j, iorg, iend);
+				pCell = pU + (j*N) + iorg;
+				for (int k = iorg; k <= iend; ++k) {
+					*pCell += pWk[k] * s;
+					++pCell;
+				}
+			}
+			scl_row(pU, N, i, iorg, iend, scl);
+		}
+		s = nxCalc::tfabs(pS[i]) + nxCalc::tfabs(pWk[i]);
+		nrm = nxCalc::max(nrm, s);
+	}
+
+	if (pV) {
+		for (int i = N; --i >= 0;) {
+			if (i < N - 1) {
+				if (g) {
+					for (int j = i + 1; j < N; ++j) {
+						pV[j*N + i] = pU[i*N + j] / pU[i*N + i + 1];
+					}
+					scl_col(pV, N, i, i + 1, N - 1, T(1) / g);
+					for (int j = i + 1; j < N; ++j) {
+						s = dot_row_col(pU, pV, N, i, j, i + 1, N - 1);
+						elim_col(pV, N, j, i, i + 1, N - 1, s);
+					}
+				}
+				zero_row(pV, N, i, i + 1, N - 1);
+				zero_col(pV, N, i, i + 1, N - 1);
+			}
+			pV[i*N + i] = T(1);
+			g = pWk[i];
+		}
+	}
+
+	if (uflg) {
+		for (int i = nxCalc::min(M, N); --i >= 0;) {
+			if (i < N - 1) {
+				zero_row(pU, N, i, i + 1, N - 1);
+			}
+			g = pS[i];
+			if (g) {
+				g = T(1) / g;
+				for (int j = i + 1; j < N; ++j) {
+					s = dot_col_col(pU, N, i, j, i + 1, M - 1);
+					s /= pU[i*N + i];
+					elim_col(pU, N, j, i, i, M - 1, s * g);
+				}
+				scl_col(pU, N, i, i, M - 1, g);
+			} else {
+				zero_col(pU, N, i, i, M - 1);
+			}
+			pU[i*N + i] += T(1);
+		}
+	}
+
+	for (int k = N; --k >= 0;) {
+		for (int itr = 0; itr < niter; ++itr) {
+			int idx;
+			bool flg = true;
+			for (int i = k; i >= 0; --i) {
+				idx = i;
+				if (i == 0) {
+					flg = false;
+					break;
+				}
+				if (nxCalc::tfabs(pWk[i]) + nrm == nrm) {
+					flg = false;
+					break;
+				}
+				if (nxCalc::tfabs(pS[i - 1]) + nrm == nrm) {
+					break;
+				}
+			}
+			if (flg) {
+				s = T(1);
+				c = T(0);
+				for (int i = idx; i <= k; ++i) {
+					f = pWk[i] * s;
+					pWk[i] *= c;
+					if (nxCalc::tfabs(f) + nrm == nrm) {
+						break;
+					}
+					g = pS[i];
+					h = nxCalc::hypot(f, g);
+					pS[i] = h;
+					h = T(1) / h;
+					c = g * h;
+					s = -f * h;
+					if (uflg) {
+						rot_col(pU, N, idx - 1, i, 0, M - 1, s, c);
+					}
+				}
+			}
+			T z = pS[k];
+			if (idx == k) {
+				if (z < T(0)) {
+					pS[k] = -z;
+					if (pV) {
+						neg_col(pV, N, k, 0, N - 1);
+					}
+				}
+				break;
+			}
+			if (itr == niter - 1) {
+				return false;
+			}
+			g = pWk[k - 1];
+			h = pWk[k];
+			f = (g - h) * (g + h);
+			T x = pS[idx];
+			T y = pS[k - 1];
+			f += (y - z) * (y + z);
+			f /= T(2) * h * y;
+			g = nxCalc::hypot(f, T(1));
+			f += f >= 0 ? g : -g;
+			f = y / f;
+			f -= h;
+			f *= h;
+			f += (x - z) * (x + z);
+			f /= x;
+
+			s = T(1);
+			c = T(1);
+			for (int i = idx; i < k; ++i) {
+				g = pWk[i + 1];
+				y = pS[i + 1];
+				h = g * s;
+				g *= c;
+				z = nxCalc::hypot(f, h);
+				pWk[i] = z;
+				T iz = T(1) / z;
+				c = f * iz;
+				s = h * iz;
+				f = x*c + g*s;
+				g = g*c - x*s;
+				h = y * s;
+				y *= c;
+				if (pV) {
+					rot_col(pV, N, i, i + 1, 0, N - 1, s, c);
+				}
+				z = nxCalc::hypot(f, h);
+				pS[i] = z;
+				if (z) {
+					iz = T(1) / z;
+					c = f * iz;
+					s = h * iz;
+				}
+				f = g*c + y*s;
+				x = y*c - g*s;
+				if (uflg) {
+					rot_col(pU, N, i, i + 1, 0, M - 1, s, c);
+				}
+			}
+			pWk[idx] = T(0);
+			pWk[k] = f;
+			pS[k] = x;
+		}
+	}
+
+	if (uflg && pV) {
+		for (int i = 0; i < N; ++i) {
+			int nc = 0;
+			pCell = pU + i;
+			for (int j = 0; j < M; ++j) {
+				nc += *pCell < T(0) ? 1 : 0;
+				pCell += N;
+			}
+			pCell = pV + i;
+			for (int j = 0; j < N; ++j) {
+				nc += *pCell < T(0) ? 1 : 0;
+				pCell += N;
+			}
+			if (nc > (M + N) / 2) {
+				neg_col(pU, N, i, 0, M - 1);
+				neg_col(pV, N, i, 0, N - 1);
+			}
+		}
+	}
+
+	if (sort) {
+		int left = 0;
+		int right = N - 1;
+		int start = left;
+		do {
+			if (left < right) {
+				for (int i = left; i < right; ++i) {
+					if (pS[i] < pS[i + 1]) {
+						start = i;
+						T t = pS[i];
+						pS[i] = pS[i + 1];
+						pS[i + 1] = t;
+						if (uflg) {
+							swap_cols(pU, N, i, i + 1, 0, M - 1);
+						}
+						if (pV) {
+							swap_cols(pV, N, i, i + 1, 0, N - 1);
+						}
+					}
+				}
+			}
+			right = start;
+			if (left < start) {
+				for (int i = start; left < i; --i) {
+					if (pS[i - 1] < pS[i]) {
+						T t = pS[i];
+						pS[i] = pS[i - 1];
+						pS[i - 1] = t;
+						if (uflg) {
+							swap_cols(pU, N, i, i - 1, 0, M - 1);
+						}
+						if (pV) {
+							swap_cols(pV, N, i, i - 1, 0, N - 1);
+						}
+					}
+				}
+			}
+			left = start;
+		} while (start < right);
+	}
+
+	return true;
 }
 
 } // nxLA
