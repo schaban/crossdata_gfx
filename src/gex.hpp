@@ -97,6 +97,13 @@ enum class GEX_BG_MODE {
 	PANO = 1
 };
 
+class GEX_TexPyramidFunc {
+public:
+	GEX_TexPyramidFunc() {}
+	virtual ~GEX_TexPyramidFunc() {}
+	virtual void operator()(sxTextureData::Pyramid& pmd) {}
+};
+
 struct GEX_CAM;
 struct GEX_LIT;
 struct GEX_OBJ;
@@ -174,7 +181,7 @@ void gexSHL(GEX_LIT* pLit, GEX_SHL_MODE mode, int order, float* pR, float* pG, f
 const char* gexLitName(const GEX_LIT* pLit);
 GEX_LIT* gexLitFind(const char* pName);
 
-GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact = true);
+GEX_TEX* gexTexCreate(const sxTextureData& tex, GEX_TexPyramidFunc* pPmdFunc = nullptr, bool compact = true);
 GEX_TEX* gexTexCreateConst(const cxColor& clr, const char* pName);
 void gexTexDestroy(GEX_TEX* pTex);
 const char* gexTexName(const GEX_TEX* pTex);

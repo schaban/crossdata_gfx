@@ -1682,7 +1682,7 @@ struct GEX_TEX {
 	int mFormat;
 };
 
-GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact) {
+GEX_TEX* gexTexCreate(const sxTextureData& tex, GEX_TexPyramidFunc* pPmdFunc, bool compact) {
 	if (!GWK.mpDev) return nullptr;
 	bool hdrFlg = tex.is_hdr();
 	bool halfFlg = true;
@@ -1690,6 +1690,9 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex, bool compact) {
 	GEX_TEX* pTex = gexTypeAlloc<GEX_TEX>(D_GEX_TEX_TAG);
 	sxTextureData::Pyramid* pPmd = tex.get_pyramid();
 	if (pTex && pPmd) {
+		if (pPmdFunc) {
+			(*pPmdFunc)(*pPmd);
+		}
 		UINT fmtBits = 0;
 		bool has10bit = false;
 		HRESULT hres = GWK.mpDev->CheckFormatSupport(DXGI_FORMAT_R10G10B10A2_UNORM, &fmtBits);

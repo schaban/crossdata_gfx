@@ -75,7 +75,7 @@ struct TEXTURE_LIB {
 
 	TEXTURE_LIB() : mpCat(nullptr), mppTexs(nullptr) {}
 
-	void init(const char* pBasePath);
+	void init(const char* pBasePath, GEX_TexPyramidFunc* pPmdFunc = nullptr);
 	void reset();
 	int get_tex_num() const { return mpCat ? mpCat->mFilesNum : 0; }
 };

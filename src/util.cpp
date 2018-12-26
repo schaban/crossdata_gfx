@@ -167,7 +167,7 @@ void MOTION_LIB::reset() {
 }
 
 
-void TEXTURE_LIB::init(const char* pBasePath) {
+void TEXTURE_LIB::init(const char* pBasePath, GEX_TexPyramidFunc* pPmdFunc) {
 	if (!pBasePath) return;
 	char path[XD_MAX_PATH];
 	XD_SPRINTF(XD_SPRINTF_BUF(path, sizeof(path)), "%s/texlib.fcat", pBasePath);
@@ -188,7 +188,7 @@ void TEXTURE_LIB::init(const char* pBasePath) {
 		if (pData) {
 			sxTextureData* pTex = pData->as<sxTextureData>();
 			if (pTex) {
-				mppTexs[i] = gexTexCreate(*pTex);
+				mppTexs[i] = gexTexCreate(*pTex, pPmdFunc);
 			}
 			nxData::unload(pData);
 		}
