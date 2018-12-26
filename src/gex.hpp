@@ -101,7 +101,7 @@ class GEX_TexPyramidFunc {
 public:
 	GEX_TexPyramidFunc() {}
 	virtual ~GEX_TexPyramidFunc() {}
-	virtual void operator()(sxTextureData::Pyramid& pmd) {}
+	virtual void operator()(sxTextureData::Pyramid& pmd, const sxTextureData& tex) {}
 };
 
 struct GEX_CAM;

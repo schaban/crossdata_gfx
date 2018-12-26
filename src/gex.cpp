@@ -1691,7 +1691,7 @@ GEX_TEX* gexTexCreate(const sxTextureData& tex, GEX_TexPyramidFunc* pPmdFunc, bo
 	sxTextureData::Pyramid* pPmd = tex.get_pyramid();
 	if (pTex && pPmd) {
 		if (pPmdFunc) {
-			(*pPmdFunc)(*pPmd);
+			(*pPmdFunc)(*pPmd, tex);
 		}
 		UINT fmtBits = 0;
 		bool has10bit = false;
