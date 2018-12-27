@@ -3,6 +3,7 @@
 #include "crossdata.hpp"
 #include "task.hpp"
 
+#include <chrono>
 #include <atomic>
 #include <thread>
 #include <mutex>
@@ -10,6 +11,11 @@
 #include <new>
 
 using namespace std;
+
+
+void tskSleepMillis(uint32_t millis) {
+	this_thread::sleep_for(chrono::milliseconds(millis));
+}
 
 
 struct TSK_LOCK {

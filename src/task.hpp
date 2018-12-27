@@ -25,6 +25,8 @@ struct TSK_CONTEXT {
 	int mJobsDone;
 };
 
+void tskSleepMillis(uint32_t millis);
+
 TSK_LOCK* tskLockCreate();
 void tskLockDestroy(TSK_LOCK* pLock);
 bool tskLockAcquire(TSK_LOCK* pLock);
