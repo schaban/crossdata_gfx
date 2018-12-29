@@ -535,11 +535,11 @@ XD_NOINLINE void wuImgFree(WU_IMAGE* pImg) {
 }
 
 XD_NOINLINE WU_IMAGE* wuImgLoadPNG(const char* pPath, float gamma) {
-	return WU_IMAGE::load_png(pPath);
+	return WU_IMAGE::load_png(pPath, gamma);
 }
 
 XD_NOINLINE WU_IMAGE* wuImgLoadJPG(const char* pPath, float gamma) {
-	return WU_IMAGE::load_jpg(pPath);
+	return WU_IMAGE::load_jpg(pPath, gamma);
 }
 
 XD_NOINLINE WU_IMAGE* wuImgLoadAlphaKeyPNG(const char* pPath, float gamma, uint32_t aclr) {
