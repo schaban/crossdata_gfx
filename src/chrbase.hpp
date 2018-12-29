@@ -139,6 +139,9 @@ public:
 	void blend_init(int duration);
 	void blend_exec();
 
+	void clean_rot_local();
+	void clean_rot_world();
+
 	void update_coord();
 	void calc_world();
 
@@ -186,7 +189,7 @@ public:
 
 	bool is_valid() const { return mpDispObj != nullptr; }
 
-	void init(sxGeometryData* pGeoData, cBaseRig* pRig, const char* pBatchGrpPrefix = nullptr);
+	void init(sxGeometryData* pGeoData, cBaseRig* pRig, const char* pBatchGrpPrefix = nullptr, const char* pSortMtlsAttr = nullptr);
 	void reset();
 
 	void update_world();
@@ -206,10 +209,10 @@ public:
 
 	bool is_valid() const { return mpRig != nullptr && mpRig->is_valid() && mSkin.is_valid(); }
 
-	void load(const char* pGeoPath, const char* pRigPath, const char* pMtlPath, const char* pBatchGrpPrefix = nullptr);
+	void load(const char* pGeoPath, const char* pRigPath, const char* pMtlPath, const char* pBatchGrpPrefix = nullptr, const char* pSortMtlsAttr = nullptr);
 	void unload() { reset(); }
 
-	void init(sxGeometryData* pGeoData, cHumanoidRig* pRig, sxValuesData* pMtlData, const char* pBatchGrpPrefix = nullptr);
+	void init(sxGeometryData* pGeoData, cHumanoidRig* pRig, sxValuesData* pMtlData, const char* pBatchGrpPrefix = nullptr, const char* pSortMtlsAttr = nullptr);
 	void reset();
 
 	GEX_OBJ* get_disp_obj() const { return mSkin.mpDispObj; }

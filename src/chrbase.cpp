@@ -281,11 +281,11 @@ float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, f
 	float frame = frameNow;
 	clear_anim_status();
 	if (is_valid() && pKfr && pLnk) {
-		int16_t* pMotToRig = pLnk->get_rig_map();
+		int16_t* pRigMap = pLnk->get_rig_map();
 		float frmax = (float)pKfr->get_max_fno();
 		mAnimFrame = frame;
 		pKfr->eval_rig_link(pLnk, frame, mpData, mpMtxL);
-		if (pMotToRig && mpParams) {
+		if (pRigMap && mpParams) {
 			for (int i = 0; i < pLnk->mNodeNum; ++i) {
 				sxKeyframesData::RigLink::Node* pLnkNode = &pLnk->mNodes[i];
 				NodeParams* pPrm = &mpParams[pLnkNode->mRigNodeId];
@@ -304,23 +304,27 @@ float cBaseRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLnk, f
 		}
 		mMoveVel = mConstMoveVel * frameAdd;
 		if (mMoveMode == eMoveMode::FCURVES && mpData->ck_node_idx(mMovementNodeId)) {
-			if (pMotToRig) {
-				int moveGrpId = pMotToRig[mMovementNodeId];
+			if (pRigMap) {
+				int moveGrpId = pRigMap[mMovementNodeId];
 				if (moveGrpId >= 0) {
 					sxKeyframesData::RigLink::Val* pVal = pLnk->mNodes[moveGrpId].get_pos_val();
-					cxVec vel = pVal->get_vec();
-					if (frame > 0.0f) {
-						float prevFrame = nxCalc::max(frame - frameAdd, 0.0f);
-						cxVec prevPos;
-						for (int i = 0; i < 3; ++i) {
-							sxKeyframesData::FCurve fcv = pKfr->get_fcv(pVal->fcvId[i]);
-							prevPos.set_at(i, fcv.is_valid() ? fcv.eval(prevFrame) : 0.0f);
+					if (pVal) {
+						cxVec vel = pVal->get_vec();
+						if (frame > 0.0f) {
+							float prevFrame = nxCalc::max(frame - frameAdd, 0.0f);
+							cxVec prevPos;
+							for (int i = 0; i < 3; ++i) {
+								sxKeyframesData::FCurve fcv = pKfr->get_fcv(pVal->fcvId[i]);
+								prevPos.set_at(i, fcv.is_valid() ? fcv.eval(prevFrame) : 0.0f);
+							}
+							vel -= prevPos;
+						} else {
+							vel *= frameAdd;
 						}
-						vel -= prevPos;
+						mMoveVel = vel;
 					} else {
-						vel *= frameAdd;
+						mMoveVel.zero();
 					}
-					mMoveVel = vel;
 				}
 			}
 		}
@@ -370,6 +374,46 @@ void cBaseRig::blend_exec() {
 	mBlendCount = nxCalc::max(0.0f, mBlendCount);
 }
 
+static void clean_rot_mtx(cxMtx* pMtx, int n) {
+	if (!pMtx) return;
+	if (n <= 0) return;
+	float rmA[3 * 3];
+	float rmU[3 * 3];
+	float rmS[3];
+	float rmV[3 * 3];
+	float rmWk[3];
+	for (int i = 0; i < n; ++i) {
+		cxMtx m = pMtx[i];
+		cxVec t = m.get_translation();
+		for (int j = 0; j < 3; ++j) {
+			m.get_row_vec(j).to_mem(&rmA[j * 3]);
+		}
+		bool res = nxLA::sv_decomp(rmU, rmS, rmV, rmWk, rmA, 3, 3);
+		if (res) {
+			nxLA::transpose(rmV, 3, 3);
+			nxLA::mul_mm(rmA, rmU, rmV, 3, 3, 3);
+			cxVec av[3];
+			for (int j = 0; j < 3; ++j) {
+				av[j].from_mem(&rmA[j * 3]);
+			}
+			m.set_rot_frame(av[0], av[1], av[2]);
+			m.set_translation(t);
+			pMtx[i] = m;
+		}
+	}
+}
+
+void cBaseRig::clean_rot_local() {
+	if (is_valid()) {
+		clean_rot_mtx(mpMtxL, mNodesNum);
+	}
+}
+
+void cBaseRig::clean_rot_world() {
+	if (is_valid()) {
+		clean_rot_mtx(mpMtxW, mNodesNum);
+	}
+}
 
 void cBaseRig::update_coord() {
 	if (!is_valid()) return;
@@ -451,10 +495,10 @@ float cHumanoidRig::animate(sxKeyframesData* pKfr, sxKeyframesData::RigLink* pLn
 }
 
 
-void cSkinGeo::init(sxGeometryData* pGeoData, cBaseRig* pRig, const char* pBatchGrpPrefix) {
+void cSkinGeo::init(sxGeometryData* pGeoData, cBaseRig* pRig, const char* pBatchGrpPrefix, const char* pSortMtlsAttr) {
 	if (!pGeoData) return;
 	if (!pRig || !pRig->is_valid()) return;
-	mpDispObj = gexObjCreate(*pGeoData, pBatchGrpPrefix);
+	mpDispObj = gexObjCreate(*pGeoData, pBatchGrpPrefix, pSortMtlsAttr);
 	if (!mpDispObj) return;
 	mpRig = pRig;
 	int nskin = pGeoData->get_skin_nodes_num();
@@ -507,7 +551,7 @@ void cSkinGeo::disp(GEX_LIT* pLit) {
 }
 
 
-void cHumanoid::load(const char* pGeoPath, const char* pRigPath, const char* pMtlPath, const char* pBatchGrpPrefix) {
+void cHumanoid::load(const char* pGeoPath, const char* pRigPath, const char* pMtlPath, const char* pBatchGrpPrefix, const char* pSortMtlsAttr) {
 	mInternalRig.load(pRigPath);
 	if (!mInternalRig.is_valid()) {
 		return;
@@ -521,17 +565,17 @@ void cHumanoid::load(const char* pGeoPath, const char* pRigPath, const char* pMt
 	sxGeometryData* pGeoData = pData->as<sxGeometryData>();
 	pData = nxData::load(pMtlPath);
 	sxValuesData* pMtlData = pData ? pData->as<sxValuesData>() : nullptr;
-	init(pGeoData, &mInternalRig, pMtlData, pBatchGrpPrefix);
+	init(pGeoData, &mInternalRig, pMtlData, pBatchGrpPrefix, pSortMtlsAttr);
 	nxData::unload(pGeoData);
 	nxData::unload(pMtlData);
 	mOwnData = true;
 }
 
-void cHumanoid::init(sxGeometryData* pGeoData, cHumanoidRig* pRig, sxValuesData* pMtlData, const char* pBatchGrpPrefix) {
+void cHumanoid::init(sxGeometryData* pGeoData, cHumanoidRig* pRig, sxValuesData* pMtlData, const char* pBatchGrpPrefix, const char* pSortMtlsAttr) {
 	if (!pGeoData) return;
 	if (!pRig) return;
 	mpRig = pRig;
-	mSkin.init(pGeoData, pRig, pBatchGrpPrefix);
+	mSkin.init(pGeoData, pRig, pBatchGrpPrefix, pSortMtlsAttr);
 	if (mSkin.mpDispObj && pMtlData) {
 		init_materials(*mSkin.mpDispObj, *pMtlData);
 	}
