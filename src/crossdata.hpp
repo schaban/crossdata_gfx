@@ -2020,6 +2020,9 @@ inline cxMtx mk_translation(const cxVec& tv) {
 cxVec wmtx_calc_vec(const xt_wmtx& m, const cxVec& v);
 cxVec wmtx_calc_pnt(const xt_wmtx& m, const cxVec& v);
 
+void dump_hgeo(FILE* pOut, const cxMtx* pMtx, const int n, float scl = 1.0f);
+void dump_hgeo(const char* pOutPath, const cxMtx* pMtx, const int n, float scl = 1.0f);
+
 } // nxMtx
 
 

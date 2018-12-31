@@ -888,6 +888,53 @@ cxVec wmtx_calc_pnt(const xt_wmtx& m, const cxVec& v) {
 	return res;
 }
 
+void dump_hgeo(FILE* pOut, const cxMtx* pMtx, const int n, float scl) {
+	if (!pOut) return;
+	if (!pMtx) return;
+	if (n <= 0) return;
+	if (scl <= 0.0f) return;
+	::fprintf(pOut, "PGEOMETRY V5\n");
+	::fprintf(pOut, "NPoints %d NPrims %d\n", n * 4, n * 3);
+	::fprintf(pOut, "NPointGroups 0 NPrimGroups 0\n");
+	::fprintf(pOut, "NPointAttrib 0 NVertexAttrib 0 NPrimAttrib 1 NAttrib 0\n");
+	for (int i = 0; i < n; ++i) {
+		cxVec pnt[4];
+		pnt[0] = pMtx[i].get_translation();
+		const exAxis ax[] = { exAxis::PLUS_X, exAxis::PLUS_Y, exAxis::PLUS_Z };
+		for (int j = 0; j < 3; ++j) {
+			pnt[j + 1] = pMtx[i].calc_pnt(nxVec::get_axis(ax[j]));
+		}
+		if (scl != 1.0f) {
+			for (int j = 0; j < 3; ++j) {
+				pnt[j + 1].scl(scl);
+			}
+		}
+		for (int j = 0; j < 4; ++j) {
+			::fprintf(pOut, "%f %f %f 1\n", pnt[j].x, pnt[j].y, pnt[j].z);
+		}
+	}
+	::fprintf(pOut, "PrimitiveAttrib\n");
+	::fprintf(pOut, "Cd 3 float 1 1 1\n");
+	::fprintf(pOut, "Run %d Poly\n", n * 3);
+	for (int i = 0; i < n; ++i) {
+		int p0 = i * 4;
+		::fprintf(pOut, " 2 > %d %d [1 0 0]\n", p0, p0 + 1);
+		::fprintf(pOut, " 2 > %d %d [0 1 0]\n", p0, p0 + 2);
+		::fprintf(pOut, " 2 > %d %d [0 0 1]\n", p0, p0 + 3);
+	}
+	::fprintf(pOut, "beginExtra\n");
+	::fprintf(pOut, "endExtra\n");
+}
+
+void dump_hgeo(const char* pOutPath, const cxMtx* pMtx, const int n, float scl) {
+	FILE* pOut = nxSys::fopen_w_txt(pOutPath);
+	if (!pOut) {
+		return;
+	}
+	dump_hgeo(pOut, pMtx, n, scl);
+	::fclose(pOut);
+}
+
 } // nxMtx
 
 cxQuat cxMtx::to_quat() const {
