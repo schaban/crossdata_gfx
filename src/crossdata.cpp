@@ -8375,6 +8375,7 @@ char* cxStrStore::add(const char* pStr) {
 
 void cxCmdLine::ctor(int argc, char* argv[]) {
 	mpStore = nullptr;
+	mpArgLst = nullptr;
 	mpOptMap = nullptr;
 	if (argc < 1 || !argv) return;
 	mpStore = cxStrStore::create();
