@@ -373,7 +373,7 @@ void dbg_msg(const char* fmt, ...) {
 	nxSys::dbgmsg(msg);
 }
 
-static void* bin_load_impl(const char* pPath, size_t* pSize, bool appendPath, bool unpack, uint32_t tag) {
+static void* bin_load_impl(const char* pPath, size_t* pSize, bool appendPath, bool unpack, bool recursive, uint32_t tag) {
 	void* pData = nullptr;
 	size_t size = 0;
 	XD_FHANDLE fh = nxSys::fopen(pPath);
@@ -393,19 +393,37 @@ static void* bin_load_impl(const char* pPath, size_t* pSize, bool appendPath, bo
 			sxPackedData* pPkd = (sxPackedData*)pData;
 			if (pPkd->mSig == sxPackedData::SIG && pPkd->mPackSize == fsize) {
 				size_t memsize0 = memsize;
-				memsize = pPkd->mRawSize;
-				if (appendPath) {
-					memsize += pathLen + 1;
-				}
-				uint8_t* pUnpkd = (uint8_t*)mem_alloc(memsize, tag);
-				if (nxData::unpack(pPkd, tag, pUnpkd, (uint32_t)memsize)) {
-					size = pPkd->mRawSize;
-					fsize = size;
-					mem_free(pData);
-					pData = pUnpkd;
+				if (recursive) {
+					uint8_t* pUnpkd = nxData::unpack(pPkd, tag, nullptr, 0, &memsize, true);
+					if (pUnpkd) {
+						size = memsize;
+						fsize = size;
+						mem_free(pData);
+						pData = pUnpkd;
+						if (appendPath) {
+							memsize += pathLen + 1;
+							pData = mem_alloc(memsize, tag);
+							::memcpy(pData, pUnpkd, size);
+							mem_free(pUnpkd);
+						}
+					} else {
+						memsize = memsize0;
+					}
 				} else {
-					mem_free(pUnpkd);
-					memsize = memsize0;
+					memsize = pPkd->mRawSize;
+					if (appendPath) {
+						memsize += pathLen + 1;
+					}
+					uint8_t* pUnpkd = (uint8_t*)mem_alloc(memsize, tag);
+					if (nxData::unpack(pPkd, tag, pUnpkd, (uint32_t)memsize)) {
+						size = pPkd->mRawSize;
+						fsize = size;
+						mem_free(pData);
+						pData = pUnpkd;
+					} else {
+						mem_free(pUnpkd);
+						memsize = memsize0;
+					}
 				}
 			}
 		}
@@ -420,7 +438,7 @@ static void* bin_load_impl(const char* pPath, size_t* pSize, bool appendPath, bo
 }
 
 void* bin_load(const char* pPath, size_t* pSize, bool appendPath, bool unpack) {
-	return bin_load_impl(pPath, pSize, appendPath, unpack, XD_FOURCC('X', 'B', 'I', 'N'));
+	return bin_load_impl(pPath, pSize, appendPath, unpack, true, XD_FOURCC('X', 'B', 'I', 'N'));
 }
 
 void bin_unload(void* pMem) {
@@ -3570,7 +3588,7 @@ namespace nxData {
 
 XD_NOINLINE sxData* load(const char* pPath) {
 	size_t size = 0;
-	sxData* pData = reinterpret_cast<sxData*>(nxCore::bin_load_impl(pPath, &size, true, true, XD_DAT_MEM_TAG));
+	sxData* pData = reinterpret_cast<sxData*>(nxCore::bin_load_impl(pPath, &size, true, true, true, XD_DAT_MEM_TAG));
 	if (pData) {
 		if (pData->mFileSize == size) {
 			pData->mFilePathLen = (uint32_t)::strlen(pPath);
@@ -3845,7 +3863,7 @@ static void pk_decode(uint8_t* pDst, uint32_t size, uint8_t* pDict, uint8_t* pBi
 	}
 }
 
-uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag, uint8_t* pDstMem, uint32_t dstMemSize) {
+uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag, uint8_t* pDstMem, uint32_t dstMemSize, size_t* pSize, bool recursive) {
 	uint8_t* pDst = nullptr;
 	if (pPkd && pPkd->mSig == sxPackedData::SIG) {
 		if (pDstMem && dstMemSize >= pPkd->mRawSize) {
@@ -3881,6 +3899,23 @@ uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag, uint8_t* pDstMem, uint32_t 
 						nxCore::mem_free(pDst);
 					}
 					pDst = nullptr;
+				}
+			}
+			if (pSize) {
+				*pSize = pDst ? pPkd->mRawSize : 0;
+			}
+		}
+		if (pDst && !pDstMem && recursive) {
+			sxPackedData* pRecPkd = (sxPackedData*)pDst;
+			if (pRecPkd->mSig == sxPackedData::SIG) {
+				size_t recSize = 0;
+				uint8_t* pRecDst = unpack(pRecPkd, memTag, nullptr, 0, &recSize, true);
+				if (pRecDst) {
+					nxCore::mem_free(pDst);
+					pDst = pRecDst;
+				}
+				if (pSize) {
+					*pSize = recSize;
 				}
 			}
 		}

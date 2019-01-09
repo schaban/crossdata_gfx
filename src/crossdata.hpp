@@ -4675,7 +4675,7 @@ sxData* load(const char* pPath);
 void unload(sxData* pData);
 
 sxPackedData* pack(const uint8_t* pSrc, uint32_t srcSize, uint32_t mode = 0);
-uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag = XD_TMP_MEM_TAG, uint8_t* pDstMem = nullptr, uint32_t dstMemSize = 0);
+uint8_t* unpack(sxPackedData* pPkd, uint32_t memTag = XD_TMP_MEM_TAG, uint8_t* pDstMem = nullptr, uint32_t dstMemSize = 0, size_t* pSize = nullptr, bool recursive = true);
 
 } // nxData
 
