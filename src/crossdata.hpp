@@ -1969,6 +1969,8 @@ public:
 	cxVec calc_vec(const cxVec& v) const;
 	cxVec calc_pnt(const cxVec& v) const;
 	xt_float4 apply(const xt_float4& qv) const;
+
+	float norm(bool hprec = true) const;
 };
 
 inline cxMtx operator * (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.mul(m2); return m; }

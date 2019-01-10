@@ -805,7 +805,6 @@ void cxVec::parse(const char* pStr) {
 	set(val[0], val[1], val[2]);
 }
 
-// Ref: Mike Day, "Vector length and normalization difficulties"
 float cxVec::mag() const {
 	cxVec v = *this;
 	float m = v.max_abs_elem();
@@ -817,7 +816,6 @@ float cxVec::mag() const {
 	return l;
 }
 
-// see ref above
 void cxVec::normalize(const cxVec& v) {
 	cxVec n = v;
 	float m = v.max_abs_elem();
@@ -1422,7 +1420,6 @@ cxVec cxMtx::get_rot(exRotOrd ord) const {
 	float r[3] = { 0, 0, 0 };
 	r[i0] = ::atan2f(rm[1][2], rm[2][2]);
 	r[i1] = ::atan2f(-rm[0][2], ::sqrtf(nxCalc::sq(rm[0][0]) + nxCalc::sq(rm[0][1])));
-	// Ref: Mike Day, "Extracting Euler Angles from a Rotation Matrix"
 	float s = ::sinf(r[i0]);
 	float c = ::cosf(r[i0]);
 	r[i2] = ::atan2f(s*rm[2][0] - c*rm[1][0], c*rm[1][1] - s*rm[2][1]);
@@ -1587,6 +1584,22 @@ xt_float4 cxMtx::apply(const xt_float4& qv) const {
 	res.z = x*m[0][2] + y*m[1][2] + z*m[2][2] + w*m[3][2];
 	res.w = x*m[0][3] + y*m[1][3] + z*m[2][3] + w*m[3][3];
 	return res;
+}
+
+template<typename T> T mtx4x4_norm(const cxMtx& m) {
+	T t[4 * 4];
+	T s[4];
+	T w[4];
+	T nrm = T(0);
+	nxLA::mtx_cpy(t, &m.m[0][0], 4, 4);
+	if (nxLA::sv_decomp(t, s, (T*)nullptr, w, t, 4, 4, false, false)) {
+		nrm = nxCalc::max(s[0], s[1], s[2], s[3]);
+	}
+	return nrm;
+}
+
+XD_NOINLINE float cxMtx::norm(bool hprec) const {
+	return hprec ? float(mtx4x4_norm<double>(*this)) : mtx4x4_norm<float>(*this);
 }
 
 
