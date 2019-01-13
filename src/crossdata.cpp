@@ -4130,6 +4130,8 @@ int sxValuesData::Group::get_val_i(int idx) const {
 				mpVals->get_vec_list()->get_elems(ftmp, pVal->mValId.i, 1);
 				res = (int)ftmp[0];
 				break;
+			default:
+				break;
 		}
 	}
 	return res;
@@ -4151,6 +4153,8 @@ float sxValuesData::Group::get_val_f(int idx) const {
 			case eValType::VEC3:
 			case eValType::VEC4:
 				mpVals->get_vec_list()->get_elems(&res, pVal->mValId.i, 1);
+				break;
+			default:
 				break;
 		}
 	}
@@ -4175,6 +4179,8 @@ xt_float2 sxValuesData::Group::get_val_f2(int idx) const {
 			case eValType::VEC4:
 				res = mpVals->get_vec_list()->get_f2(pVal->mValId.i);
 				break;
+			default:
+				break;
 		}
 	}
 	return res;
@@ -4198,6 +4204,8 @@ xt_float3 sxValuesData::Group::get_val_f3(int idx) const {
 			case eValType::VEC4:
 				res = mpVals->get_vec_list()->get_f3(pVal->mValId.i);
 				break;
+			default:
+				break;
 		}
 	}
 	return res;
@@ -4220,6 +4228,8 @@ xt_float4 sxValuesData::Group::get_val_f4(int idx) const {
 			case eValType::VEC3:
 			case eValType::VEC4:
 				res = mpVals->get_vec_list()->get_f4(pVal->mValId.i);
+				break;
+			default:
 				break;
 		}
 	}
@@ -7196,6 +7206,7 @@ float sxKeyframesData::RigLink::Node::get_anim_chan(exAnimChan chan) {
 		case exAnimChan::SX: val = get_scl_chan(0); break;
 		case exAnimChan::SY: val = get_scl_chan(1); break;
 		case exAnimChan::SZ: val = get_scl_chan(2); break;
+		default: break;
 	}
 	return val;
 }
@@ -7239,6 +7250,7 @@ bool sxKeyframesData::RigLink::Node::ck_anim_chan(exAnimChan chan) {
 		case exAnimChan::SX: res = ck_scl_chan(0); break;
 		case exAnimChan::SY: res = ck_scl_chan(1); break;
 		case exAnimChan::SZ: res = ck_scl_chan(2); break;
+		default: break;
 	}
 	return res;
 }
