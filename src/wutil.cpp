@@ -12,8 +12,8 @@
 #include "crossdata.hpp"
 #include "wutil.hpp"
 
-#define GET_WAVEOUT_FN(_name) *(PROC*)&mWaveOut.##_name = (PROC)::GetProcAddress(mhWinMM, "waveOut" #_name)
-#define GET_MIDIOUT_FN(_name) *(PROC*)&mMidiOut.##_name = (PROC)::GetProcAddress(mhWinMM, "midiOut" #_name)
+#define GET_WAVEOUT_FN(_name) *(PROC*)&mWaveOut._name = (PROC)::GetProcAddress(mhWinMM, "waveOut" #_name)
+#define GET_MIDIOUT_FN(_name) *(PROC*)&mMidiOut._name = (PROC)::GetProcAddress(mhWinMM, "midiOut" #_name)
 
 static struct WU_WK {
 	HMODULE mhSHLW;
@@ -160,8 +160,13 @@ void wuConAttach(int x, int y, int w, int h) {
 	::AllocConsole();
 	::AttachConsole(::GetCurrentProcessId());
 	FILE* pConFile;
+#if defined(_MSC_VER)
 	::freopen_s(&pConFile, "CON", "w", stdout);
 	::freopen_s(&pConFile, "CON", "w", stderr);
+#else
+	pConFile = ::freopen("CON", "w", stdout);
+	pConFile = ::freopen("CON", "w", stderr);
+#endif
 	::SetWindowPos(::GetConsoleWindow(), nullptr, x, y, w, h, 0);
 	s_conFlg = true;
 }
