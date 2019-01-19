@@ -1,4 +1,4 @@
-#define DATA_PATH(_fname) "../data/"##_fname
+#define DATA_PATH(_fname) "../data/" _fname
 
 void util_init();
 void util_reset();

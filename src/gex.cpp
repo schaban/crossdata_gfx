@@ -28,7 +28,12 @@
 #define D_GEX_CPU_STD 0
 #define D_GEX_CPU_SSE 1
 #define D_GEX_CPU_AVX 2
-#define D_GEX_CPU D_GEX_CPU_AVX
+
+#if defined(__GNUC__) && !defined(__clang__)
+#	define D_GEX_CPU D_GEX_CPU_STD
+#else
+#	define D_GEX_CPU D_GEX_CPU_AVX
+#endif
 
 #if D_GEX_CPU > D_GEX_CPU_STD
 #	include <intrin.h>
@@ -118,6 +123,10 @@ static void gexEncodeHalf4(xt_half4* pDst, const xt_float4& src) {
 #endif
 }
 
+static HRESULT gwkCreateBuffer(const D3D11_BUFFER_DESC* pDsc, const D3D11_SUBRESOURCE_DATA* pIniData, ID3D11Buffer** ppBuf);
+static HRESULT gwkCreateSRV(ID3D11Resource* pRsrc, const D3D11_SHADER_RESOURCE_VIEW_DESC* pDsc, ID3D11ShaderResourceView** ppSRV);
+static ID3D11DeviceContext* gwkGetContext();
+
 
 struct GEX_VTX {
 	xt_float3 mPos;
@@ -193,14 +202,14 @@ template<typename T> struct StructuredBuffer {
 		dsc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 		dsc.ByteWidth = (UINT)(sizeof(T)*nelems);
 		dsc.StructureByteStride = (UINT)sizeof(T);
-		GWK.mpDev->CreateBuffer(&dsc, nullptr, &mpBuf);
+		gwkCreateBuffer(&dsc, nullptr, &mpBuf);
 		if (mpBuf) {
 			D3D11_SHADER_RESOURCE_VIEW_DESC dscSRV;
 			::ZeroMemory(&dscSRV, sizeof(dscSRV));
 			dscSRV.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
 			dscSRV.Format = DXGI_FORMAT_UNKNOWN;
 			dscSRV.BufferEx.NumElements = nelems;
-			GWK.mpDev->CreateShaderResourceView(mpBuf, &dscSRV, &mpSRV);
+			gwkCreateSRV(mpBuf, &dscSRV, &mpSRV);
 		}
 	}
 
@@ -218,7 +227,7 @@ template<typename T> struct StructuredBuffer {
 	void copy_data(const T* pData) {
 		if (!pData) return;
 		if (!is_valid()) return;
-		ID3D11DeviceContext* pCtx = GWK.mpCtx;
+		ID3D11DeviceContext* pCtx = gwkGetContext();
 		if (pCtx) {
 			pCtx->UpdateSubresource(mpBuf, 0, nullptr, pData, 0, 0);
 		}
@@ -432,6 +441,17 @@ static struct GEX_GWK {
 
 static bool s_initFlg = false;
 
+static HRESULT gwkCreateBuffer(const D3D11_BUFFER_DESC* pDsc, const D3D11_SUBRESOURCE_DATA* pIniData, ID3D11Buffer** ppBuf) {
+	return GWK.mpDev->CreateBuffer(pDsc, pIniData, ppBuf);
+}
+
+static HRESULT gwkCreateSRV(ID3D11Resource* pRsrc, const D3D11_SHADER_RESOURCE_VIEW_DESC* pDsc, ID3D11ShaderResourceView** ppSRV) {
+	return GWK.mpDev->CreateShaderResourceView(pRsrc, pDsc, ppSRV);
+}
+
+static ID3D11DeviceContext* gwkGetContext() {
+	return GWK.mpCtx;
+}
 
 static LRESULT CALLBACK gexWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	LRESULT res = 0;
@@ -496,7 +516,14 @@ void gexInit(const GEX_CONFIG& cfg) {
 	int wndH = rect.bottom - rect.top;
 	TCHAR title[128];
 	::ZeroMemory(title, sizeof(title));
-	::_stprintf_s(title, XD_ARY_LEN(title), _T("%s: build %s"), _T("GexDX11"), _T(__DATE__));
+#if !defined(__clang__)
+#if defined(_MSC_VER)
+	_stprintf_s(title, XD_ARY_LEN(title),
+#else
+	_stprintf(title,
+#endif
+		_T("%s: build %s"), _T("GexDX11"), _T(__DATE__));
+#endif
 	GWK.mhWnd = ::CreateWindowEx(0, s_className, title, style, 0, 0, wndW, wndH, NULL, NULL, GWK.mhInstance, NULL);
 	if (GWK.mhWnd) {
 		::ShowWindow(GWK.mhWnd, SW_SHOW);
@@ -1391,7 +1418,7 @@ GEX_CAM* gexCamCreate(const char* pName) {
 				pCam->mpName = pCam->mNameBuf;
 			}
 		} else {
-			::sprintf_s(pCam->mNameBuf, sizeof(pCam->mNameBuf), "<$cam@%p>", pCam);
+			XD_SPRINTF(XD_SPRINTF_BUF(pCam->mNameBuf, sizeof(pCam->mNameBuf)), "<$cam@%p>", pCam);
 			pCam->mpName = pCam->mNameBuf;
 		}
 		pCam->mNameHash = nxCore::str_hash32(pCam->mpName);
@@ -1505,7 +1532,7 @@ GEX_LIT* gexLitCreate(const char* pName) {
 				pLit->mpName = pLit->mNameBuf;
 			}
 		} else {
-			::sprintf_s(pLit->mNameBuf, sizeof(pLit->mNameBuf), "<$lit@%p>", pLit);
+			XD_SPRINTF(XD_SPRINTF_BUF(pLit->mNameBuf, sizeof(pLit->mNameBuf)), "<$lit@%p>", pLit);
 			pLit->mpName = pLit->mNameBuf;
 		}
 		pLit->mNameHash = nxCore::str_hash32(pLit->mpName);
@@ -2423,8 +2450,12 @@ GEX_OBJ* gexObjCreate(const sxGeometryData& geo, const char* pBatGrpPrefix, cons
 			char* pSortMtlBuf = nxCore::str_dup(geo.get_attr_val_s(sortMtlsAttrId, sxGeometryData::eAttrClass::GLOBAL, 0));
 			if (pSortMtlBuf) {
 				char* pSortMtlNames = pSortMtlBuf;
+#if defined(_MSC_VER)
 				char* pNextMtlName = nullptr;
 				for (char* pMtlName = ::strtok_s(pSortMtlNames, ";", &pNextMtlName); pMtlName; pMtlName = ::strtok_s(nullptr, ";", &pNextMtlName)) {
+#else
+				for (char* pMtlName = ::strtok(pSortMtlNames, ";"); pMtlName; pMtlName = ::strtok(nullptr, ";")) {
+#endif
 					GEX_MTL* pMtl = gexFindMaterial(pObj, pMtlName);
 					if (pMtl) {
 						//nxCore::dbg_msg("%d: %s\n", sortMtlsCnt, pMtlName);
@@ -3161,7 +3192,7 @@ GEX_POL* gexPolCreate(int maxVtxNum, const char* pName) {
 				pPol->mpName = pPol->mNameBuf;
 			}
 		} else {
-			::sprintf_s(pPol->mNameBuf, sizeof(pPol->mNameBuf), "<$pol@%p>", pPol);
+			XD_SPRINTF(XD_SPRINTF_BUF(pPol->mNameBuf, sizeof(pPol->mNameBuf)), "<$pol@%p>", pPol);
 			pPol->mpName = pPol->mNameBuf;
 		}
 		pPol->mNameHash = nxCore::str_hash32(pPol->mpName);
@@ -4001,6 +4032,8 @@ static void gexBgDraw() {
 			if (GWK.mpBgPanoTex) {
 				flg = true;
 			}
+			break;
+		default:
 			break;
 	}
 	if (!flg) return;

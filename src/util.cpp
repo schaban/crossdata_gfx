@@ -503,7 +503,7 @@ GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir) {
 			sxValuesData::Group grp = vals.get_grp(i);
 			if (grp.is_valid()) {
 				const char* pTypeName = grp.get_type();
-				if (pTypeName == "ambient") {
+				if (nxCore::str_eq(pTypeName, "ambient")) {
 					cxColor ambClr = grp.get_rgb("light_color", cxColor(0.1f));
 					float ambInt = grp.get_float("light_intensity", 1.0f);
 					ambClr.scl_rgb(ambInt);

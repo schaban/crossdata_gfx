@@ -167,6 +167,7 @@ bool cBaseRig::NodeStatus::ck(exAnimChan ch) {
 		case exAnimChan::SX: res = !!sx; break;
 		case exAnimChan::SY: res = !!sy; break;
 		case exAnimChan::SZ: res = !!sz; break;
+		default: break;
 	}
 	return res;
 }
@@ -197,6 +198,7 @@ float cBaseRig::eval_ch(ExprChInfo chi) const {
 				case exAnimChan::SX: val = scl.x; break;
 				case exAnimChan::SY: val = scl.y; break;
 				case exAnimChan::SZ: val = scl.z; break;
+				default: break;
 			}
 		}
 	}
@@ -215,6 +217,7 @@ static void update_prm_ch(cBaseRig::NodeParams* pPrm, exAnimChan ch, float val, 
 		case exAnimChan::SX: pPrm->mScl.x = val; pStt->sx = 1; break;
 		case exAnimChan::SY: pPrm->mScl.y = val; pStt->sy = 1; break;
 		case exAnimChan::SZ: pPrm->mScl.z = val; pStt->sz = 1; break;
+		default: break;
 	}
 }
 
@@ -230,6 +233,7 @@ float cBaseRig::NodeParams::get_ch(exAnimChan ch) {
 		case exAnimChan::SX: val = mScl.x; break;
 		case exAnimChan::SY: val = mScl.y; break;
 		case exAnimChan::SZ: val = mScl.z; break;
+		default: break;
 	}
 	return val;
 }

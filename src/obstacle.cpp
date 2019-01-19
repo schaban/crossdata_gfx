@@ -263,13 +263,19 @@ public:
 	}
 };
 
+#if defined(__clang__)
+#define OBST_ALLOCA __builtin_alloca
+#else
+#define OBST_ALLOCA alloca
+#endif
+
 bool obstBallToWalls(const cxVec& newPos, const cxVec& oldPos, float radius, const sxGeometryData& geo, cxVec* pAdjPos, sObstGeoWk* pGeoWk, float wallSlopeLim) {
 	int npol = geo.get_pol_num();
 	if (npol <= 0) return false;
 	uint32_t* pStamps = pGeoWk ? pGeoWk->mpStamps : nullptr;
 	int stampBytes = obstCalcStampBytes(npol);
 	if (!pStamps) {
-		pStamps = (uint32_t*)::_alloca(stampBytes);
+		pStamps = (uint32_t*)OBST_ALLOCA(stampBytes);
 	}
 	if (!pStamps) return false;
 
