@@ -3,15 +3,200 @@
 #include "crossdata.hpp"
 #include "task.hpp"
 
-#include <chrono>
+#define TSK_IMPL_STD 0
+#define TSK_IMPL_WIN 1
+
+#ifndef TSK_IMPL
+#	if defined(_WINDOWS) || defined(WIN32) || defined(_WIN32) || defined(_WIN64)
+#		define TSK_IMPL TSK_IMPL_WIN
+#	else
+#		define TSK_IMPL TSK_IMPL_STD
+#	endif
+#endif
+
 #include <atomic>
+
+#if TSK_IMPL == TSK_IMPL_WIN
+#undef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#undef NOMINMAX
+#define NOMINMAX
+#include <Windows.h>
+#else
+#include <chrono>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <new>
+#endif
+
+#if TSK_IMPL == TSK_IMPL_WIN
+
+void tskSleepMillis(uint32_t millis) {
+	::Sleep(millis);
+}
+
+
+struct TSK_LOCK {
+	CRITICAL_SECTION mCS;
+};
+
+TSK_LOCK* tskLockCreate() {
+	TSK_LOCK* pLock = (TSK_LOCK*)nxCore::mem_alloc(sizeof(TSK_LOCK), XD_FOURCC('l', 'o', 'c', 'k'));
+	if (pLock) {
+		::InitializeCriticalSection(&pLock->mCS);
+	}
+	return pLock;
+}
+
+void tskLockDestroy(TSK_LOCK* pLock) {
+	if (pLock) {
+		::DeleteCriticalSection(&pLock->mCS);
+		nxCore::mem_free(pLock);
+	}
+}
+
+bool tskLockAcquire(TSK_LOCK* pLock) {
+	bool res = false;
+	if (pLock) {
+		::EnterCriticalSection(&pLock->mCS);
+		res = true;
+	}
+	return res;
+}
+
+bool tskLockRelease(TSK_LOCK* pLock) {
+	bool res = false;
+	if (pLock) {
+		::LeaveCriticalSection(&pLock->mCS);
+		res = true;
+	}
+	return res;
+}
+
+
+struct TSK_SIGNAL {
+	HANDLE mhEvt;
+};
+
+TSK_SIGNAL* tskSignalCreate() {
+	TSK_SIGNAL* pSig = (TSK_SIGNAL*)nxCore::mem_alloc(sizeof(TSK_SIGNAL), XD_FOURCC('s', 'g', 'n', 'l'));
+	if (pSig) {
+		pSig->mhEvt = ::CreateEventA(NULL, FALSE, FALSE, NULL);
+	}
+	return pSig;
+}
+
+void tskSignalDestroy(TSK_SIGNAL* pSig) {
+	if (pSig) {
+		::CloseHandle(pSig->mhEvt);
+		nxCore::mem_free(pSig);
+	}
+}
+
+bool tskSignalWait(TSK_SIGNAL* pSig) {
+	bool res = false;
+	if (pSig) {
+		res = ::WaitForSingleObject(pSig->mhEvt, INFINITE) == WAIT_OBJECT_0;
+	}
+	return res;
+}
+
+bool tskSignalSet(TSK_SIGNAL* pSig) {
+	if (!pSig) return false;
+	return !!::SetEvent(pSig->mhEvt);
+}
+
+bool tskSignalReset(TSK_SIGNAL* pSig) {
+	if (!pSig) return false;
+	return !!::ResetEvent(pSig->mhEvt);
+}
+
+
+struct TSK_WORKER {
+	HANDLE mhThread;
+	TSK_SIGNAL* mpSigExec;
+	TSK_SIGNAL* mpSigDone;
+	TSK_WRK_FUNC mFunc;
+	void* mpData;
+	DWORD mTID;
+	bool mEndFlg;
+};
+
+static DWORD APIENTRY winWrkEntry(void* pSelf) {
+	TSK_WORKER* pWrk = (TSK_WORKER*)pSelf;
+	if (!pWrk) return 1;
+	tskSignalSet(pWrk->mpSigDone);
+	while (!pWrk->mEndFlg) {
+		if (tskSignalWait(pWrk->mpSigExec)) {
+			tskSignalReset(pWrk->mpSigExec);
+			if (!pWrk->mEndFlg && pWrk->mFunc) {
+				pWrk->mFunc(pWrk->mpData);
+			}
+			tskSignalSet(pWrk->mpSigDone);
+		}
+	}
+	return 0;
+}
+
+TSK_WORKER* tskWorkerCreate(TSK_WRK_FUNC func, void* pData) {
+	TSK_WORKER* pWrk = (TSK_WORKER*)nxCore::mem_alloc(sizeof(TSK_WORKER), XD_FOURCC('w', 'r', 'k', 'r'));
+	if (pWrk) {
+		pWrk->mFunc = func;
+		pWrk->mpData = pData;
+		pWrk->mpSigExec = tskSignalCreate();
+		pWrk->mpSigDone = tskSignalCreate();
+		pWrk->mEndFlg = false;
+		pWrk->mhThread = ::CreateThread(NULL, 0, winWrkEntry, pWrk, CREATE_SUSPENDED, &pWrk->mTID);
+		if (pWrk->mhThread) {
+			::ResumeThread(pWrk->mhThread);
+		}
+	}
+	return pWrk;
+}
+
+void tskWorkerDestroy(TSK_WORKER* pWrk) {
+	if (pWrk) {
+		tskWorkerStop(pWrk);
+		tskSignalDestroy(pWrk->mpSigDone);
+		tskSignalDestroy(pWrk->mpSigExec);
+		nxCore::mem_free(pWrk);
+	}
+}
+
+void tskWorkerExec(TSK_WORKER* pWrk) {
+	if (pWrk) {
+		tskSignalReset(pWrk->mpSigDone);
+		tskSignalSet(pWrk->mpSigExec);
+	}
+}
+
+void tskWorkerWait(TSK_WORKER* pWrk) {
+	if (pWrk) {
+		tskSignalWait(pWrk->mpSigDone);
+	}
+}
+
+void tskWorkerStop(TSK_WORKER* pWrk) {
+	if (pWrk && !pWrk->mEndFlg) {
+		int exitRes = -1;
+		pWrk->mEndFlg = true;
+		tskWorkerExec(pWrk);
+		tskWorkerWait(pWrk);
+		::WaitForSingleObject(pWrk->mhThread, INFINITE);
+		::CloseHandle(pWrk->mhThread);
+	}
+}
+
+void tskWorkerAffinitySet(TSK_WORKER* pWrk, unsigned long long mask) {
+	if (!pWrk) return;
+	if (!pWrk->mhThread) return;
+	::SetThreadAffinityMask(pWrk->mhThread, (DWORD_PTR)mask);
+}
+
+#else
 
 using namespace std;
-
 
 void tskSleepMillis(uint32_t millis) {
 	this_thread::sleep_for(chrono::milliseconds(millis));
@@ -191,13 +376,13 @@ void tskWorkerStop(TSK_WORKER* pWrk) {
 		pWrk->mThread.join();
 	}
 }
-
+#endif
 
 struct TSK_QUEUE {
 	TSK_JOB** mpJobSlots;
 	int mSlotsNum;
 	int mPutIdx;
-	atomic<int> mAccessIdx;
+	std::atomic<int> mAccessIdx;
 
 	TSK_JOB* get_next_job() {
 		TSK_JOB* pJob = nullptr;
