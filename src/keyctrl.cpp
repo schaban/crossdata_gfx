@@ -23,6 +23,80 @@ struct KEY_CTRL {
 
 static bool validate_key_id(uint32_t id) { return id < 32U; }
 
+static struct KEY_MAP {
+	const char* pName;
+	int32_t code;
+} s_keymap[] = {
+	{ "[LMB]", VK_LBUTTON },
+	{ "[RMB]", VK_RBUTTON },
+	{ "[MMB]", VK_MBUTTON },
+	{ "[BACK]", VK_BACK },
+	{ "[TAB]", VK_TAB },
+	{ "[ENTER]", VK_RETURN },
+	{ "[SPACE]",  VK_SPACE },
+	{ "[LSHIFT]", VK_LSHIFT },
+	{ "[LCTRL]", VK_LCONTROL },
+	{ "[RSHIFT]", VK_RSHIFT },
+	{ "[RCTRL]", VK_RCONTROL },
+	{ "[UP]", VK_UP },
+	{ "[DOWN]", VK_DOWN },
+	{ "[LEFT]", VK_LEFT },
+	{ "[RIGHT]", VK_RIGHT },
+	{ "[INS]", VK_INSERT },
+	{ "[DEL]", VK_DELETE },
+	{ "[HOME]", VK_HOME },
+	{ "[END]", VK_END },
+	{ "[PGUP]", VK_PRIOR },
+	{ "[PGDN]", VK_NEXT },
+	{ "[ESC]", VK_ESCAPE },
+	{ "[F1]", VK_F1 },
+	{ "[F2]", VK_F2 },
+	{ "[F3]", VK_F3 },
+	{ "[F4]", VK_F4 },
+	{ "[F5]", VK_F5 },
+	{ "[F6]", VK_F6 },
+	{ "[F7]", VK_F7 },
+	{ "[F8]", VK_F8 },
+	{ "[F9]", VK_F9 },
+	{ "[F10]", VK_F10 },
+	{ "[F11]", VK_F11 },
+	{ "[F12]", VK_F12 },
+	{ "#0", VK_NUMPAD0 },
+	{ "#1", VK_NUMPAD1 },
+	{ "#2", VK_NUMPAD2 },
+	{ "#3", VK_NUMPAD3 },
+	{ "#4", VK_NUMPAD4 },
+	{ "#5", VK_NUMPAD5 },
+	{ "#6", VK_NUMPAD6 },
+	{ "#7", VK_NUMPAD7 },
+	{ "#8", VK_NUMPAD8 },
+	{ "#9", VK_NUMPAD9 },
+	{ "#/", VK_DIVIDE },
+	{ "#*", VK_MULTIPLY },
+	{ "#-", VK_SUBTRACT },
+	{ "#+", VK_ADD },
+	{ "#.", VK_DECIMAL }
+};
+
+static bool key_name_ck(const char* pName, size_t len, int i) {
+#if 0
+	return ::_strcmpi(pName, s_keymap[i].pName) == 0;
+#else
+	const char* p0 = pName;
+	const char* p1 = s_keymap[i].pName;
+	if (len != ::strlen(p1)) return false;
+	for (int i = 0; i < int(len); ++i) {
+		char c0 = *p0++;
+		char c1 = *p1++;
+		c0 = ::toupper(c0);
+		if (c0 != c1) {
+			return false;
+		}
+	}
+	return true;
+#endif
+}
+
 static int32_t find_key_code(const char* pName) {
 	size_t len = ::strlen(pName);
 	if (1 == len) {
@@ -31,63 +105,9 @@ static int32_t find_key_code(const char* pName) {
 			return chr;
 		}
 	} else {
-		static struct _KEYMAP_ {
-			const char* pName;
-			int32_t code;
-		} keymap[] = {
-			{ "[LMB]", VK_LBUTTON },
-			{ "[RMB]", VK_RBUTTON },
-			{ "[MMB]", VK_MBUTTON },
-			{ "[BACK]", VK_BACK },
-			{ "[TAB]", VK_TAB },
-			{ "[ENTER]", VK_RETURN },
-			{ "[SPACE]",  VK_SPACE },
-			{ "[LSHIFT]", VK_LSHIFT },
-			{ "[LCTRL]", VK_LCONTROL },
-			{ "[RSHIFT]", VK_RSHIFT },
-			{ "[RCTRL]", VK_RCONTROL },
-			{ "[UP]", VK_UP },
-			{ "[DOWN]", VK_DOWN },
-			{ "[LEFT]", VK_LEFT },
-			{ "[RIGHT]", VK_RIGHT },
-			{ "[INS]", VK_INSERT },
-			{ "[DEL]", VK_DELETE },
-			{ "[HOME]", VK_HOME },
-			{ "[END]", VK_END },
-			{ "[PGUP]", VK_PRIOR },
-			{ "[PGDN]", VK_NEXT },
-			{ "[ESC]", VK_ESCAPE },
-			{ "[F1]", VK_F1 },
-			{ "[F2]", VK_F2 },
-			{ "[F3]", VK_F3 },
-			{ "[F4]", VK_F4 },
-			{ "[F5]", VK_F5 },
-			{ "[F6]", VK_F6 },
-			{ "[F7]", VK_F7 },
-			{ "[F8]", VK_F8 },
-			{ "[F9]", VK_F9 },
-			{ "[F10]", VK_F10 },
-			{ "[F11]", VK_F11 },
-			{ "[F12]", VK_F12 },
-			{ "#0", VK_NUMPAD0 },
-			{ "#1", VK_NUMPAD1 },
-			{ "#2", VK_NUMPAD2 },
-			{ "#3", VK_NUMPAD3 },
-			{ "#4", VK_NUMPAD4 },
-			{ "#5", VK_NUMPAD5 },
-			{ "#6", VK_NUMPAD6 },
-			{ "#7", VK_NUMPAD7 },
-			{ "#8", VK_NUMPAD8 },
-			{ "#9", VK_NUMPAD9 },
-			{ "#/", VK_DIVIDE },
-			{ "#*", VK_MULTIPLY },
-			{ "#-", VK_SUBTRACT },
-			{ "#+", VK_ADD },
-			{ "#.", VK_DECIMAL }
-		};
-		for (int i = 0; i < XD_ARY_LEN(keymap); ++i) {
-			if (::_strcmpi(pName, keymap[i].pName) == 0) {
-				return keymap[i].code;
+		for (int i = 0; i < XD_ARY_LEN(s_keymap); ++i) {
+			if (key_name_ck(pName, len, i)) {
+				return s_keymap[i].code;
 			}
 		}
 	}
