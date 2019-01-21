@@ -29,10 +29,14 @@
 #define D_GEX_CPU_SSE 1
 #define D_GEX_CPU_AVX 2
 
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__clang__)
+#	define D_GEX_CPU D_GEX_CPU_SSE
+#elif defined(_MSC_VER)
+#	define D_GEX_CPU D_GEX_CPU_AVX
+#elif defined(__GNUC__)
 #	define D_GEX_CPU D_GEX_CPU_STD
 #else
-#	define D_GEX_CPU D_GEX_CPU_AVX
+#	define D_GEX_CPU D_GEX_CPU_STD
 #endif
 
 #if D_GEX_CPU > D_GEX_CPU_STD
