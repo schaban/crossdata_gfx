@@ -2750,6 +2750,8 @@ public:
 	void from_TMI(const cxVec& tmi);
 	cxVec XYZ(cxMtx* pRGB2XYZ = nullptr) const;
 	void from_XYZ(const cxVec& xyz, cxMtx* pXYZ2RGB = nullptr);
+	cxVec xyY(cxMtx* pRGB2XYZ = nullptr) const;
+	void from_xyY(const cxVec& xyY, cxMtx* pXYZ2RGB = nullptr);
 	cxVec Lab(cxMtx* pRGB2XYZ = nullptr) const;
 	void from_Lab(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr, cxMtx* pXYZ2RGB = nullptr);
 	cxVec Lch(cxMtx* pRGB2XYZ = nullptr) const;
@@ -2776,6 +2778,8 @@ namespace nxColor {
 void init_XYZ_transform(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, cxVec* pPrims = nullptr, cxVec* pWhite = nullptr);
 void init_XYZ_transform_xy_w(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, float wx = 0.31271f, float wy = 0.32902f);
 void init_XYZ_transform_xy(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, float rx = 0.64f, float ry = 0.33f, float gx = 0.3f, float gy = 0.6f, float bx = 0.15f, float by = 0.06f, float wx = 0.31271f, float wy = 0.32902f);
+cxVec XYZ_to_xyY(const cxVec& xyz);
+cxVec xyY_to_XYZ(const cxVec& xyY);
 cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ = nullptr);
 cxVec Lab_to_XYZ(const cxVec& lab, cxMtx* pRGB2XYZ = nullptr);
 cxVec Lab_to_Lch(const cxVec& lab);

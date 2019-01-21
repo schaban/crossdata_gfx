@@ -2717,6 +2717,21 @@ void init_XYZ_transform_xy(cxMtx* pRGB2XYZ, cxMtx* pXYZ2RGB, float rx, float ry,
 	init_XYZ_transform(pRGB2XYZ, pXYZ2RGB, prims, &white);
 }
 
+cxVec XYZ_to_xyY(const cxVec& xyz) {
+	float s = xyz.x + xyz.y + xyz.z;
+	cxVec sv = xyz * nxCalc::rcp0(s);
+	return cxVec(sv.x, sv.y, xyz.y);
+}
+
+cxVec xyY_to_XYZ(const cxVec& xyY) {
+	float x = xyY.x;
+	float y = xyY.y;
+	float z = 1.0f - (x + y);
+	float Y = xyY.z;
+	float s = nxCalc::div0(Y, y);
+	return cxVec(x * s, Y, z * s);
+}
+
 cxVec XYZ_to_Lab(const cxVec& xyz, cxMtx* pRGB2XYZ) {
 	cxVec white = cxColor(1.0f).XYZ(pRGB2XYZ);
 	cxVec l = xyz * nxVec::rcp0(white);
@@ -2872,6 +2887,14 @@ cxVec cxColor::XYZ(cxMtx* pRGB2XYZ) const {
 
 void cxColor::from_XYZ(const cxVec& xyz, cxMtx* pXYZ2RGB) {
 	set(mtx_XYZ2RGB(pXYZ2RGB)->calc_vec(xyz));
+}
+
+cxVec cxColor::xyY(cxMtx* pRGB2XYZ) const {
+	return nxColor::XYZ_to_xyY(XYZ(pRGB2XYZ));
+}
+
+void cxColor::from_xyY(const cxVec& xyY, cxMtx* pXYZ2RGB) {
+	from_XYZ(nxColor::xyY_to_XYZ(xyY), pXYZ2RGB);
 }
 
 cxVec cxColor::Lab(cxMtx* pRGB2XYZ) const {
