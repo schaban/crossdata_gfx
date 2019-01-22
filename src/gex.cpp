@@ -30,7 +30,7 @@
 #define D_GEX_CPU_AVX 2
 
 #if defined(__clang__)
-#	define D_GEX_CPU D_GEX_CPU_SSE
+#	define D_GEX_CPU D_GEX_CPU_STD
 #elif defined(_MSC_VER)
 #	define D_GEX_CPU D_GEX_CPU_AVX
 #elif defined(__GNUC__)
@@ -46,6 +46,9 @@
 #	define D_GEX_SIMD_ELEM_MASK(_idx) D_GEX_SIMD_MIX_MASK(_idx, _idx, _idx, _idx)
 #	define D_GEX_SIMD_ELEM(_v, _idx) _mm_shuffle_ps(_v, _v, D_GEX_SIMD_ELEM_MASK(_idx))
 #	define D_GEX_SIMD_SHUF(_v, _ix, _iy, _iz, _iw) _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128((_v)), D_GEX_SIMD_MIX_MASK(_ix, _iy, _iz, _iw)))
+#	ifndef _mm256_set_m128
+#		define _mm256_set_m128(_hi, _lo) _mm256_insertf128_ps(_mm256_castps128_ps256(_lo), (_hi), 1)
+#	endif
 #endif
 
 #define D_GEX_SORT_BITS 24
@@ -479,7 +482,45 @@ static LRESULT CALLBACK gexWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 	return res;
 }
 
-static const TCHAR* s_className = _T("gexWindow");
+static const TCHAR* s_pClassName = _T("gexWindow");
+
+static XD_NOINLINE void gexInitWindow() {
+	WNDCLASSEX wc;
+	::ZeroMemory(&wc, sizeof(WNDCLASSEX));
+	wc.cbSize = sizeof(WNDCLASSEX);
+	wc.style = CS_VREDRAW | CS_HREDRAW;
+	wc.hInstance = GWK.mhInstance;
+	wc.hCursor = ::LoadCursor(0, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)::GetStockObject(BLACK_BRUSH);
+	wc.lpszClassName = s_pClassName;
+	wc.lpfnWndProc = gexWndProc;
+	wc.cbWndExtra = 0x10;
+	GWK.mClassAtom = ::RegisterClassEx(&wc);
+
+	RECT rect;
+	rect.left = 0;
+	rect.top = 0;
+	rect.right = GWK.mWidth;
+	rect.bottom = GWK.mHeight;
+	int style = WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_GROUP;
+	::AdjustWindowRect(&rect, style, FALSE);
+	int wndW = rect.right - rect.left;
+	int wndH = rect.bottom - rect.top;
+	char tmpTitle[100];
+	::ZeroMemory(tmpTitle, sizeof(tmpTitle));
+	XD_SPRINTF(XD_SPRINTF_BUF(tmpTitle, sizeof(tmpTitle)), "%s: build %s", "GexDX11", __DATE__);
+	size_t tlen = ::strlen(tmpTitle);
+	TCHAR title[100];
+	::ZeroMemory(title, sizeof(title));
+	for (size_t i = 0; i < tlen; ++i) {
+		title[i] = (TCHAR)tmpTitle[i];
+	}
+	GWK.mhWnd = ::CreateWindowEx(0, s_pClassName, title, style, 0, 0, wndW, wndH, NULL, NULL, GWK.mhInstance, NULL);
+	if (GWK.mhWnd) {
+		::ShowWindow(GWK.mhWnd, SW_SHOW);
+		::UpdateWindow(GWK.mhWnd);
+	}
+}
 
 void gexInit(const GEX_CONFIG& cfg) {
 	if (s_initFlg) {
@@ -492,47 +533,14 @@ void gexInit(const GEX_CONFIG& cfg) {
 	GWK.mDefLightDir = q.apply(nxVec::get_axis(exAxis::MINUS_Z));
 	GWK.mDefLightPos.set(-2.0f, 2.0f, 2.0f);
 
-	GWK.mhInstance = (HINSTANCE)cfg.mSysHandle;
-	GWK.mpMsgFunc = cfg.mpMsgFunc;
-	WNDCLASSEX wc;
-	::ZeroMemory(&wc, sizeof(WNDCLASSEX));
-	wc.cbSize = sizeof(WNDCLASSEX);
-	wc.style = CS_VREDRAW | CS_HREDRAW;
-	wc.hInstance = GWK.mhInstance;
-	wc.hCursor = ::LoadCursor(0, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)::GetStockObject(BLACK_BRUSH);
-	wc.lpszClassName = s_className;
-	wc.lpfnWndProc = gexWndProc;
-	wc.cbWndExtra = 0x10;
-	GWK.mClassAtom = ::RegisterClassEx(&wc);
-
 	GWK.mWidth = cfg.mWidth;
 	GWK.mHeight = cfg.mHeight;
 	GWK.mAspect = (float)cfg.mWidth / cfg.mHeight;
-	RECT rect;
-	rect.left = 0;
-	rect.top = 0;
-	rect.right = GWK.mWidth;
-	rect.bottom = GWK.mHeight;
-	int style = WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_GROUP;
-	::AdjustWindowRect(&rect, style, FALSE);
-	int wndW = rect.right - rect.left;
-	int wndH = rect.bottom - rect.top;
-	TCHAR title[128];
-	::ZeroMemory(title, sizeof(title));
-#if !defined(__clang__)
-#if defined(_MSC_VER)
-	_stprintf_s(title, XD_ARY_LEN(title),
-#else
-	_stprintf(title,
-#endif
-		_T("%s: build %s"), _T("GexDX11"), _T(__DATE__));
-#endif
-	GWK.mhWnd = ::CreateWindowEx(0, s_className, title, style, 0, 0, wndW, wndH, NULL, NULL, GWK.mhInstance, NULL);
-	if (GWK.mhWnd) {
-		::ShowWindow(GWK.mhWnd, SW_SHOW);
-		::UpdateWindow(GWK.mhWnd);
-	}
+
+	GWK.mhInstance = (HINSTANCE)cfg.mSysHandle;
+	GWK.mpMsgFunc = cfg.mpMsgFunc;
+
+	gexInitWindow();
 
 	int freq = 60;
 	DEVMODE devmode;
@@ -1041,7 +1049,7 @@ void gexReset() {
 	if (GWK.mhD3D11) {
 		::FreeLibrary(GWK.mhD3D11);
 	}
-	::UnregisterClass(s_className, GWK.mhInstance);
+	::UnregisterClass(s_pClassName, GWK.mhInstance);
 	s_initFlg = false;
 	::ZeroMemory(&GWK, sizeof(GWK));
 }
@@ -1159,7 +1167,7 @@ float gexCalcFOVY(float focal, float aperture) {
 }
 
 void gexMtxMul(cxMtx* pDst, const cxMtx* pSrcA, const cxMtx* pSrcB) {
-#if D_GEX_CPU == D_GEX_CPU_SSE
+#if D_GEX_CPU == D_GEX_CPU_SSE || (D_GEX_CPU == D_GEX_CPU_AVX && (defined(__GNUC__) || defined(__clang__)))
 	float* pA = (float*)pSrcA;
 	float* pB = (float*)pSrcB;
 	__m128 rA0 = _mm_loadu_ps(&pA[0x0]);
