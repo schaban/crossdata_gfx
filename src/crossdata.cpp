@@ -926,7 +926,7 @@ void dump_hgeo(FILE* pOut, const cxMtx* pMtx, const int n, float scl) {
 			}
 		}
 		for (int j = 0; j < 4; ++j) {
-			::fprintf(pOut, "%f %f %f 1\n", pnt[j].x, pnt[j].y, pnt[j].z);
+			::fprintf(pOut, "%.10f %.10f %.10f 1\n", pnt[j].x, pnt[j].y, pnt[j].z);
 		}
 	}
 	::fprintf(pOut, "PrimitiveAttrib\n");
@@ -1194,6 +1194,22 @@ void cxMtx::mul(const cxMtx& m1, const cxMtx& m2) {
 
 	*this = m0;
 #endif
+}
+
+void cxMtx::add(const cxMtx& mtx) {
+	add(*this, mtx);
+}
+
+void cxMtx::add(const cxMtx& m1, const cxMtx& m2) {
+	nxLA::add_mm((float*)this, (const float*)m1, (const float*)m2, 4, 4);
+}
+
+void cxMtx::sub(const cxMtx& mtx) {
+	sub(*this, mtx);
+}
+
+void cxMtx::sub(const cxMtx& m1, const cxMtx& m2) {
+	nxLA::sub_mm((float*)this, (const float*)m1, (const float*)m2, 4, 4);
 }
 
 // Ref: http://graphics.pixar.com/library/OrthonormalB/paper.pdf
@@ -1669,6 +1685,29 @@ void cxQuat::from_vecs(const cxVec& vfrom, const cxVec& vto) {
 	}
 }
 
+cxMtx cxQuat::get_col_mtx() const {
+	cxMtx m;
+	float t[4 * 4] = {
+		 w, -z,  y, x,
+		 z,  w, -x, y,
+		-y,  x,  w, z,
+		-x, -y, -z, w
+	};
+	m.from_mem(t);
+	return m;
+}
+cxMtx cxQuat::get_row_mtx() const {
+	cxMtx m;
+	float t[4 * 4] = {
+		 w,  z, -y, -x,
+		-z,  w,  x, -y,
+		 y, -x,  w, -z,
+		 x,  y,  z,  w
+	};
+	m.from_mem(t);
+	return m;
+}
+
 void cxQuat::set_rot(const cxVec& axis, float ang) {
 	float hang = ang * 0.5f;
 	float s = ::sinf(hang);
@@ -1965,13 +2004,34 @@ float arc_dist(const cxQuat& a, const cxQuat& b) {
 } // nxQuat
 
 
+void cxDualQuat::mul(const cxDualQuat& dq1, const cxDualQuat& dq2) {
+	cxQuat r0 = dq1.mReal;
+	cxQuat d0 = dq1.mDual;
+	cxQuat r1 = dq2.mReal;
+	cxQuat d1 = dq2.mDual;
+	mReal = r0 * r1;
+	mDual = r0*d1 + d0*r1;
+}
+
 void cxDualQuat::mul(const cxDualQuat& dq) {
-	cxQuat r0 = mReal;
-	cxQuat d0 = mDual;
-	cxQuat r1 = dq.mReal;
-	cxQuat d1 = dq.mDual;
-	mReal = (r1 * r0).get_normalized();
-	mDual = d1*r0 + r1*d0;
+	mul(*this, dq);
+}
+
+void cxDualQuat::normalize(bool fast) {
+	cxQuat r = mReal;
+	float irm = nxCalc::rcp0(r.mag());
+	if (fast) {
+		mReal.scl(irm);
+		mDual.scl(irm);
+	} else {
+		cxQuat d = mDual;
+		cxQuat rn = r * irm;
+		cxQuat dn = d * irm;
+		float rd = rn.dot(dn);
+		dn -= rn * rd;
+		mReal = rn;
+		mDual = dn;
+	}
 }
 
 cxVec cxDualQuat::calc_pnt(const cxVec& pos) const {
@@ -2003,7 +2063,8 @@ void cxDualQuat::interpolate(const cxDualQuat& dqA, const cxDualQuat& dqB, float
 	cxDualQuat d;
 	d.mReal = dqA.mReal.get_conjugate();
 	d.mDual = dqA.mDual.get_conjugate();
-	d.mul(b);
+	d.mul(b, d);
+	d.normalize();
 
 	cxVec vr = d.mReal.get_vector_part();
 	cxVec vd = d.mDual.get_vector_part();
@@ -2023,8 +2084,8 @@ void cxDualQuat::interpolate(const cxDualQuat& dqA, const cxDualQuat& dqB, float
 	r.mReal.from_parts(dir * sh, ch);
 	r.mDual.from_parts(mom*sh + dir*ch*tns*0.5f, -tns*0.5f*sh);
 
-	*this = dqA;
-	mul(r);
+	mul(r, dqA);
+	normalize();
 }
 
 

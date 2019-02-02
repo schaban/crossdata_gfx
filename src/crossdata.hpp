@@ -345,7 +345,7 @@ template<typename DST_T, typename SRC_T> inline void vec_cpy(DST_T* pDst, const 
 template<typename DST_T, typename SRC_L_T, typename SRC_R_T>
 XD_FORCEINLINE
 #if 0
-void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int N, int P) {
+void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, const int M, const int N, const int P) {
 	const int nres = M * P;
 	for (int i = 0; i < nres; ++i) {
 		pDst[i] = 0;
@@ -363,7 +363,7 @@ void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int 
 	}
 }
 #else
-void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int N, int P) {
+void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, const int M, const int N, const int P) {
 	for (int i = 0; i < M; ++i) {
 		int ra = i * N;
 		int rr = i * P;
@@ -387,12 +387,12 @@ void mul_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, int M, int 
 #endif
 
 template<typename DST_VEC_T, typename SRC_VEC_T, typename MTX_T>
-inline void mul_vm(DST_VEC_T* pDstVec, const SRC_VEC_T* pSrcVec, const MTX_T* pMtx, int M, int N) {
+inline void mul_vm(DST_VEC_T* pDstVec, const SRC_VEC_T* pSrcVec, const MTX_T* pMtx, const int M, const int N) {
 	mul_mm(pDstVec, pSrcVec, pMtx, 1, M, N);
 }
 
 template<typename DST_VEC_T, typename MTX_T, typename SRC_VEC_T>
-inline void mul_mv(DST_VEC_T* pDstVec, const MTX_T* pMtx, const SRC_VEC_T* pSrcVec, int M, int N) {
+inline void mul_mv(DST_VEC_T* pDstVec, const MTX_T* pMtx, const SRC_VEC_T* pSrcVec, const int M, const int N) {
 #if 0
 	mul_mm(pDstVec, pMtx, pSrcVec, M, N, 1);
 #else
@@ -428,6 +428,20 @@ inline void mul_dm(DST_T* pDst, const SRC_L_T* pDiag, const SRC_R_T* pSrc, const
 		for (int j = 0; j < N; ++j) {
 			pDst[idx + j] = DST_T(pSrc[idx + j] * d);
 		}
+	}
+}
+
+template<typename DST_T, typename SRC_L_T, typename SRC_R_T>
+void add_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, const int M, const int N) {
+	for (int i = 0; i < M * N; ++i) {
+		pDst[i] = DST_T(pSrc1[i] + pSrc2[i]);
+	}
+}
+
+template<typename DST_T, typename SRC_L_T, typename SRC_R_T>
+void sub_mm(DST_T* pDst, const SRC_L_T* pSrc1, const SRC_R_T* pSrc2, const int M, const int N) {
+	for (int i = 0; i < M * N; ++i) {
+		pDst[i] = DST_T(pSrc1[i] - pSrc2[i]);
 	}
 }
 
@@ -1882,6 +1896,10 @@ public:
 
 	void mul(const cxMtx& mtx);
 	void mul(const cxMtx& m1, const cxMtx& m2);
+	void add(const cxMtx& mtx);
+	void add(const cxMtx& m1, const cxMtx& m2);
+	void sub(const cxMtx& mtx);
+	void sub(const cxMtx& m1, const cxMtx& m2);
 
 	cxVec get_translation() const {
 		return cxVec(m[3][0], m[3][1], m[3][2]);
@@ -1974,6 +1992,8 @@ public:
 };
 
 inline cxMtx operator * (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.mul(m2); return m; }
+inline cxMtx operator + (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.add(m2); return m; }
+inline cxMtx operator - (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.sub(m2); return m; }
 
 namespace nxMtx {
 
@@ -2058,6 +2078,9 @@ public:
 	cxVec get_vector_part() const { return get_imag_part(); }
 	void from_parts(const cxVec& imag, float real) { set(imag.x, imag.y, imag.z, real); }
 
+	cxMtx get_col_mtx() const;
+	cxMtx get_row_mtx() const;
+
 	float dot(const cxQuat& q) const { return x*q.x + y*q.y + z*q.z + w*q.w; }
 
 	float mag2() const { return dot(*this); }
@@ -2082,6 +2105,18 @@ public:
 	void add(const cxQuat& q) {
 		for (int i = 0; i < 4; ++i) {
 			(*this)[i] += q[i];
+		}
+	}
+
+	void sub(const cxQuat& qa, const cxQuat& qb) {
+		for (int i = 0; i < 4; ++i) {
+			(*this)[i] = qa[i] - qb[i];
+		}
+	}
+
+	void sub(const cxQuat& q) {
+		for (int i = 0; i < 4; ++i) {
+			(*this)[i] -= q[i];
 		}
 	}
 
@@ -2198,6 +2233,11 @@ public:
 
 	cxVec apply(const cxVec& v) const;
 
+	cxQuat& operator += (const cxQuat& q) { add(q); return *this; }
+	cxQuat& operator -= (const cxQuat& q) { sub(q); return *this; }
+	cxQuat& operator *= (const cxQuat& q) { mul(q); return *this; }
+	cxQuat& operator *= (const float s) { scl(s); return *this; }
+
 	cxQuat get_closest_x() const;
 	cxQuat get_closest_y() const;
 	cxQuat get_closest_z() const;
@@ -2211,6 +2251,7 @@ public:
 
 inline cxQuat operator * (const cxQuat& q1, const cxQuat& q2) { cxQuat q = q1; q.mul(q2); return q; }
 inline cxQuat operator + (const cxQuat& q1, const cxQuat& q2) { cxQuat q = q1; q.add(q2); return q; }
+inline cxQuat operator - (const cxQuat& q1, const cxQuat& q2) { cxQuat q = q1; q.sub(q2); return q; }
 inline cxQuat operator * (const cxQuat& q, const float s) { cxQuat r = q; r.scl(s); return r; }
 
 namespace nxQuat {
@@ -2279,12 +2320,25 @@ public:
 	cxQuat get_real_part() const { return mReal; }
 	cxQuat get_dual_part() const { return mDual; }
 
-	void normalize() {
-		float s = nxCalc::rcp0(mReal.mag());
-		mReal.scl(s);
-		mDual.scl(s);
+	xt_float2 dot(const cxDualQuat& dq) const {
+		xt_float2 dd;
+		float r = mReal.dot(dq.mReal);
+		float d = mReal.dot(dq.mDual) + mDual.dot(dq.mReal);
+		dd.set(r, d);
+		return dd;
 	}
 
+	xt_float2 mag() const {
+		float rm = mReal.mag();
+		float dm = mReal.dot(mDual) * nxCalc::rcp0(rm);
+		xt_float2 mag;
+		mag.set(rm, dm);
+		return mag;
+	}
+
+	void normalize(bool fast = false);
+
+	void mul(const cxDualQuat& dq1, const cxDualQuat& dq2);
 	void mul(const cxDualQuat& dq);
 
 	cxVec get_pos() const {
@@ -2312,6 +2366,16 @@ public:
 
 	void interpolate(const cxDualQuat& dqA, const cxDualQuat& dqB, float t);
 };
+
+namespace nxDualQuat {
+
+inline cxDualQuat from_parts(const cxQuat& qreal, const cxQuat& qdual) {
+	cxDualQuat dq;
+	dq.set_parts(qreal, qdual);
+	return dq;
+}
+
+} // nxDualQuat
 
 class cxLineSeg;
 class cxPlane;
