@@ -219,25 +219,29 @@ bool wuCreateDir(const char* pPath) {
 }
 
 bool wuSetCurDirToExePath() {
-	LPTSTR pCmd;
-	TCHAR path[MAX_PATH];
-	TCHAR fullPath[MAX_PATH];
-	::memset(path, 0, sizeof(path));
-	pCmd = GetCommandLine();
-	while (*pCmd == '"' || *pCmd == ' ') ++pCmd;
-	LPTSTR pOrg = pCmd;
-	while (*pCmd && !::iswspace(*pCmd)) ++pCmd;
-	LPTSTR pEnd = pCmd;
-	while (pEnd >= pOrg && *pEnd != '\\') --pEnd;
-#if defined(_MSC_VER)
-	_tcsncpy_s(path, sizeof(path) / sizeof(path[0]), pOrg, pEnd - pOrg);
-#else
-	_tcsncpy(path, pOrg, pEnd - pOrg);
-#endif
-	GetFullPathName(path, sizeof(fullPath) / sizeof(fullPath[0]), fullPath, NULL);
-	BOOL res = SetCurrentDirectory(fullPath);
-	if (!res) {
-		nxCore::dbg_msg("!cwd\n");
+	size_t bufSize = 8 * 1024;
+	wchar_t tbuf[256];
+	wchar_t* pPath = (wchar_t*)nxCore::mem_alloc(bufSize * sizeof(wchar_t), XD_TMP_MEM_TAG);
+	if (!pPath) {
+		pPath = tbuf;
+		bufSize = XD_ARY_LEN(tbuf);
+	}
+	ZeroMemory(pPath, bufSize * sizeof(wchar_t));
+	size_t n = ::GetModuleFileNameW(NULL, pPath, (DWORD)bufSize);
+	BOOL res = FALSE;
+	for (size_t i = n; --i != 0;) {
+		res = pPath[i] == '\\' ? TRUE : FALSE;
+		if (res) {
+			pPath[i + 1] = 0;
+			break;
+		}
+	}
+	if (res) {
+		res = ::SetCurrentDirectoryW(pPath);
+	}
+	if (pPath != tbuf) {
+		nxCore::mem_free(pPath);
+		pPath = nullptr;
 	}
 	return !!res;
 }
