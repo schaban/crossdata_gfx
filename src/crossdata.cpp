@@ -8533,7 +8533,7 @@ void cxCmdLine::ctor(int argc, char* argv[]) {
 		if (nxCore::str_starts_with(pArg, "-")) {
 			int argLen = int(::strlen(pArg));
 			char* pVal = nullptr;
-			for (int j = argLen; --j >= 1;) {
+			for (int j = 1; j < argLen; ++j) {
 				if (pArg[j] == ':') {
 					pVal = &pArg[j + 1];
 					break;
