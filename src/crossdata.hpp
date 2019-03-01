@@ -4624,6 +4624,20 @@ public:
 		}
 	}
 
+	const char* find_key_for_val(T val) {
+		const char* pKey = nullptr;
+		for (int i = 0; i < mSize; ++i) {
+			Slot* pSlot = &mpSlots[i];
+			if (pSlot->pKey && pSlot->pKey != get_removed_marker()) {
+				if (val == pSlot->val) {
+					pKey = pSlot->pKey;
+					break;
+				}
+			}
+		}
+		return pKey;
+	}
+
 	static cxStrMap* create(int capacity = 0, float loadScl = 1.0f) {
 		cxStrMap* pMap = (cxStrMap*)nxCore::mem_alloc(sizeof(cxStrMap), XD_FOURCC('S', 'M', 'A', 'P'));
 		if (pMap) {
