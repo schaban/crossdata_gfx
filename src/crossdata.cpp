@@ -1618,6 +1618,46 @@ XD_NOINLINE float cxMtx::norm(bool hprec) const {
 	return hprec ? float(mtx4x4_norm<double>(*this)) : mtx4x4_norm<float>(*this);
 }
 
+template<typename T> T mtx4x4_det(const cxMtx& m) {
+	T t[4 * 4];
+	T wk[4];
+	int idx[4];
+	int dsgn = 0;
+	T det = T(0);
+	nxLA::mtx_cpy(t, &m.m[0][0], 4, 4);
+	if (nxLA::lu_decomp(t, 4, wk, idx, &dsgn)) {
+		det = nxLA::lu_det(t, 4, dsgn);
+	}
+	return det;
+}
+
+XD_NOINLINE float cxMtx::det(bool hprec) const {
+	return hprec ? float(mtx4x4_det<double>(*this)) : mtx4x4_det<float>(*this);
+}
+
+template<typename T> T mtx4x4_det_sr(const cxMtx& m) {
+	T t[3 * 3];
+	T wk[3];
+	int idx[3];
+	T det = T(0);
+	int dsgn = 0;
+	int ti = 0;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			t[ti] = m.m[i][j];
+			++ti;
+		}
+	}
+	if (nxLA::lu_decomp(t, 3, wk, idx, &dsgn)) {
+		det = nxLA::lu_det(t, 3, dsgn);
+	}
+	return det;
+}
+
+XD_NOINLINE float cxMtx::det_sr(bool hprec) const {
+	return hprec ? float(mtx4x4_det_sr<double>(*this)) : mtx4x4_det_sr<float>(*this);
+}
+
 
 void cxQuat::from_mtx(const cxMtx& mtx) {
 	*this = mtx.to_quat();

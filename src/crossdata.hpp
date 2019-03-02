@@ -745,8 +745,8 @@ bool inv_gj(T* pMtx, const int N, int* pWk /* [N*3] */) {
 
 template<typename T>
 XD_FORCEINLINE
-bool lu_decomp(T* pMtx, const int N, T* pWk /* [N] */, int* pIdx /* [N] */, T* pDetSgn = nullptr) {
-	T dsgn = 1;
+bool lu_decomp(T* pMtx, const int N, T* pWk /* [N] */, int* pIdx /* [N] */, int* pDetSgn = nullptr) {
+	int dsgn = 1;
 	T* pScl = pWk;
 	for (int i = 0; i < N; ++i) {
 		T scl = 0;
@@ -847,6 +847,17 @@ void lu_solve(T* pAns, const T* pLU, const T* pRHS, const int* pIdx, const int N
 		}
 		pAns[i] = s / pLU[ri + i];
 	}
+}
+
+template<typename T>
+XD_FORCEINLINE
+T lu_det(const T* pLU, const int N, const int dsgn) {
+	T det = T(1);
+	for (int i = 0; i < N; ++i) {
+		det *= pLU[i*N + i];
+	}
+	if (dsgn < 0) { det = -det; }
+	return det;
 }
 
 template<typename T>
@@ -1989,6 +2000,8 @@ public:
 	xt_float4 apply(const xt_float4& qv) const;
 
 	float norm(bool hprec = true) const;
+	float det(bool hprec = true) const;
+	float det_sr(bool hprec = true) const;
 };
 
 inline cxMtx operator * (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.mul(m2); return m; }
