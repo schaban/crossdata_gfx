@@ -3877,7 +3877,7 @@ struct sxPkdWork {
 		mSrcSize = srcSize;
 		mDictSize = pk_mk_dict(mDict, mXlat, pSrc, srcSize);
 		mBitCntBytes = pk_bit_cnt_to_bytes(srcSize * 3);
-		mpBitCnt = (uint8_t*)nxCore::mem_alloc(mBitCntBytes);
+		mpBitCnt = (uint8_t*)nxCore::mem_alloc(mBitCntBytes + 1);
 		if (mpBitCnt) {
 			::memset(mpBitCnt, 0, mBitCntBytes);
 			mpBitCode = (uint8_t*)nxCore::mem_alloc(srcSize);
@@ -3903,7 +3903,7 @@ static sxPackedData* pkd0(const sxPkdWork& wk) {
 	sxPackedData* pPkd = nullptr;
 	if (wk.is_valid()) {
 		uint32_t size = wk.get_pkd_size();
-		pPkd = (sxPackedData*)nxCore::mem_alloc(size, sxPackedData::SIG);
+		pPkd = (sxPackedData*)nxCore::mem_alloc(size + 1, sxPackedData::SIG);
 		if (pPkd) {
 			pPkd->mSig = sxPackedData::SIG;
 			pPkd->mAttr = 0 | ((wk.mDictSize - 1) << 8);
@@ -3924,7 +3924,7 @@ static sxPackedData* pkd1(const sxPkdWork& wk, const sxPkdWork& wk2) {
 	sxPackedData* pPkd = nullptr;
 	if (wk.is_valid() && wk2.is_valid()) {
 		uint32_t size = sizeof(sxPackedData) + 4 + wk.mDictSize + wk2.mDictSize + wk2.mBitCntBytes + wk2.mBitCodeBytes + wk.mBitCodeBytes;
-		pPkd = (sxPackedData*)nxCore::mem_alloc(size, sxPackedData::SIG);
+		pPkd = (sxPackedData*)nxCore::mem_alloc(size + 1, sxPackedData::SIG);
 		if (pPkd) {
 			pPkd->mSig = sxPackedData::SIG;
 			pPkd->mAttr = 1 | ((wk.mDictSize - 1) << 8) | ((wk2.mDictSize - 1) << 16);
@@ -3990,7 +3990,7 @@ static void pk_decode(uint8_t* pDst, uint32_t size, uint8_t* pDict, uint8_t* pBi
 		byteIdx = codeBitIdx >> 3;
 		bitIdx = codeBitIdx & 7;
 		uint8_t code = pBitCodes[byteIdx] >> bitIdx;
-		code |= pBitCodes[byteIdx + 1] << (8 - bitIdx);
+		code |= pBitCodes[byteIdx + (bitIdx != 0 ? 1 : 0)] << (8 - bitIdx);
 		code &= (uint8_t)(((uint32_t)1 << codeBits) - 1);
 		codeBitIdx += codeBits;
 		if (nbits > 1) {
