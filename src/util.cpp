@@ -392,17 +392,27 @@ void ENV_LIGHT::init(const sxTextureData* pTex) {
 	mAmbientClr.scl_rgb(nxCalc::rcp0(mAmbientClr.max()));
 }
 
-void ENV_LIGHT::apply(GEX_LIT* pLit, float diffRate, float specRate) {
+void ENV_LIGHT::apply_sh(GEX_LIT* pLit) {
 	if (!pLit) return;
 	gexAmbient(pLit, cxColor(0));
 	gexSHLW(pLit, GEX_SHL_MODE::DIFF_REFL, SH_COEFS::ORDER, mSH.mR, mSH.mG, mSH.mB, mSH.mWgtDiff, mSH.mWgtRefl);
+}
+
+void ENV_LIGHT::apply(GEX_LIT* pLit, float diffRate, float specRate, float diffRateRev, float specRateRev) {
+	if (!pLit) return;
+	apply_sh(pLit);
 	for (int i = 0; i < D_GEX_MAX_DYN_LIGHTS; ++i) {
 		gexLightMode(pLit, i, GEX_LIGHT_MODE::NONE);
 	}
 	gexLightDir(pLit, 0, mDominantDir.neg_val());
-	gexLightColor(pLit, 0, mDominantClr, diffRate, specRate); // spec
+	gexLightColor(pLit, 0, mDominantClr, diffRate, specRate);
 	if (diffRate != 0 || specRate != 0) {
 		gexLightMode(pLit, 0, GEX_LIGHT_MODE::DIST);
+	}
+	if (diffRateRev != 0 || specRateRev != 0) {
+		gexLightDir(pLit, 1, mDominantDir);
+		gexLightColor(pLit, 1, mDominantClr, diffRateRev, specRateRev);
+		gexLightMode(pLit, 1, GEX_LIGHT_MODE::DIST);
 	}
 	gexLitUpdate(pLit);
 	gexShadowDir(mDominantDir.neg_val());
@@ -492,9 +502,10 @@ cxVec eval_rot(const sxKeyframesData& kfr, const char* pNodeName, float frame) {
 	return fcv_grp_eval(kfr, pNodeName, frame, chTbl);
 }
 
-GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir) {
+GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir, int* pDominantIdx) {
 	GEX_LIT* pLit = gexLitCreate();
 	cxVec dominantDir = nxVec::get_axis(exAxis::MINUS_Z);
+	int dominantIdx = -1;
 	if (pLit) {
 		float maxLum = 0.0f;
 		int n = vals.get_grp_num();
@@ -523,6 +534,7 @@ GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir) {
 						if (lum > maxLum) {
 							dominantDir = dir;
 							maxLum = lum;
+							dominantIdx = i;
 						}
 						++lidx;
 					} else {
@@ -535,6 +547,9 @@ GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir) {
 	}
 	if (pDominantDir) {
 		*pDominantDir = dominantDir;
+	}
+	if (pDominantIdx) {
+		*pDominantIdx = dominantIdx;
 	}
 	return pLit;
 }
@@ -599,6 +614,10 @@ namespace MtlParamNames {
 		"spec_color" /* Classic Shader */
 	};
 
+	static const char* reflColor[] = {
+		"gex_reflColor"
+	};
+
 	static const char* specModel[] = {
 		"spec_model", /* Classic Shader */
 		"ogl_spec_model" /* Principled Shader */
@@ -619,9 +638,12 @@ namespace MtlParamNames {
 		"enableBumpOrNormalTexture" /* Principled Shader */
 	};
 
-	static const char* useAlpha[] = {
-		"diff_colorTextureUseAlpha", /* Classic Shader */
-		"ogl_cutout" /* Principled Shader */
+	static const char* flipTangent[] = {
+		"baseNormal_flipX" /* Classic Shader */
+	};
+
+	static const char* flipBitangent[] = {
+		"baseNormal_flipY" /* Classic Shader */
 	};
 
 	static const char* bumpTexName[] = {
@@ -632,6 +654,15 @@ namespace MtlParamNames {
 	static const char* bumpScale[] = {
 		"baseNormal_scale", /* Classic Shader */
 		"normalTexScale" /* Principled Shader */
+	};
+
+	static const char* useAlpha[] = {
+		"diff_colorTextureUseAlpha", /* Classic Shader */
+		"ogl_cutout" /* Principled Shader */
+	};
+
+	static const char* SHReflColor[] = {
+		"gex_SHReflColor"
 	};
 };
 
@@ -700,6 +731,10 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 					}
 					gexMtlSHReflectionFresnelRate(pMtl, grp.get_float("gex_shReflFrRate", 1.0f));
 					gexMtlReflDownFadeRate(pMtl, grp.get_float("gex_reflDownFadeRate", 0.0f));
+					cxColor reflClr = D_MTL_RGB(grp, reflColor, cxColor(1.0f));
+					gexMtlReflectionColor(pMtl, reflClr);
+					cxColor SHReflClr = D_MTL_RGB(grp, SHReflColor, cxColor(1.0f));
+					gexMtlSHReflectionColor(pMtl, SHReflClr);
 					bool alphaFlg = D_MTL_BOOL_(grp, useAlpha);
 					gexMtlAlpha(pMtl, alphaFlg);
 					bool alphaCovFlg = !!grp.get_int("gex_alphaCov", false);
@@ -709,6 +744,7 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 						gexMtlBumpFactor(pMtl, D_MTL_FLOAT(grp, bumpScale, 1.0f));
 						if (1) {
 							gexMtlTangentMode(pMtl, GEX_TANGENT_MODE::AUTO);
+							gexMtlTangentOptions(pMtl, D_MTL_BOOL_(grp, flipTangent), D_MTL_BOOL_(grp, flipBitangent));
 						} else {
 							gexMtlTangentMode(pMtl, GEX_TANGENT_MODE::GEOM);
 							gexMtlTangentOptions(pMtl, false, true);

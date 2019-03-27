@@ -168,7 +168,8 @@ struct ENV_LIGHT {
 	ENV_LIGHT() : mpTex(nullptr) {}
 
 	void init(const sxTextureData* pTex);
-	void apply(GEX_LIT* pLit, float diffRate = 0.0f, float specRate = 0.75f);
+	void apply_sh(GEX_LIT* pLit);
+	void apply(GEX_LIT* pLit, float diffRate = 0.0f, float specRate = 0.75f, float diffRateRev = 0.0f, float specRateRev = 0.0f);
 };
 
 TRACKBALL* get_trackball();
@@ -195,7 +196,7 @@ cxVec vec_rot_deg(const cxVec& vsrc, float angX, float angY, float angZ, exRotOr
 GEX_SPEC_MODE parse_spec_mode(const char* pMode);
 cxVec eval_pos(const sxKeyframesData& kfr, const char* pNodeName, float frame);
 cxVec eval_rot(const sxKeyframesData& kfr, const char* pNodeName, float frame);
-GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir = nullptr);
+GEX_LIT* make_lights(const sxValuesData& vals, cxVec* pDominantDir = nullptr, int* pDominantIdx = nullptr);
 GEX_LIT* make_const_lit(const char* pName = nullptr, float val = 1.0f);
 void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor = false);
 CAM_INFO get_cam_info(const sxValuesData& vals, const char* pCamName);
