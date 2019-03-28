@@ -1,3 +1,5 @@
+// Author: Sergey Chaban <sergey.chaban@gmail.com>
+
 #include "crossdata.hpp"
 #include "gex.hpp"
 #include "util.hpp"
@@ -33,6 +35,7 @@ void cBaseRig::init(sxRigData* pRigData) {
 	mpMtxW = (cxMtx*)nxCore::mem_alloc(nnodes * sizeof(cxMtx), XD_FOURCC('R', 'i', 'g', 'W'));
 	mpPrevMtxW = (cxMtx*)nxCore::mem_alloc(nnodes * sizeof(cxMtx), XD_FOURCC('R', 'i', 'g', 'w'));
 	mpMtxBlendL = (cxMtx*)nxCore::mem_alloc(nnodes * sizeof(cxMtx), XD_FOURCC('R', 'i', 'g', 'B'));
+	mpLocalFuncs = (LocalFunc*)nxCore::mem_alloc(nnodes * sizeof(LocalFunc), XD_FOURCC('R', 'i', 'g', 'F'));
 	for (int i = 0; i < nnodes; ++i) {
 		if (mpParams) {
 			mpParams[i].mPos = mpData->get_lpos(i);
@@ -48,6 +51,7 @@ void cBaseRig::init(sxRigData* pRigData) {
 		if (mpMtxBlendL && mpMtxL) {
 			mpMtxBlendL[i] = mpMtxL[i];
 		}
+		mpLocalFuncs[i] = nullptr;
 	}
 	save_prev_w();
 	clear_anim_status();
@@ -74,6 +78,8 @@ void cBaseRig::reset() {
 	mpMtxBlendL = nullptr;
 	nxCore::mem_free(mpParams);
 	mpParams = nullptr;
+	nxCore::mem_free(mpLocalFuncs);
+	mpLocalFuncs = nullptr;
 }
 
 void cBaseRig::ExprCtx::init(cBaseRig& rig) {
@@ -438,6 +444,14 @@ void cBaseRig::update_coord() {
 
 void cBaseRig::calc_world() {
 	if (!is_valid()) return;
+	if (mpLocalFuncs) {
+		for (int i = 0; i < mNodesNum; ++i) {
+			LocalFunc func = mpLocalFuncs[i];
+			if (func) {
+				func(*this, i);
+			}
+		}
+	}
 	save_prev_w();
 	for (int i = 0; i < mNodesNum; ++i) {
 		int parentId = mpData->get_parent_idx(i);
@@ -446,6 +460,20 @@ void cBaseRig::calc_world() {
 		} else {
 			mpMtxW[i] = mpMtxL[i];
 		}
+	}
+}
+
+int cBaseRig::find_node_idx(const char* pName) const {
+	int idx = -1;
+	if (mpData) {
+		idx = mpData->find_node(pName);
+	}
+	return idx;
+}
+
+void cBaseRig::set_local_func(int idx, LocalFunc func) {
+	if (is_valid() && mpLocalFuncs && mpData->ck_node_idx(idx)) {
+		mpLocalFuncs[idx] = func;
 	}
 }
 

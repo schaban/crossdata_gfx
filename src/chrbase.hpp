@@ -1,3 +1,5 @@
+// Author: Sergey Chaban <sergey.chaban@gmail.com>
+
 class cBaseRig {
 public:
 	enum eMoveMode {
@@ -43,6 +45,8 @@ public:
 		void update_expr_ch(exAnimChan ch, float val);
 	};
 
+	typedef void (*LocalFunc)(cBaseRig& rig, int idx);
+
 	sxRigData* mpData;
 	cxMtx* mpMtxL;
 	cxMtx* mpMtxW;
@@ -53,6 +57,7 @@ public:
 	cxVec mPrevWorldPos;
 	cxVec mWorldPos;
 	cxVec mWorldRot;
+	LocalFunc* mpLocalFuncs;
 	int mNodesNum;
 	int mRootNodeId;
 	int mMovementNodeId;
@@ -122,6 +127,7 @@ public:
 	mPrevWorldPos(0.0f), mWorldPos(0.0f), mWorldRot(0.0f),
 	mNodesNum(0), mRootNodeId(-1), mMovementNodeId(-1),
 	mBlendDuration(0), mBlendCount(0), mAnimFrame(0),
+	mpLocalFuncs(nullptr),
 	mOwnData(false) {}
 
 	virtual ~cBaseRig() { unload(); }
@@ -146,6 +152,12 @@ public:
 	void calc_world();
 
 	sxRigData* get_data() const { return mpData; }
+
+	int find_node_idx(const char* pName) const;
+	void set_local_func(int idx, LocalFunc func);
+	void set_local_func(const char* pName, LocalFunc func) {
+		set_local_func(find_node_idx(pName), func);
+	}
 
 	void print_local() const;
 };
