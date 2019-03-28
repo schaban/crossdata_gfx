@@ -1955,6 +1955,10 @@ struct GEX_MTL {
 		mCtxWk.specRoughnessTexRate = 1.0f;
 		mCtxWk.specRoughnessMin = 1.0e-6f;
 		mCtxWk.IOR.fill(1.4f);
+		mCtxWk.diffWrapGain = 0.45f;
+		mCtxWk.diffWrapBias = 0.55f;
+		mCtxWk.diffExpGain = 1.0f;
+		mCtxWk.diffExpBias = 1.0f;
 		mCtxWk.vclrGain.fill(1.0f);
 		mCtxWk.shadowDensity = 1.0f;
 		mCtxWk.shadowAlphaThreshold = 0.5f;
