@@ -240,6 +240,7 @@ void gexMtlDiffuseRoughnessTexRate(GEX_MTL* pMtl, float rate);
 void gexMtlSpecularRoughness(GEX_MTL* pMtl, const cxColor& rgb);
 void gexMtlSpecularRoughnessTexRate(GEX_MTL* pMtl, float rate);
 void gexMtlSpecularRoughnessMin(GEX_MTL* pMtl, float min);
+void gexMtlSpecularDownFadeRate(GEX_MTL* pMtl, float rate);
 void gexMtlIOR(GEX_MTL* pMtl, const cxVec& ior);
 void gexMtlViewFresnel(GEX_MTL* pMtl, float gain, float bias);
 void gexMtlReflFresnel(GEX_MTL* pMtl, float gain, float bias);

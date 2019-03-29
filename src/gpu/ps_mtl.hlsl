@@ -511,6 +511,7 @@ float4 main(float4 scrPos : SV_POSITION, GEO_INFO geo : TEXCOORD, bool frontFace
 	}
 	wk.lit.refl *= calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].reflFrGain, g_mtl[0].reflFrBias);
 	wk.lit.refl = lerp(wk.lit.refl, wk.lit.refl * (1.0 + min(wk.geom.nrm.y, 0.0)), g_mtl[0].reflDownFadeRate);
+	wk.lit.spec = lerp(wk.lit.spec, wk.lit.spec * (1.0 + min(wk.geom.nrm.y, 0.0)), g_mtl[0].specDownFadeRate);
 	float3 diff = wk.lit.diff * wk.tex.base.rgb;
 	float3 spec = (wk.lit.spec + wk.lit.refl) * wk.tex.spec.rgb;
 	spec *= calcViewFresnel(dot(wk.view.dir, wk.geom.nrm), g_mtl[0].viewFrGain, g_mtl[0].viewFrBias);

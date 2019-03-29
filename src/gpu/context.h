@@ -75,6 +75,7 @@ struct MTL_CTX {
 	xt_float3 specRoughness;
 	xt_float specRoughnessTexRate;
 	xt_float specRoughnessMin;
+	xt_float specDownFadeRate;
 	xt_float3 IOR;
 	xt_float3 reflColor;
 	xt_float reflLvl;

@@ -1,3 +1,5 @@
+// Author: Sergey Chaban <sergey.chaban@gmail.com>
+
 #include "crossdata.hpp"
 #include "gex.hpp"
 
@@ -731,6 +733,7 @@ void init_materials(GEX_OBJ& obj, const sxValuesData& vals, bool useReflectColor
 					}
 					gexMtlSHReflectionFresnelRate(pMtl, grp.get_float("gex_shReflFrRate", 1.0f));
 					gexMtlReflDownFadeRate(pMtl, grp.get_float("gex_reflDownFadeRate", 0.0f));
+					gexMtlSpecularDownFadeRate(pMtl, grp.get_float("gex_specDownFadeRate", 0.0f));
 					cxColor reflClr = D_MTL_RGB(grp, reflColor, cxColor(1.0f));
 					gexMtlReflectionColor(pMtl, reflClr);
 					cxColor SHReflClr = D_MTL_RGB(grp, SHReflColor, cxColor(1.0f));

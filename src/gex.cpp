@@ -3705,6 +3705,11 @@ void gexMtlSpecularRoughnessMin(GEX_MTL* pMtl, float min) {
 	pMtl->mCtxWk.specRoughnessMin = nxCalc::saturate(min);
 }
 
+void gexMtlSpecularDownFadeRate(GEX_MTL* pMtl, float rate) {
+	if (!pMtl) return;
+	pMtl->mCtxWk.specDownFadeRate = nxCalc::saturate(rate);
+}
+
 void gexMtlIOR(GEX_MTL* pMtl, const cxVec& ior) {
 	if (!pMtl) return;
 	gexStoreVec(&pMtl->mCtxWk.IOR, ior);

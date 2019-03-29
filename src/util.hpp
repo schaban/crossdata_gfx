@@ -1,3 +1,5 @@
+// Author: Sergey Chaban <sergey.chaban@gmail.com>
+
 #define DATA_PATH(_fname) "../data/" _fname
 
 void util_init();
