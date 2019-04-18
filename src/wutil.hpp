@@ -55,6 +55,7 @@ WU_IMAGE* wuImgDup(const WU_IMAGE* pSrc);
 void wuImgFree(WU_IMAGE* pImg);
 WU_IMAGE* wuImgLoadPNG(const char* pPath, float gamma = WU_DEF_GAMMA);
 WU_IMAGE* wuImgLoadJPG(const char* pPath, float gamma = WU_DEF_GAMMA);
+WU_IMAGE* wuImgLoadTIF(const char* pPath, float gamma = WU_DEF_GAMMA);
 WU_IMAGE* wuImgLoadAlphaKeyPNG(const char* pPath, float gamma = WU_DEF_GAMMA, uint32_t aclr = 0xFF80FF);
 WU_IMAGE* wuImgLoadAlphaKeyGIF(const char* pPath, float gamma = WU_DEF_GAMMA, uint32_t aclr = 0xFF80FF);
 

@@ -551,6 +551,10 @@ XD_NOINLINE WU_IMAGE* wuImgLoadJPG(const char* pPath, float gamma) {
 	return WU_IMAGE::load_jpg(pPath, gamma);
 }
 
+XD_NOINLINE WU_IMAGE* wuImgLoadTIF(const char* pPath, float gamma) {
+	return WU_IMAGE::load_tif(pPath, gamma);
+}
+
 XD_NOINLINE WU_IMAGE* wuImgLoadAlphaKeyPNG(const char* pPath, float gamma, uint32_t aclr) {
 	return wuImgLoadA(pPath, CLSID_WICPngDecoder, gamma, aclr);
 }
