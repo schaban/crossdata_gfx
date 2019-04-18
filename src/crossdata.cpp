@@ -2472,6 +2472,67 @@ bool cap_aabb_overlap(const cxVec& cp0, const cxVec& cp1, float cr, const cxVec&
 	return true;
 }
 
+bool tri_aabb_overlap(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& bmin, const cxVec& bmax) {
+	cxVec vtx[3];
+	vtx[0] = v0;
+	vtx[1] = v1;
+	vtx[2] = v2;
+	return tri_aabb_overlap(vtx, bmin, bmax);
+}
+
+bool tri_aabb_overlap(const cxVec vtx[3], const cxVec& bmin, const cxVec& bmax) {
+	cxVec c = (bmin + bmax) * 0.5f;
+	cxVec e = (bmax - bmin) * 0.5f;
+
+	cxVec v[3];
+	for (int i = 0; i < 3; ++i) {
+		v[i] = vtx[i] - c;
+	}
+
+	cxVec f[3];
+	for (int i = 0; i < 3; ++i) {
+		int i1 = (i + 1) % 3;
+		f[i] = v[i1] - v[i];
+	}
+
+	cxVec u[3];
+	nxLA::identity((float*)&u[0], 3);
+	for (int i = 0; i < 9; ++i) {
+		int aidx = i / 3;
+		int fidx = (i % 3) % 3;
+		cxVec a = nxVec::cross(u[aidx], f[fidx]);
+		float r = 0.0f;
+		for (int j = 0; j < 3; ++j) {
+			r += ::fabsf(a.dot(u[j])) * e[j];
+		}
+		cxVec p;
+		for (int j = 0; j < 3; ++j) {
+			p.set_at(j, v[j].dot(a));
+		}
+		float pmin = p.min_elem();
+		float pmax = p.max_elem();
+		if (pmin > r || pmax < -r) return false;
+	}
+
+	for (int i = 0; i < 3; ++i) {
+		cxVec b;
+		for (int j = 0; j < 3; ++j) {
+			b.set_at(j, v[j][i]);
+		}
+		float bmin = b.min_elem();
+		float bmax = b.max_elem();
+		float r = e[i];
+		if (bmin > r || bmax < -r) return false;
+	}
+
+	cxVec pn = nxVec::cross(f[1], f[0]);
+	float pd = pn.dot(vtx[0]);
+	float s = pn.dot(c) - pd;
+	pn.abs();
+	float r = e.dot(pn);
+	return ::fabsf(s) <= r;
+}
+
 } // nxGeom
 
 

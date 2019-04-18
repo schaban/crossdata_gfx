@@ -2520,6 +2520,9 @@ inline bool cap_cap_overlap(const cxVec& c0p0, const cxVec& c0p1, float cr0, con
 
 bool cap_aabb_overlap(const cxVec& cp0, const cxVec& cp1, float cr, const cxVec& bmin, const cxVec& bmax);
 
+bool tri_aabb_overlap(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& bmin, const cxVec& bmax);
+bool tri_aabb_overlap(const cxVec vtx[3], const cxVec& bmin, const cxVec& bmax);
+
 } // nxGeom
 
 
