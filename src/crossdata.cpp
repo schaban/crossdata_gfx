@@ -791,6 +791,33 @@ cxVec reflect(const cxVec& vec, const cxVec& nrm) {
 	return vec - nrm*vec.dot(nrm)*2.0f;
 }
 
+cxVec decode_octa(const xt_float2& oct) {
+	cxVec v;
+	v.decode_octa(oct);
+	return v;
+}
+
+cxVec decode_octa(const xt_half2& oct) {
+	return decode_octa(oct.get());
+}
+
+cxVec decode_octa(const int16_t oct[2]) {
+	xt_float2 o;
+	o.set(float(oct[0]), float(oct[1]));
+	o.scl(1.0f / 0x7FFF);
+	return decode_octa(o);
+}
+
+cxVec decode_octa(const uint16_t oct[2]) {
+	xt_float2 o;
+	o.set(float(oct[0]), float(oct[1]));
+	o.scl(2.0f / 0xFFFF);
+	for (int i = 0; i < 2; ++i) {
+		o[i] = nxCalc::clamp(o[i] - 1.0f, -1.0f, 1.0f);
+	}
+	return decode_octa(o);
+}
+
 }// nxVec
 
 

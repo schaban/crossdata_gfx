@@ -1480,6 +1480,9 @@ struct xt_int2 {
 
 	void set(int32_t xval, int32_t yval) { x = xval; y = yval; }
 	void fill(int32_t val) { x = val; y = val; }
+
+	operator int32_t* () { return reinterpret_cast<int32_t*>(this); }
+	operator const int32_t* () const { return reinterpret_cast<const int32_t*>(this); }
 };
 
 struct xt_int3 {
@@ -1487,6 +1490,18 @@ struct xt_int3 {
 
 	void set(int32_t xval, int32_t yval, int32_t zval) { x = xval; y = yval; z = zval; }
 	void fill(int32_t val) { x = val; y = val; z = val; }
+
+	void set_at(int at, int32_t val) {
+		switch (at) {
+			case 0: x = val; break;
+			case 1: y = val; break;
+			case 2: z = val; break;
+			default: break;
+		}
+	}
+
+	operator int32_t* () { return reinterpret_cast<int32_t*>(this); }
+	operator const int32_t* () const { return reinterpret_cast<const int32_t*>(this); }
 };
 
 struct xt_int4 {
@@ -1504,6 +1519,9 @@ struct xt_int4 {
 			default: break;
 		}
 	}
+
+	operator int32_t* () { return reinterpret_cast<int32_t*>(this); }
+	operator const int32_t* () const { return reinterpret_cast<const int32_t*>(this); }
 };
 
 struct xt_half {
@@ -1875,6 +1893,11 @@ float dist(const cxVec& pos0, const cxVec& pos1);
 cxVec get_axis(exAxis axis);
 cxVec from_polar_uv(float u, float v);
 cxVec reflect(const cxVec& vec, const cxVec& nrm);
+
+cxVec decode_octa(const xt_float2& oct);
+cxVec decode_octa(const xt_half2& oct);
+cxVec decode_octa(const int16_t oct[2]);
+cxVec decode_octa(const uint16_t oct[2]);
 
 } // nxVec
 
@@ -2296,6 +2319,12 @@ inline cxQuat from_radians(float rx, float ry, float rz, exRotOrd ord = exRotOrd
 inline cxQuat from_degrees(float dx, float dy, float dz, exRotOrd ord = exRotOrd::XYZ) {
 	cxQuat q;
 	q.set_rot_degrees(dx, dy, dz, ord);
+	return q;
+}
+
+inline cxQuat from_log_vec(const cxVec& v, bool nrmFlg = true) {
+	cxQuat q;
+	q.from_log_vec(v, nrmFlg);
 	return q;
 }
 
@@ -2746,6 +2775,14 @@ public:
 
 	void set(const cxVec& v) {
 		set(v.x, v.y, v.z);
+	}
+
+	void set(const xt_float4& f) {
+		set(f.x, f.y, f.z, f.w);
+	}
+
+	void set(const xt_half4& h) {
+		set(h.get());
 	}
 
 	void zero() {
