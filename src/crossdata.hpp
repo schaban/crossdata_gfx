@@ -1899,6 +1899,18 @@ cxVec decode_octa(const xt_half2& oct);
 cxVec decode_octa(const int16_t oct[2]);
 cxVec decode_octa(const uint16_t oct[2]);
 
+cxVec rot_sc_x(const cxVec& v, const float s, const float c);
+cxVec rot_sc_y(const cxVec& v, const float s, const float c);
+cxVec rot_sc_z(const cxVec& v, const float s, const float c);
+cxVec rot_rad_x(const cxVec& v, const float rx);
+cxVec rot_rad_y(const cxVec& v, const float ry);
+cxVec rot_rad_z(const cxVec& v, const float rz);
+cxVec rot_deg_x(const cxVec& v, const float dx);
+cxVec rot_deg_y(const cxVec& v, const float dy);
+cxVec rot_deg_z(const cxVec& v, const float dz);
+cxVec rot_rad(const cxVec& v, const float rx, const float ry, const float rz, exRotOrd rord = exRotOrd::XYZ);
+cxVec rot_deg(const cxVec& v, const float dx, const float dy, const float dz, exRotOrd rord = exRotOrd::XYZ);
+
 } // nxVec
 
 
@@ -1946,6 +1958,17 @@ public:
 			case 1: v.set(m[1][0], m[1][1], m[1][2]); break;
 			case 2: v.set(m[2][0], m[2][1], m[2][2]); break;
 			case 3: v.set(m[3][0], m[3][1], m[3][2]); break;
+		}
+		return v;
+	}
+
+	cxVec get_col_vec(int j) const {
+		cxVec v(0.0f);
+		switch (j) {
+			case 0: v.set(m[0][0], m[1][0], m[2][0]); break;
+			case 1: v.set(m[0][1], m[1][1], m[2][1]); break;
+			case 2: v.set(m[0][2], m[1][2], m[2][2]); break;
+			case 3: v.set(m[0][3], m[1][3], m[2][3]); break;
 		}
 		return v;
 	}
@@ -2015,7 +2038,7 @@ public:
 
 	void calc_xform(const cxMtx& mtxT, const cxMtx& mtxR, const cxMtx& mtxS, exTransformOrd ord = exTransformOrd::SRT);
 
-	void mk_view(const cxVec& pos, const cxVec& tgt, const cxVec& upvec);
+	void mk_view(const cxVec& pos, const cxVec& tgt, const cxVec& upvec, cxMtx* pInv = nullptr);
 	void mk_proj(float fovy, float aspect, float znear, float zfar);
 
 	cxVec calc_vec(const cxVec& v) const;
@@ -2032,6 +2055,22 @@ inline cxMtx operator + (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.add
 inline cxMtx operator - (const cxMtx& m1, const cxMtx& m2) { cxMtx m = m1; m.sub(m2); return m; }
 
 namespace nxMtx {
+
+inline cxMtx identity() {
+	cxMtx m;
+	m.identity();
+	return m;
+}
+
+inline cxMtx from_mem(const float* pSrc) {
+	cxMtx m;
+	if (pSrc) {
+		m.from_mem(pSrc);
+	} else {
+		m.identity();
+	}
+	return m;
+}
 
 inline cxMtx orient_zy(const cxVec& axisZ, const cxVec& axisY, bool normalizeInput = true) {
 	cxMtx m;
@@ -2075,8 +2114,17 @@ inline cxMtx mk_translation(const cxVec& tv) {
 	return m;
 }
 
+cxMtx mtx_from_wmtx(const xt_wmtx& wm);
+xt_wmtx wmtx_from_mtx(const cxMtx& m);
+
 cxVec wmtx_calc_vec(const xt_wmtx& m, const cxVec& v);
 cxVec wmtx_calc_pnt(const xt_wmtx& m, const cxVec& v);
+xt_wmtx wmtx_concat(const xt_wmtx& a, const xt_wmtx& b);
+xt_wmtx wmtx_basis(const cxVec& ax, const cxVec& ay, const cxVec& az, const cxVec& pos);
+xt_wmtx wmtx_from_quat_pos(const cxQuat& quat, const cxVec& pos);
+xt_wmtx wmtx_from_deg_pos(const float dx, const float dy, const float dz, const cxVec& pos, exRotOrd rord = exRotOrd::XYZ);
+cxVec wmtx_get_pos(const xt_wmtx& wm);
+void wmtx_set_pos(xt_wmtx& wm, const cxVec& pos);
 
 void dump_hgeo(FILE* pOut, const cxMtx* pMtx, const int n, float scl = 1.0f);
 void dump_hgeo(const char* pOutPath, const cxMtx* pMtx, const int n, float scl = 1.0f);
