@@ -1838,6 +1838,12 @@ public:
 		z = nxCalc::lerp(v1.z, v2.z, t);
 	}
 
+	xt_float4 get_pnt() const {
+		xt_float4 pnt;
+		pnt.set(x, y, z, 1.0f);
+		return pnt;
+	}
+
 	xt_float2 encode_octa() const;
 	void decode_octa(const xt_float2& oct);
 };
