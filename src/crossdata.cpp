@@ -756,8 +756,17 @@ void xt_mtx::identity() {
 	::memcpy(this, nxCalc::s_identityMtx, sizeof(*this));
 }
 
+void xt_mtx::zero() {
+	::memset(this, 0, sizeof(*this));
+}
+
+
 void xt_wmtx::identity() {
 	::memcpy(this, nxCalc::s_identityMtx, sizeof(*this));
+}
+
+void xt_wmtx::zero() {
+	::memset(this, 0, sizeof(*this));
 }
 
 
@@ -7381,6 +7390,14 @@ void sxTextureData::DDS::save(const char* pOutPath) const {
 	}
 }
 
+static float pmd_log2f(float x) {
+#if 1
+	return ::logf(x) / ::logf(2.0f);
+#else
+	return ::log2f(x);
+#endif
+}
+
 sxTextureData::Pyramid* sxTextureData::get_pyramid() const {
 	sxTextureData::Pyramid* pPmd = nullptr;
 	int w0 = get_width();
@@ -7389,8 +7406,8 @@ sxTextureData::Pyramid* sxTextureData::get_pyramid() const {
 	int h = h0;
 	bool flgW = nxCore::is_pow2(w);
 	bool flgH = nxCore::is_pow2(h);
-	int baseW = flgW ? w : (1 << (1 + (int)::log2f(float(w))));
-	int baseH = flgH ? h : (1 << (1 + (int)::log2f(float(h))));
+	int baseW = flgW ? w : (1 << (1 + (int)pmd_log2f(float(w))));
+	int baseH = flgH ? h : (1 << (1 + (int)pmd_log2f(float(h))));
 	w = baseW;
 	h = baseH;
 	int nlvl = 1;

@@ -1461,6 +1461,7 @@ struct xt_mtx {
 	float m[4][4];
 
 	void identity();
+	void zero();
 
 	operator float* () { return reinterpret_cast<float*>(this); }
 	operator const float* () const { return reinterpret_cast<const float*>(this); }
@@ -1470,6 +1471,7 @@ struct xt_wmtx {
 	float m[3][4];
 
 	void identity();
+	void zero();
 
 	operator float* () { return reinterpret_cast<float*>(this); }
 	operator const float* () const { return reinterpret_cast<const float*>(this); }
