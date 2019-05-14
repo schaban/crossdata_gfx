@@ -62,7 +62,7 @@ void cStopWatch::reset() {
 	mSmpIdx = 0;
 }
 
-static int smpcmp(const void* pA, const void* pB) {
+static int smp_cmp(const void* pA, const void* pB) {
 	double* pSmp1 = (double*)pA;
 	double* pSmp2 = (double*)pB;
 	double s1 = *pSmp1;
@@ -72,12 +72,20 @@ static int smpcmp(const void* pA, const void* pB) {
 	return 0;
 }
 
+double calc_time_smps_median(double* pSmps, const size_t nsmps) {
+	double med = 0.0;
+	if (pSmps && nsmps) {
+		::qsort(pSmps, nsmps, sizeof(double), smp_cmp);
+		med = (nsmps & 1) ? pSmps[(nsmps - 1) / 2] : (pSmps[(nsmps / 2) - 1] + pSmps[nsmps / 2]) * 0.5;
+	}
+	return med;
+}
+
 double cStopWatch::median() {
 	double val = 0;
 	int n = mSmpIdx;
 	if (n > 0 && mpSmps) {
-		::qsort(mpSmps, n, sizeof(double), smpcmp);
-		val = (n & 1) ? mpSmps[(n - 1) / 2] : (mpSmps[(n / 2) - 1] + mpSmps[n / 2]) * 0.5;
+		val = calc_time_smps_median(mpSmps, n);
 	}
 	return val;
 }

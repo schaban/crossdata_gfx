@@ -1,5 +1,5 @@
 double time_micros();
-
+double calc_time_smps_median(double* pSmps, const size_t nsmps);
 
 class cStopWatch {
 protected:
