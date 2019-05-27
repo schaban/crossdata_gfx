@@ -989,6 +989,35 @@ void cxMtx::from_quat_and_pos(const cxQuat& qrot, const cxVec& vtrans) {
 
 namespace nxMtx {
 
+void clean_rotations(cxMtx* pMtx, const int n) {
+	if (!pMtx) return;
+	if (n <= 0) return;
+	float rmA[3 * 3];
+	float rmU[3 * 3];
+	float rmS[3];
+	float rmV[3 * 3];
+	float rmWk[3];
+	for (int i = 0; i < n; ++i) {
+		cxMtx m = pMtx[i];
+		cxVec t = m.get_translation();
+		for (int j = 0; j < 3; ++j) {
+			m.get_row_vec(j).to_mem(&rmA[j * 3]);
+		}
+		bool res = nxLA::sv_decomp(rmU, rmS, rmV, rmWk, rmA, 3, 3);
+		if (res) {
+			nxLA::transpose(rmV, 3, 3);
+			nxLA::mul_mm(rmA, rmU, rmV, 3, 3, 3);
+			cxVec av[3];
+			for (int j = 0; j < 3; ++j) {
+				av[j].from_mem(&rmA[j * 3]);
+			}
+			m.set_rot_frame(av[0], av[1], av[2]);
+			m.set_translation(t);
+			pMtx[i] = m;
+		}
+	}
+}
+
 cxMtx mtx_from_wmtx(const xt_wmtx& wm) {
 	cxMtx m;
 	::memcpy(&m, &wm, sizeof(wm));

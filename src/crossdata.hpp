@@ -2122,6 +2122,8 @@ inline cxMtx mk_translation(const cxVec& tv) {
 	return m;
 }
 
+void clean_rotations(cxMtx* pMtx, const int n);
+
 cxMtx mtx_from_wmtx(const xt_wmtx& wm);
 xt_wmtx wmtx_from_mtx(const cxMtx& m);
 
