@@ -3873,7 +3873,7 @@ void gexCalcShadowMtxPersp() {
 	cxMtx mtxInvViewProj = gexLoadTMtx(pCam->mCtxWk.invViewProj);
 
 	float persp = 0.5f;
-	float vdist = 1000.0f;
+	float vdist = 100.0f;
 	vdist *= mtxProj.m[1][1] * persp;
 	float cosVL = mtxInvView.get_row_vec(2).dot(ldir);
 	float reduce = ::fabsf(cosVL);
