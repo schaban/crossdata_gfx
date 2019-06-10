@@ -179,7 +179,6 @@ void tskWorkerWait(TSK_WORKER* pWrk) {
 
 void tskWorkerStop(TSK_WORKER* pWrk) {
 	if (pWrk && !pWrk->mEndFlg) {
-		int exitRes = -1;
 		pWrk->mEndFlg = true;
 		tskWorkerExec(pWrk);
 		tskWorkerWait(pWrk);
@@ -369,7 +368,6 @@ void tskWorkerWait(TSK_WORKER* pWrk) {
 
 void tskWorkerStop(TSK_WORKER* pWrk) {
 	if (pWrk && !pWrk->mEndFlg) {
-		int exitRes = -1;
 		pWrk->mEndFlg = true;
 		tskWorkerExec(pWrk);
 		tskWorkerWait(pWrk);
