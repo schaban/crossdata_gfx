@@ -1204,7 +1204,7 @@ bool sv_decomp(T* pU, T* pS, T* pV, T* pWk, const T* pA, const int M, const int 
 
 	for (int k = N; --k >= 0;) {
 		for (int itr = 0; itr < niter; ++itr) {
-			int idx;
+			int idx = 0;
 			bool flg = true;
 			for (int i = k; i >= 0; --i) {
 				idx = i;
