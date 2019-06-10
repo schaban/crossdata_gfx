@@ -9,7 +9,10 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <malloc.h>
+
+#if defined(_MSC_VER)
+#	include <malloc.h>
+#endif
 
 #define _USE_MATH_DEFINES
 #include <math.h>
