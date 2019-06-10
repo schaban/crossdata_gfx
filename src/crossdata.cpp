@@ -6163,7 +6163,6 @@ bool sxGeometryData::Polygon::intersect(const cxLineSeg& seg, cxVec* pHitPos, cx
 	int nvtx = get_vtx_num();
 	bool planarFlg = false;
 	int cvxMsk = 0;
-	int hitTriIdx = 0;
 	cxVec qvtx[4];
 	cxVec sp0 = seg.get_pos0();
 	cxVec sp1 = seg.get_pos1();
@@ -7188,14 +7187,7 @@ cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bo
 		for (int y = 0; y < srcH; ++y) {
 			for (int x = 0; x < srcW; ++x) {
 				cxColor c = *pClr++;
-				if (0) {
-					// VC: AVX/x64 optimizer bug for constant xscl
-					for (int i = 0; i < xscl; ++i) {
-						*pDstX++ = c;
-					}
-				} else {
-					pDstX = clr_dup(pDstX, c, xscl);
-				}
+				pDstX = clr_dup(pDstX, c, xscl);
 			}
 			cxColor* pDstY = pDstX;
 			for (int i = 1; i < yscl; ++i) {
@@ -7855,7 +7847,6 @@ float sxKeyframesData::FCurve::eval(float frm, bool extrapolate) const {
 				int i1 = i0 + 1;
 				float f0 = (float)get_fno(i0);
 				float f1 = (float)get_fno(i1);
-				float ffrc = frm - (float)fno;
 				if (frm != f0) {
 					eFunc func = pInfo->get_common_func();
 					if (pInfo->mFuncOffs) {
