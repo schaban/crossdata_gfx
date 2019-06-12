@@ -2113,6 +2113,42 @@ inline cxMtx mk_rot_frame(const cxVec& axisX, const cxVec& axisY, const cxVec& a
 	return m;
 }
 
+inline cxMtx mk_rot(const cxVec& axis, const float ang) {
+	cxMtx m;
+	m.set_rot(axis, ang);
+	return m;
+}
+
+inline cxMtx mk_rot_x(const float rx) {
+	cxMtx m;
+	m.set_rot_x(rx);
+	return m;
+}
+
+inline cxMtx mk_rot_y(const float ry) {
+	cxMtx m;
+	m.set_rot_y(ry);
+	return m;
+}
+
+inline cxMtx mk_rot_z(const float rz) {
+	cxMtx m;
+	m.set_rot_z(rz);
+	return m;
+}
+
+inline cxMtx mk_rot(const float rx, const float ry, const float rz, const exRotOrd ord = exRotOrd::XYZ) {
+	cxMtx m;
+	m.set_rot(rx, ry, rz, ord);
+	return m;
+}
+
+inline cxMtx mk_rot_degrees(const cxVec& r, const exRotOrd ord = exRotOrd::XYZ) {
+	cxMtx m;
+	m.set_rot_degrees(r, ord);
+	return m;
+}
+
 inline cxMtx mk_scl(const cxVec sv) {
 	cxMtx m;
 	m.mk_scl(sv);
