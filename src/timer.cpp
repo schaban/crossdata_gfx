@@ -3,9 +3,11 @@
 #	define NOMINMAX
 #	define _WIN32_WINNT 0x0500
 #	include <Windows.h>
+#elif defined(__APPLE__)
+#	include <chrono>
+#else
+#	include <time.h>
 #endif
-
-#include <time.h>
 
 #include "crossdata.hpp"
 
@@ -20,6 +22,10 @@ double time_micros() {
 		QueryPerformanceCounter(&ctr);
 		ms = ((double)ctr.QuadPart / (double)frq.QuadPart) * 1.0e6;
 	}
+#elif defined(__APPLE__)
+	using namespace std::chrono;
+	auto t = high_resolution_clock::now();
+	ms = (double)duration_cast<nanoseconds>(t.time_since_epoch()).count() * 1.0e-3;
 #else
 	struct timespec t;
 	if (clock_gettime(CLOCK_MONOTONIC, &t) != 0) {
