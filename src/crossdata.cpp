@@ -7497,6 +7497,9 @@ sxTextureData::Pyramid* sxTextureData::get_pyramid() const {
 				pLvl[y*baseW + x] = pTmp[y];
 			}
 		}
+		for (int i = 0; i < baseW * baseH; ++i) {
+			pLvl[i].clip_neg();
+		}
 		nxCore::mem_free(pTmp);
 		nxCore::mem_free(pOrg);
 		nxCore::mem_free(pWgt);
