@@ -222,7 +222,7 @@ inline float tcos(float x) { return ::cosf(x); }
 template<typename T> inline T tpow(T x, T y) { return T(::pow((double)x, (double)y)); }
 inline float tpow(float x, float y) { return ::powf(x, y); }
 
-template<typename T> T ipow(T x, int n) {
+template<typename T> inline T ipow(T x, int n) {
 	T wx = x;
 	int wn = n;
 	if (n < 0) {
@@ -263,6 +263,11 @@ inline float sinc(float x) {
 		return 1.0f;
 	}
 	return (::sinf(x) / x);
+}
+
+template<typename T> inline T approach(const T& val, const T& dst, int t) {
+	float ft = float(t < 1 ? 1 : t);
+	return (val*(ft - 1.0f) + dst) * (1.0f / ft);
 }
 
 inline float ease(float t, float e = 1.0f) {
