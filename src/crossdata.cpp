@@ -630,7 +630,16 @@ static float s_identityMtx[4][4] = {
 	{ 0.0f, 0.0f, 0.0f, 1.0f },
 };
 
-float hermite(float p0, float m0, float p1, float m1, float t) {
+float ease_crv(const float p1, const float p2, const float t) {
+	float tt = t*t;
+	float ttt = tt*t;
+	float ttt3 = ttt*3.0f;
+	float b1 = ttt3 - tt*6.0f + t*3.0f;
+	float b2 = tt*3.0f - ttt3;
+	return b1*p1 + b2*p2 + ttt;
+}
+
+float hermite(const float p0, const float m0, const float p1, const float m1, const float t) {
 	float tt = t*t;
 	float ttt = tt*t;
 	float tt3 = tt*3.0f;
@@ -643,19 +652,19 @@ float hermite(float p0, float m0, float p1, float m1, float t) {
 	return (h00*p0 + h10*m0 + h01*p1 + h11*m1);
 }
 
-float fit(float val, float oldMin, float oldMax, float newMin, float newMax) {
+float fit(const float val, const float oldMin, const float oldMax, const float newMin, const float newMax) {
 	float rel = div0(val - oldMin, oldMax - oldMin);
 	rel = saturate(rel);
 	return lerp(newMin, newMax, rel);
 }
 
-float calc_fovy(float focal, float aperture, float aspect) {
+float calc_fovy(const float focal, const float aperture, const float aspect) {
 	float zoom = ((2.0f * focal) / aperture) * aspect;
 	float fovy = 2.0f * ::atan2f(1.0f, zoom);
 	return fovy;
 }
 
-bool is_prime(int32_t x) {
+bool is_prime(const int32_t x) {
 	if (x <= 1) return false;
 	if (is_even(x)) return x == 2;
 	int n = int(::sqrt(x));
@@ -665,7 +674,7 @@ bool is_prime(int32_t x) {
 	return true;
 }
 
-int32_t prime(int32_t x) {
+int32_t prime(const int32_t x) {
 	if (is_prime(x)) return x;
 	int org = x > 1 ? (x & (~1)) - 1 : 0;
 	int end = int32_t(uint32_t(-1) >> 1);

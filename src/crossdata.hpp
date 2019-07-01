@@ -270,7 +270,7 @@ template<typename T> inline T approach(const T& val, const T& dst, int t) {
 	return (val*(ft - 1.0f) + dst) * (1.0f / ft);
 }
 
-inline float ease(float t, float e = 1.0f) {
+inline float ease(const float t, const float e = 1.0f) {
 	float x = 0.5f - 0.5f*::cosf(t*XD_PI);
 	if (e != 1.0f) {
 		x = ::powf(x, e);
@@ -278,11 +278,13 @@ inline float ease(float t, float e = 1.0f) {
 	return x;
 }
 
-float hermite(float p0, float m0, float p1, float m1, float t);
+float ease_crv(const float p1, const float p2, const float t);
 
-float fit(float val, float oldMin, float oldMax, float newMin, float newMax);
+float hermite(const float p0, const float m0, const float p1, const float m1, const float t);
 
-float calc_fovy(float focal, float aperture, float aspect);
+float fit(const float val, const float oldMin, const float oldMax, const float newMin, const float newMax);
+
+float calc_fovy(const float focal, const float aperture, const float aspect);
 
 template<typename FN> float panorama_scan(FN& fn, int w, int h) {
 	float da = (float)((2.0*XD_PI / w) * (XD_PI / h));
@@ -317,10 +319,10 @@ template<typename FN> float panorama_scan(FN& fn, int w, int h) {
 	return (XD_PI * 4.0f) * rcp0(sum);
 }
 
-inline bool is_even(int32_t x) { return (x & 1) == 0; }
-inline bool is_odd(int32_t x) { return (x & 1) != 0; }
-bool is_prime(int32_t x);
-int32_t prime(int32_t x);
+inline bool is_even(const int32_t x) { return (x & 1) == 0; }
+inline bool is_odd(const int32_t x) { return (x & 1) != 0; }
+bool is_prime(const int32_t x);
+int32_t prime(const int32_t x);
 
 } // nxCalc
 
@@ -2154,10 +2156,24 @@ inline cxMtx mk_rot_degrees(const cxVec& r, const exRotOrd ord = exRotOrd::XYZ) 
 	return m;
 }
 
+inline cxMtx mk_rot_degrees(const float dx, const float dy, const float dz, const exRotOrd ord = exRotOrd::XYZ) {
+	return mk_rot_degrees(cxVec(dx, dy, dz), ord);
+}
+
 inline cxMtx mk_scl(const cxVec sv) {
 	cxMtx m;
 	m.mk_scl(sv);
 	return m;
+}
+
+inline cxMtx mk_pos(const cxVec& v) {
+	cxMtx m;
+	m.mk_translation(v);
+	return m;
+}
+
+inline cxMtx mk_pos(const float x, const float y, const float z) {
+	return mk_pos(cxVec(x, y, z));
 }
 
 inline cxMtx mk_translation(const cxVec& tv) {
