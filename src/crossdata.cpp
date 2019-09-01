@@ -8774,7 +8774,7 @@ int sxExprLibData::count_rig_entries(const sxRigData& rig) const {
 	return n;
 }
 
-int sxFileCatalogue::find_name_idx(const char* pName) const {
+int sxFileCatalogue::find_item_name_idx(const char* pName) const {
 	int idx = -1;
 	if (pName) {
 		sxStrList* pStrLst = get_str_list();

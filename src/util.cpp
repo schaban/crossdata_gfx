@@ -127,7 +127,7 @@ void MOTION_LIB::init(const char* pBasePath, const sxRigData& rig) {
 			mppKfrs[i] = pData->as<sxKeyframesData>();
 			if (mppKfrs[i]) {
 				if (dbgInfo) {
-					nxCore::dbg_msg("[%d]: %s, #frames=%d\n", i, mpCat->get_name(i), mppKfrs[i]->get_frame_count());
+					nxCore::dbg_msg("[%d]: %s, #frames=%d\n", i, mpCat->get_item_name(i), mppKfrs[i]->get_frame_count());
 				}
 				mppRigLinks[i] = mppKfrs[i]->make_rig_link(rig);
 				if (mppRigLinks[i]) {

@@ -4139,9 +4139,9 @@ struct sxFileCatalogue : public sxData {
 
 	bool ck_file_idx(int idx) const { return (uint32_t)idx < mFilesNum; }
 	const FileInfo* get_info(int idx) const { return ck_file_idx(idx) ? &((const FileInfo*)XD_INCR_PTR(this, mListOffs))[idx] : nullptr; }
-	const char* get_name(int idx) const { const FileInfo* pInfo = get_info(idx); return pInfo ? get_str(pInfo->mNameId) : nullptr; }
+	const char* get_item_name(int idx) const { const FileInfo* pInfo = get_info(idx); return pInfo ? get_str(pInfo->mNameId) : nullptr; }
 	const char* get_file_name(int idx) const { const FileInfo* pInfo = get_info(idx); return pInfo ? get_str(pInfo->mFileNameId) : nullptr; }
-	int find_name_idx(const char* pName) const;
+	int find_item_name_idx(const char* pName) const;
 
 	static const uint32_t KIND = XD_FOURCC('F', 'C', 'A', 'T');
 };

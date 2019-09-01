@@ -66,7 +66,7 @@ struct MOTION_LIB {
 	void init(const char* pBasePath, const sxRigData& rig);
 	void reset();
 	int get_motions_num() const { return mpCat ? mpCat->mFilesNum : 0; }
-	int find_motion(const char* pName) const { return mpCat ? mpCat->find_name_idx(pName) : -1; };
+	int find_motion(const char* pName) const { return mpCat ? mpCat->find_item_name_idx(pName) : -1; };
 	sxKeyframesData* get_keyframes(int idx) const { return mpCat && mppKfrs ? (mpCat->ck_file_idx(idx) ? mppKfrs[idx] : nullptr) : nullptr; }
 	sxKeyframesData::RigLink* get_riglink(int idx) const { return mpCat && mppRigLinks ? (mpCat->ck_file_idx(idx) ? mppRigLinks[idx] : nullptr) : nullptr; }
 };
