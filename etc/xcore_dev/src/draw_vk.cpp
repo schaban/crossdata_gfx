@@ -82,7 +82,7 @@ static void* VKAPI_CALL vk_alloc(void* pData, size_t size, size_t alignment, VkS
 			pTag = "vkDevice";
 			break;
 		case VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE:
-			pTag = "vkInstance";;
+			pTag = "vkInstance";
 			break;
 	}
 	void* pMem = nxCore::mem_alloc(size, pTag, (int)alignment);
@@ -433,7 +433,8 @@ bool VK_GLB::init_vk() {
 		if (presentFlg) {
 			queIdxPresentSep = int(i);
 		}
-		if (!!(mpQueueFamProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+		const VkQueueFlags gfxQueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT;
+		if (!!(mpQueueFamProps[i].queueFlags & gfxQueFlags)) {
 			if (queIdxGfx < 0) {
 				queIdxGfx = int(i);
 			}
@@ -1303,7 +1304,6 @@ void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode,
 	vkCmdDrawIndexed(cmd, pBat->mTriNum * 3, 1, 0, 0, 0);
 	vkCmdEndRenderPass(mpSwapChainCmdBufs[mSwapChainIdx]);
 }
-
 
 static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 	::memset(&VKG, 0, sizeof(VKG));
