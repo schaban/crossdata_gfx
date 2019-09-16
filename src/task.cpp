@@ -394,7 +394,7 @@ struct TSK_QUEUE {
 		return pJob;
 	}
 
-	void resetCursor() {
+	void reset_cursor() {
 		mAccessIdx.store(0);
 	}
 };
@@ -460,7 +460,7 @@ void tskBrigadeDestroy(TSK_BRIGADE* pBgd) {
 void tskBrigadeExec(TSK_BRIGADE* pBgd, TSK_QUEUE* pQue) {
 	if (!pBgd) return;
 	if (!pQue) return;
-	pQue->resetCursor();
+	pQue->reset_cursor();
 	pBgd->mpQue = pQue;
 	int wrkNum = pBgd->mActiveWrkNum;
 	for (int i = 0; i < wrkNum; ++i) {
@@ -536,7 +536,7 @@ TSK_QUEUE* tskQueueCreate(int nslots) {
 				::memset(pSlots, 0, memSize);
 				pQue->mSlotsNum = nslots;
 				pQue->mPutIdx = 0;
-				pQue->resetCursor();
+				pQue->reset_cursor();
 				pQue->mpJobSlots = pSlots;
 			} else {
 				nxCore::mem_free(pQue);
