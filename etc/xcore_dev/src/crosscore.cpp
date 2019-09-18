@@ -4501,6 +4501,25 @@ void cxColor::decode_bgr565(uint16_t bgr) {
 }
 
 
+XD_NOINLINE void cxView::init(const int width, const int height) {
+	set_window(width, height);
+	set_deg_fovy(30.0f);
+	set_z_planes(0.1f, 1000.0f);
+	set_frame(cxVec(0.75f, 1.3f, 3.5f), cxVec(0.0f, 0.95f, 0.0f));
+	update();
+}
+
+XD_NOINLINE void cxView::update() {
+	mViewMtx.mk_view(mPos, mTgt, mUp, &mInvViewMtx);
+	float fovy = XD_DEG2RAD(mDegFOVY);
+	mProjMtx.mk_proj(fovy, mAspect, mNear, mFar);
+	mViewProjMtx = mViewMtx * mProjMtx;
+	mInvProjMtx = mProjMtx.get_inverted();
+	mInvViewProjMtx = mViewProjMtx.get_inverted();
+	mFrustum.init(mInvViewMtx, fovy, mAspect, mNear, mFar);
+}
+
+
 namespace nxSH {
 
 void calc_weights(float* pWgt, int order, float s, float scl) {

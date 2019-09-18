@@ -2698,6 +2698,7 @@ inline cxDualQuat from_parts(const cxQuat& qreal, const cxQuat& qdual) {
 
 } // nxDualQuat
 
+
 class cxLineSeg;
 class cxPlane;
 class cxSphere;
@@ -3192,6 +3193,55 @@ inline cxColor lerp(const cxColor& cA, const cxColor& cB, float t) {
 }
 
 } // nxColor
+
+
+class cxView {
+protected:
+	float mAspect;
+
+public:
+	cxFrustum mFrustum;
+	cxMtx mViewMtx;
+	cxMtx mProjMtx;
+	cxMtx mViewProjMtx;
+	cxMtx mInvViewMtx;
+	cxMtx mInvProjMtx;
+	cxMtx mInvViewProjMtx;
+	cxVec mPos;
+	cxVec mTgt;
+	cxVec mUp;
+	float mDegFOVY;
+	int mWidth;
+	int mHeight;
+	float mNear;
+	float mFar;
+
+	cxView() { init(); }
+
+	void set_frame(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f)) {
+		mPos = pos;
+		mTgt = tgt;
+		mUp = up;
+	}
+
+	void set_window(const int width, const int height) {
+		mWidth = width;
+		mHeight = height;
+		mAspect = nxCalc::div0(float(width), float(height));
+	}
+
+	void set_z_planes(const float znear, const float zfar) {
+		mNear = znear;
+		mFar = zfar;
+	}
+
+	void set_deg_fovy(const float fovy) {
+		mDegFOVY = fovy;
+	}
+
+	void init(const int width = 800, const int height = 600);
+	void update();
+};
 
 
 struct sxCompiledExpression;
