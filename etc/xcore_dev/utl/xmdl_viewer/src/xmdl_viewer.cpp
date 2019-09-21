@@ -7,6 +7,7 @@
 #define MAX_XFORMS 128
 #define GP_BIND_XFORM 0
 #define GP_BIND_LIGHT 1
+#define GP_BIND_COLOR 2
 
 struct GPXform {
 	xt_mtx  viewProj;
@@ -30,6 +31,11 @@ struct GPLight {
 		hemiExp = 1.0f;
 		hemiGain = 1.0f;
 	}
+};
+
+struct GPColor {
+	xt_float3 invGamma;
+	float invGammaPad;
 };
 
 struct GPUVtx {
@@ -164,16 +170,21 @@ private:
 	GLint mAttrLocIdx;
 	GLuint mGPIdxXform;
 	GLuint mGPIdxLight;
+	GLuint mGPIdxColor;
 
 	GLuint mVB;
 	GLuint mIB16;
 	GLuint mIB32;
 	GLuint mXformUB;
 	GLuint mLightUB;
+	GLuint mColorUB;
 
 	GPXform mGPXform;
 	GPLight mGPLight;
+	GPColor mGPColor;
+
 	int mHemiMode;
+	float mGamma;
 
 	struct ViewCtrl {
 		QWidget* mpWgt;
@@ -348,15 +359,19 @@ public:
 	: QOpenGLWidget(pParent),
 	mpMdl(nullptr), mMdlUpdateFlg(true),
 	mHemiMode(0),
+	mGamma(2.2f),
 	mProgId(0), mAttrLocPos(-1), mAttrLocNrm(-1), mAttrLocTex(-1), mAttrLocClr(-1), mAttrLocWgt(-1), mAttrLocIdx(-1),
-	mGPIdxXform((GLuint)-1), mGPIdxLight((GLuint)-1),
-	mVB(0), mIB16(0), mIB32(0), mXformUB(0), mLightUB(0)
+	mGPIdxXform((GLuint)-1), mGPIdxLight((GLuint)-1), mGPIdxColor((GLuint)-1),
+	mVB(0), mIB16(0), mIB32(0), mXformUB(0), mLightUB(0), mColorUB(0)
 	{
 		for (int i = 0; i < MAX_XFORMS; ++i) {
 			mGPXform.xforms[i].identity();
 		}
 		mGPLight.reset();
 		mViewCtrl.init(this);
+		QSurfaceFormat fmt = format();
+		fmt.setDepthBufferSize(24);
+		setFormat(fmt);
 	}
 
 	void initializeGL() override {
@@ -376,6 +391,8 @@ public:
 				pxfn->glUniformBlockBinding(mProgId, mGPIdxXform, GP_BIND_XFORM);
 				mGPIdxLight = pxfn->glGetUniformBlockIndex(mProgId, "GPLight");
 				pxfn->glUniformBlockBinding(mProgId, mGPIdxLight, GP_BIND_LIGHT);
+				mGPIdxColor = pxfn->glGetUniformBlockIndex(mProgId, "GPColor");
+				pxfn->glUniformBlockBinding(mProgId, mGPIdxColor, GP_BIND_COLOR);
 			}
 		}
 		pfn->glGenBuffers(1, &mXformUB);
@@ -388,6 +405,12 @@ public:
 		if (mLightUB) {
 			pfn->glBindBuffer(GL_UNIFORM_BUFFER, mLightUB);
 			pfn->glBufferData(GL_UNIFORM_BUFFER, sizeof(GPLight), nullptr, GL_DYNAMIC_DRAW);
+			pfn->glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		}
+		pfn->glGenBuffers(1, &mColorUB);
+		if (mColorUB) {
+			pfn->glBindBuffer(GL_UNIFORM_BUFFER, mColorUB);
+			pfn->glBufferData(GL_UNIFORM_BUFFER, sizeof(GPColor), nullptr, GL_DYNAMIC_DRAW);
 			pfn->glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		}
 	}
@@ -461,6 +484,26 @@ public:
 					break;
 			}
 			::memcpy(pLightDst, &mGPLight, sizeof(GPLight));
+			if (mGamma > 0.0f && mGamma != 1.0f) {
+				for (int i = 0; i < 2; ++i) {
+					GPLight* pGPLitDst = (GPLight*)pLightDst;
+					float* pC = i ? pGPLitDst->hemiUpper : pGPLitDst->hemiLower;
+					for (int j = 0; j < 3; ++j) {
+						pC[j] = ::powf(pC[j], mGamma);
+					}
+				}
+			}
+		}
+		pfn->glUnmapBuffer(GL_UNIFORM_BUFFER);
+
+		pfn->glBindBufferBase(GL_UNIFORM_BUFFER, GP_BIND_COLOR, mColorUB);
+		pfn->glBindBuffer(GL_UNIFORM_BUFFER, mColorUB);
+		void* pColorDst = pfn->glMapBufferRange(GL_UNIFORM_BUFFER, 0, sizeof(GPColor), GL_MAP_WRITE_BIT);
+		if (pColorDst) {
+			for (int i = 0; i < 3; ++i) {
+				mGPColor.invGamma.fill(nxCalc::max(0.01f, nxCalc::rcp0(mGamma)));
+			}
+			::memcpy(pColorDst, &mGPColor, sizeof(GPColor));
 		}
 		pfn->glUnmapBuffer(GL_UNIFORM_BUFFER);
 
@@ -631,6 +674,7 @@ public:
 
 	GPLight* get_gp_light() { return &mGPLight; }
 	int* get_hemi_mode_ptr() { return &mHemiMode; }
+	float* get_gamma_ptr() { return &mGamma; }
 };
 
 
@@ -744,13 +788,9 @@ public:
 		}
 	}
 
-	void set_update_widget(QWidget* pWgt) {
-		mpUpdateWgt = pWgt;
-	}
+	void set_update_widget(QWidget* pWgt) { mpUpdateWgt = pWgt; }
 
-	void set_dst(float* pDst) {
-		mpDst = pDst;
-	}
+	void set_dst(float* pDst) { mpDst = pDst; }
 
 	void set_val(const float val) {
 		float rval = nxCalc::fit(val, mMinVal, mMaxVal, float(minimum()), float(maximum()));
@@ -772,7 +812,7 @@ protected:
 public:
 	ModeSel(QWidget* pParent = nullptr)
 	: QComboBox(pParent),
-	mpDst(nullptr)
+	mpUpdateWgt(nullptr), mpDst(nullptr)
 	{
 		connect(this, QOverload<int>::of(&QComboBox::activated),
 			[=](int idx) {
@@ -790,10 +830,48 @@ public:
 	void set_update_widget(QWidget* pWgt) { mpUpdateWgt = pWgt; }
 };
 
-class LightCtrl : public QWidget {
-private:
-	//Q_OBJECT
+class FloatSpin : public QDoubleSpinBox {
+protected:
+	QWidget* mpUpdateWgt;
+	float* mpDst;
 
+public:
+	FloatSpin(const float minVal, const float maxVal, const float step, QWidget* pParent = nullptr)
+	: QDoubleSpinBox(pParent),
+	mpUpdateWgt(nullptr), mpDst(nullptr)
+	{
+		setRange(minVal, maxVal);
+		setSingleStep(step);
+
+		connect(this, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+			[=](double val) {
+				if (mpDst) {
+					*mpDst = float(val);
+				}
+				if (mpUpdateWgt) {
+					mpUpdateWgt->update();
+				}
+			}
+		);
+	}
+
+	void set_dst(float* pDst) { mpDst = pDst; }
+
+	void set_update_widget(QWidget* pWgt) { mpUpdateWgt = pWgt; }
+
+	void set_val(const float val) {
+		double cval = nxCalc::clamp(double(val), minimum(), maximum());
+		setValue(cval);
+	}
+
+	void set_val_to_dst() {
+		if (mpDst) {
+			set_val(*mpDst);
+		}
+	}
+};
+
+class LightCtrl : public QWidget {
 protected:
 	QGridLayout* mpGrid;
 	ColorChSlider* mpHemiUpperSliders[3];
@@ -809,10 +887,11 @@ public:
 	: QWidget(pParent),
 	mpGrid(nullptr)
 	{
-		int lblStyle = 0;
 		QWidget* pWgt = new QWidget(this);
 		mpGrid = new QGridLayout(pWgt);
 		mpGrid->setColumnStretch(0, 1);
+
+		int lblStyle = 0;
 
 		QLabel* pLbl = new QLabel();
 		pLbl->setFrameStyle(lblStyle);
@@ -898,6 +977,37 @@ public:
 	ModeSel* get_hemi_mode_sel() { return mpHemiModeSel; }
 };
 
+class ColorCtrl : public QWidget {
+private:
+
+protected:
+	QGridLayout* mpGrid;
+	FloatSpin* mpGammaSpin;
+
+public:
+	ColorCtrl(QWidget* pParent)
+	: QWidget(pParent),
+	mpGrid(nullptr)
+	{
+		QWidget* pWgt = new QWidget(this);
+		mpGrid = new QGridLayout(pWgt);
+		mpGrid->setColumnStretch(0, 1);
+
+		int lblStyle = 0;
+
+		QLabel* pLbl = new QLabel();
+		pLbl->setFrameStyle(lblStyle);
+		pLbl->setText("Gamma:");
+		mpGrid->addWidget(pLbl, 0, 0);
+
+		mpGammaSpin = new FloatSpin(0.1f, 4.0f, 0.1f);
+		mpGrid->addWidget(mpGammaSpin, 0, 1);
+	}
+
+	FloatSpin* get_gamma_spin() { return mpGammaSpin; }
+};
+
+
 class AppWnd : public QMainWindow {
 private:
 	Q_OBJECT
@@ -911,6 +1021,7 @@ protected:
 	QListWidget* mpBatList;
 	QListWidget* mpSklList;
 	LightCtrl* mpLightCtrl;
+	ColorCtrl* mpColorCtrl;
 
 	sxModelData* mpMdlData;
 
@@ -927,6 +1038,7 @@ public:
 	: QMainWindow(pParent),
 	mpFileMenu(nullptr), mpFileOpenAct(nullptr), mpAppExitAct(nullptr),
 	mpMtlList(nullptr), mpBatList(nullptr), mpSklList(nullptr),
+	mpLightCtrl(nullptr), mpColorCtrl(nullptr),
 	mpOGLW(nullptr),
 	mpMdlData(nullptr)
 	{
@@ -1065,7 +1177,14 @@ void AppWnd::wnd_init() {
 	mpLightCtrl = new LightCtrl(pDock);
 	mpLightCtrl->setStyleSheet(ctrlStyleSheet);
 	mpLightCtrl->setMinimumWidth(180);
+	mpLightCtrl->setMinimumHeight(8);
 	pDock->setWidget(mpLightCtrl);
+	addDockWidget(dockPlacementCtrl, pDock);
+
+	pDock = new QDockWidget("Color", this);
+	mpColorCtrl = new ColorCtrl(pDock);
+	mpColorCtrl->setStyleSheet(ctrlStyleSheet);
+	pDock->setWidget(mpColorCtrl);
 	addDockWidget(dockPlacementCtrl, pDock);
 
 	if (mpOGLW) {
@@ -1115,6 +1234,11 @@ void AppWnd::wnd_init() {
 		ModeSel* pHemiModeSel = mpLightCtrl->get_hemi_mode_sel();
 		pHemiModeSel->set_dst(mpOGLW->get_hemi_mode_ptr());
 		pHemiModeSel->set_update_widget(mpOGLW);
+
+		FloatSpin* pGammaSpin = mpColorCtrl->get_gamma_spin();
+		pGammaSpin->set_dst(mpOGLW->get_gamma_ptr());
+		pGammaSpin->set_val_to_dst();
+		pGammaSpin->set_update_widget(mpOGLW);
 	}
 }
 

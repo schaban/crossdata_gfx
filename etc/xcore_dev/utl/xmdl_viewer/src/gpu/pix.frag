@@ -9,6 +9,10 @@ layout(std140) uniform GPLight {
 	float gpHemiGain;
 };
 
+layout(std140) uniform GPColor {
+	vec3 gpInvGamma;
+};
+
 in vec3 pixPos;
 in vec3 pixNrm;
 in vec2 pixTex;
@@ -28,6 +32,6 @@ void main() {
 	vec4 clr = pixClr;
 	clr.rgb *= calcHemi(nrm);
 	clr = max(clr, 0.0);
-	//clr.rgb = pow(clr.rgb, vec3(1.0 / 2.2));
+	clr.rgb = pow(clr.rgb, gpInvGamma);
 	outClr = clr;
 }
