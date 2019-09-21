@@ -64,6 +64,7 @@ GLuint compile_shader_str(QOpenGLFunctions* pfn, const char* pSrc, size_t srcSiz
 					char* pInfo = (char*)nxCore::mem_alloc(infoLen);
 					if (pInfo) {
 						pfn->glGetShaderInfoLog(sid, infoLen, &infoLen, pInfo);
+						nxCore::dbg_msg(pInfo);
 						nxCore::mem_free(pInfo);
 						pInfo = nullptr;
 					}
@@ -99,6 +100,7 @@ GLuint compile_prog_impl(QOpenGLFunctions* pfn, const char* pSrcVtx, size_t size
 							char* pInfo = (char*)nxCore::mem_alloc(infoLen);
 							if (pInfo) {
 								pfn->glGetProgramInfoLog(pid, infoLen, &infoLen, pInfo);
+								nxCore::dbg_msg(pInfo);
 								nxCore::mem_free(pInfo);
 								pInfo = nullptr;
 							}
@@ -670,6 +672,7 @@ public:
 		mViewCtrl.mRelOffs = 0.0f;
 		mViewCtrl.mPosOffs.zero();
 		mMdlUpdateFlg = true;
+		update();
 	}
 
 	GPLight* get_gp_light() { return &mGPLight; }
