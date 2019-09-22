@@ -8,6 +8,9 @@
 #define GP_BIND_XFORM 0
 #define GP_BIND_LIGHT 1
 #define GP_BIND_COLOR 2
+#define GP_BIND_MATERIAL 3
+
+#define TU_BASE 0
 
 struct GPXform {
 	xt_mtx  viewProj;
@@ -36,6 +39,18 @@ struct GPLight {
 struct GPColor {
 	xt_float3 invGamma;
 	float invGammaPad;
+
+	void reset() {
+		invGamma.fill(1.0f);
+	}
+};
+
+struct GPMaterial {
+	xt_float4 baseColorAlphaLim;
+
+	void reset() {
+		baseColorAlphaLim.fill(0.0f);
+	}
 };
 
 struct GPUVtx {
@@ -163,6 +178,9 @@ private:
 	sxModelData* mpMdl;
 	bool mMdlUpdateFlg;
 
+	sxTextureData** mppTexs;
+	int mNumTexs;
+
 	GLuint mProgId;
 	GLint mAttrLocPos;
 	GLint mAttrLocNrm;
@@ -173,6 +191,8 @@ private:
 	GLuint mGPIdxXform;
 	GLuint mGPIdxLight;
 	GLuint mGPIdxColor;
+	GLuint mGPIdxMaterial;
+	GLint mSmpBase;
 
 	GLuint mVB;
 	GLuint mIB16;
@@ -180,12 +200,18 @@ private:
 	GLuint mXformUB;
 	GLuint mLightUB;
 	GLuint mColorUB;
+	GLuint mMaterialUB;
 
 	GPXform mGPXform;
 	GPLight mGPLight;
 	GPColor mGPColor;
+	GPMaterial mGPMaterial;
+
+	GLuint mWhiteTex;
 
 	int mHemiMode;
+	float mHemiUpperFactor;
+	float mHemiLowerFactor;
 	float mGamma;
 
 	struct ViewCtrl {
@@ -359,21 +385,42 @@ protected:
 public:
 	OGLW(QWidget* pParent)
 	: QOpenGLWidget(pParent),
-	mpMdl(nullptr), mMdlUpdateFlg(true),
-	mHemiMode(0),
+	mpMdl(nullptr), mMdlUpdateFlg(true), mppTexs(nullptr), mNumTexs(0),
+	mHemiMode(0), mHemiUpperFactor(1.0f), mHemiLowerFactor(1.0f),
 	mGamma(2.2f),
 	mProgId(0), mAttrLocPos(-1), mAttrLocNrm(-1), mAttrLocTex(-1), mAttrLocClr(-1), mAttrLocWgt(-1), mAttrLocIdx(-1),
-	mGPIdxXform((GLuint)-1), mGPIdxLight((GLuint)-1), mGPIdxColor((GLuint)-1),
-	mVB(0), mIB16(0), mIB32(0), mXformUB(0), mLightUB(0), mColorUB(0)
+	mGPIdxXform((GLuint)-1), mGPIdxLight((GLuint)-1), mGPIdxColor((GLuint)-1), mGPIdxMaterial((GLuint)-1),
+	mSmpBase(-1),
+	mVB(0), mIB16(0), mIB32(0), mXformUB(0), mLightUB(0), mColorUB(0), mMaterialUB(0),
+	mWhiteTex(0)
 	{
 		for (int i = 0; i < MAX_XFORMS; ++i) {
 			mGPXform.xforms[i].identity();
 		}
 		mGPLight.reset();
+		mGPColor.reset();
+		mGPLight.reset();
 		mViewCtrl.init(this);
 		QSurfaceFormat fmt = format();
 		fmt.setDepthBufferSize(24);
 		setFormat(fmt);
+	}
+
+	~OGLW() {
+		reset_ogl();
+	}
+
+	void reset_ogl() {
+		QOpenGLContext* pCtx = QOpenGLContext::currentContext();
+		if (pCtx) {
+			QOpenGLFunctions* pfn = pCtx->functions();
+			if (pfn) {
+				if (mWhiteTex) {
+					pfn->glDeleteTextures(1, &mWhiteTex);
+					mWhiteTex = 0;
+				}
+			}
+		}
 	}
 
 	void initializeGL() override {
@@ -395,7 +442,10 @@ public:
 				pxfn->glUniformBlockBinding(mProgId, mGPIdxLight, GP_BIND_LIGHT);
 				mGPIdxColor = pxfn->glGetUniformBlockIndex(mProgId, "GPColor");
 				pxfn->glUniformBlockBinding(mProgId, mGPIdxColor, GP_BIND_COLOR);
+				mGPIdxMaterial = pxfn->glGetUniformBlockIndex(mProgId, "GPMaterial");
+				pxfn->glUniformBlockBinding(mProgId, mGPIdxMaterial, GP_BIND_MATERIAL);
 			}
+			mSmpBase = pfn->glGetUniformLocation(mProgId, "smpBase");
 		}
 		pfn->glGenBuffers(1, &mXformUB);
 		if (mXformUB) {
@@ -414,6 +464,20 @@ public:
 			pfn->glBindBuffer(GL_UNIFORM_BUFFER, mColorUB);
 			pfn->glBufferData(GL_UNIFORM_BUFFER, sizeof(GPColor), nullptr, GL_DYNAMIC_DRAW);
 			pfn->glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		}
+		pfn->glGenBuffers(1, &mMaterialUB);
+		if (mMaterialUB) {
+			pfn->glBindBuffer(GL_UNIFORM_BUFFER, mMaterialUB);
+			pfn->glBufferData(GL_UNIFORM_BUFFER, sizeof(GPMaterial), nullptr, GL_DYNAMIC_DRAW);
+			pfn->glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		}
+		pfn->glGenTextures(1, &mWhiteTex);
+		if (mWhiteTex) {
+			static uint32_t whitePix = 0xFFFFFFFFU;
+			pfn->glBindTexture(GL_TEXTURE_2D, mWhiteTex);
+			pfn->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			pfn->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &whitePix);
+			pfn->glBindTexture(GL_TEXTURE_2D, 0);
 		}
 	}
 
@@ -469,6 +533,7 @@ public:
 		}
 		pfn->glUnmapBuffer(GL_UNIFORM_BUFFER);
 
+		GPLight gpLightBuf = mGPLight;
 		pfn->glBindBufferBase(GL_UNIFORM_BUFFER, GP_BIND_LIGHT, mLightUB);
 		pfn->glBindBuffer(GL_UNIFORM_BUFFER, mLightUB);
 		void* pLightDst = pfn->glMapBufferRange(GL_UNIFORM_BUFFER, 0, sizeof(GPLight), GL_MAP_WRITE_BIT);
@@ -476,25 +541,26 @@ public:
 			switch (mHemiMode) {
 				case 0:
 				default:
-					mGPLight.hemiUp.set(0.0f, 1.0f, 0.0f);
+					gpLightBuf.hemiUp.set(0.0f, 1.0f, 0.0f);
 					break;
 				case 1:
-					mGPLight.hemiUp = (mView.mTgt - mView.mPos).get_normalized();
+					gpLightBuf.hemiUp = (mView.mTgt - mView.mPos).get_normalized();
 					break;
 				case 2:
-					mGPLight.hemiUp = (mView.mPos - mView.mTgt).get_normalized();
+					gpLightBuf.hemiUp = (mView.mPos - mView.mTgt).get_normalized();
 					break;
 			}
-			::memcpy(pLightDst, &mGPLight, sizeof(GPLight));
 			if (mGamma > 0.0f && mGamma != 1.0f) {
 				for (int i = 0; i < 2; ++i) {
-					GPLight* pGPLitDst = (GPLight*)pLightDst;
-					float* pC = i ? pGPLitDst->hemiUpper : pGPLitDst->hemiLower;
+					float* pC = i ? gpLightBuf.hemiUpper : gpLightBuf.hemiLower;
 					for (int j = 0; j < 3; ++j) {
 						pC[j] = ::powf(pC[j], mGamma);
 					}
 				}
 			}
+			gpLightBuf.hemiUpper.scl(mHemiUpperFactor);
+			gpLightBuf.hemiLower.scl(mHemiLowerFactor);
+			::memcpy(pLightDst, &gpLightBuf, sizeof(GPLight));
 		}
 		pfn->glUnmapBuffer(GL_UNIFORM_BUFFER);
 
@@ -513,11 +579,29 @@ public:
 
 		pfn->glBindBuffer(GL_ARRAY_BUFFER, mVB);
 
+		pfn->glBindBufferBase(GL_UNIFORM_BUFFER, GP_BIND_MATERIAL, mMaterialUB);
+
+		GPMaterial gpMtlBuf;
 		int nbat = mpMdl->mBatNum;
 		for (int i = 0; i < nbat; ++i) {
 			const sxModelData::Batch* pBat = mpMdl->get_batch_ptr(i);
 			if (!pBat) continue;
 			const sxModelData::Material* pMtl = mpMdl->get_material(pBat->mMtlId);
+			if (pMtl) {
+				float alphaLim = pMtl->is_alpha() ? 0.5f : 0.0f;
+				gpMtlBuf.baseColorAlphaLim.set(pMtl->mBaseColor.x, pMtl->mBaseColor.y, pMtl->mBaseColor.z, alphaLim);
+			} else {
+				gpMtlBuf.baseColorAlphaLim.set(1.0f, 1.0f, 1.0f, 0.0f);
+			}
+			if (0 == i || ::memcmp(&gpMtlBuf, &mGPMaterial, sizeof(GPMaterial)) != 0) {
+				mGPMaterial = gpMtlBuf;
+				pfn->glBindBuffer(GL_UNIFORM_BUFFER, mMaterialUB);
+				void* pMaterialDst = pfn->glMapBufferRange(GL_UNIFORM_BUFFER, 0, sizeof(GPMaterial), GL_MAP_WRITE_BIT);
+				if (pMaterialDst) {
+					::memcpy(pMaterialDst, &mGPMaterial, sizeof(GPMaterial));
+					pfn->glUnmapBuffer(GL_UNIFORM_BUFFER);
+				}
+			}
 			GLsizei stride = (GLsizei)sizeof(GPUVtx);
 			size_t top = pBat->mMinIdx * stride;
 			if (mAttrLocPos >= 0) {
@@ -543,6 +627,19 @@ public:
 			if (mAttrLocIdx >= 0) {
 				pfn->glEnableVertexAttribArray(mAttrLocIdx);
 				pfn->glVertexAttribPointer(mAttrLocIdx, 4, GL_INT, GL_FALSE, stride, (const void*)(top + offsetof(GPUVtx, idx)));
+			}
+
+			if (mSmpBase >= 0) {
+				pfn->glUniform1i(mSmpBase, TU_BASE);
+				pfn->glActiveTexture(GL_TEXTURE0 + TU_BASE);
+				GLuint baseTexHandle = mWhiteTex;
+				if (pMtl) {
+					baseTexHandle = prepare_tex(pMtl->mBaseTexId);
+					if (!baseTexHandle) {
+						baseTexHandle = mWhiteTex;
+					}
+				}
+				pfn->glBindTexture(GL_TEXTURE_2D, baseTexHandle);
 			}
 
 			if (pMtl && pMtl->mFlags.dblSided) {
@@ -663,10 +760,95 @@ public:
 			pfn->glDeleteBuffers(1, &mIB32);
 			mIB32 = 0;
 		}
+		mpMdl->clear_tex_wk();
 	}
 
-	void set_mdl(sxModelData* pMdl) {
+	GLuint prepare_tex(int tid) {
+		GLuint thandle = 0;
+		QOpenGLFunctions* pfn = QOpenGLContext::currentContext()->functions();
+		if (pfn && mpMdl && mppTexs && mpMdl->ck_tex_id(tid)) {
+			sxTextureData* pTex = mppTexs[tid];
+			if (pTex) {
+				GLuint* pHandle = pTex->get_gpu_wk<GLuint>();
+				if (pHandle) {
+					if (!*pHandle) {
+						pfn->glGenTextures(1, pHandle);
+						if (*pHandle) {
+							pfn->glBindTexture(GL_TEXTURE_2D, *pHandle);
+							pfn->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+							pfn->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pTex->mWidth, pTex->mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pTex->get_data_ptr());
+							pfn->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+							pfn->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+							pfn->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+							pfn->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+						}
+					}
+					thandle = *pHandle;
+				}
+			}
+		}
+		return thandle;
+	}
+
+	void release_texs() {
+		QOpenGLFunctions* pfn = QOpenGLContext::currentContext()->functions();
+		if (pfn && mppTexs) {
+			for (int i = 0; i < mNumTexs; ++i) {
+				sxTextureData* pTex = mppTexs[i];
+				if (pTex) {
+					GLuint* pHandle = pTex->get_gpu_wk<GLuint>();
+					if (pHandle) {
+						if (*pHandle) {
+							pfn->glDeleteTextures(1, pHandle);
+						}
+						*pHandle = 0;
+					}
+				}
+			}
+		}
+	}
+
+	void unload_texs() {
+		release_texs();
+		if (mppTexs) {
+			for (int i = 0; i < mNumTexs; ++i) {
+				nxData::unload(mppTexs[i]);
+				mppTexs[i] = nullptr;
+			}
+			nxCore::mem_free(mppTexs);
+			mppTexs = nullptr;
+		}
+		mNumTexs = 0;
+	}
+
+	void load_texs(QString dir) {
+		unload_texs();
+		if (mpMdl && QFileInfo(dir).exists()) {
+			int ntex = mpMdl->mTexNum;
+			mNumTexs = ntex;
+			if (ntex > 0) {
+				mppTexs = nxCore::tMem<sxTextureData*>::alloc(ntex, "TexList");
+				for (int i = 0; i < ntex; ++i) {
+					mppTexs[i] = nullptr;
+					QString texPath = dir + "/" + mpMdl->get_tex_name(i) + ".xtex";
+					if (QFileInfo(texPath).exists()) {
+						sxData* pTexData = nxData::load(texPath.toLocal8Bit().data());
+						if (pTexData) {
+							if (pTexData->is<sxTextureData>()) {
+								mppTexs[i] = pTexData->as<sxTextureData>();
+							} else {
+								nxData::unload(pTexData);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	void set_mdl(sxModelData* pMdl, QString dir) {
 		mpMdl = pMdl;
+		load_texs(dir);
 		mViewCtrl.mQuat = nxQuat::from_degrees(-20.0f, 40.0f, 0.0f);
 		mViewCtrl.mSpin.identity();
 		mViewCtrl.mRelOffs = 0.0f;
@@ -677,6 +859,8 @@ public:
 
 	GPLight* get_gp_light() { return &mGPLight; }
 	int* get_hemi_mode_ptr() { return &mHemiMode; }
+	float* get_hemi_upper_factor_ptr() { return &mHemiUpperFactor; }
+	float* get_hemi_lower_factor_ptr() { return &mHemiLowerFactor; }
 	float* get_gamma_ptr() { return &mGamma; }
 };
 
@@ -879,8 +1063,10 @@ protected:
 	QGridLayout* mpGrid;
 	ColorChSlider* mpHemiUpperSliders[3];
 	ColorLabel* mpHemiUpperLabel;
+	FloatSpin* mpHemiUpperFactor;
 	ColorChSlider* mpHemiLowerSliders[3];
 	ColorLabel* mpHemiLowerLabel;
+	FloatSpin* mpHemiLowerFactor;
 	ValSlider* mpHemiExpSld;
 	ValSlider* mpHemiGainSld;
 	ModeSel* mpHemiModeSel;
@@ -909,14 +1095,28 @@ public:
 
 		pLbl = new QLabel();
 		pLbl->setFrameStyle(lblStyle);
-		pLbl->setText("Hemi Lower:");
+		pLbl->setText("Upper Factor:");
 		mpGrid->addWidget(pLbl, 4, 0);
+		mpHemiUpperFactor = new FloatSpin(0.0f, 5.0f, 0.1f);
+		mpGrid->addWidget(mpHemiUpperFactor, 4, 1);
+
+		pLbl = new QLabel();
+		pLbl->setFrameStyle(lblStyle);
+		pLbl->setText("Hemi Lower:");
+		mpGrid->addWidget(pLbl, 5, 0);
 
 		pClrLbl = new ColorLabel();
 		pClrLbl->setFrameStyle(lblStyle);
 		pClrLbl->setStyleSheet("background-color:black");
-		mpGrid->addWidget(pClrLbl, 4, 1);
+		mpGrid->addWidget(pClrLbl, 5, 1);
 		mpHemiLowerLabel = pClrLbl;
+
+		pLbl = new QLabel();
+		pLbl->setFrameStyle(lblStyle);
+		pLbl->setText("Lower Factor:");
+		mpGrid->addWidget(pLbl, 9, 0);
+		mpHemiLowerFactor = new FloatSpin(0.0f, 5.0f, 0.1f);
+		mpGrid->addWidget(mpHemiLowerFactor, 9, 1);
 
 		for (int j = 0; j < 2; ++j) {
 			ColorChSlider** ppSldLst = nullptr;
@@ -928,7 +1128,7 @@ public:
 					break;
 				case 1:
 					ppSldLst = mpHemiLowerSliders;
-					topRow = 5;
+					topRow = 6;
 					break;
 			}
 			if (ppSldLst) {
@@ -951,30 +1151,32 @@ public:
 		pLbl = new QLabel();
 		pLbl->setFrameStyle(lblStyle);
 		pLbl->setText("Hemi Exp:");
-		mpGrid->addWidget(pLbl, 8, 0);
+		mpGrid->addWidget(pLbl, 10, 0);
 		mpHemiExpSld = new ValSlider(0.1f, 4.0f);
-		mpGrid->addWidget(mpHemiExpSld, 8, 1);
+		mpGrid->addWidget(mpHemiExpSld, 10, 1);
 
 		pLbl = new QLabel();
 		pLbl->setFrameStyle(lblStyle);
 		pLbl->setText("Hemi Gain:");
-		mpGrid->addWidget(pLbl, 9, 0);
+		mpGrid->addWidget(pLbl, 11, 0);
 		mpHemiGainSld = new ValSlider(0.001f, 4.0f);
-		mpGrid->addWidget(mpHemiGainSld, 9, 1);
+		mpGrid->addWidget(mpHemiGainSld, 11, 1);
 
 		pLbl = new QLabel();
 		pLbl->setFrameStyle(lblStyle);
 		pLbl->setText("Hemi Mode:");
-		mpGrid->addWidget(pLbl, 10, 0);
+		mpGrid->addWidget(pLbl, 12, 0);
 		mpHemiModeSel = new ModeSel();
 		mpHemiModeSel->addItems(QStringList() << "Sky" << "Back" << "Front");
-		mpGrid->addWidget(mpHemiModeSel, 10, 1);
+		mpGrid->addWidget(mpHemiModeSel, 12, 1);
 	}
 
 	ColorChSlider** get_hemi_upper_sliders() { return mpHemiUpperSliders; }
 	ColorLabel* get_hemi_upper_label() { return mpHemiUpperLabel; }
+	FloatSpin* get_hemi_upper_factor() { return mpHemiUpperFactor; }
 	ColorChSlider** get_hemi_lower_sliders() { return mpHemiLowerSliders; }
 	ColorLabel* get_hemi_lower_label() { return mpHemiLowerLabel; }
+	FloatSpin* get_hemi_lower_factor() { return mpHemiLowerFactor; }
 	ValSlider* get_hemi_exp_slider() { return mpHemiExpSld; }
 	ValSlider* get_hemi_gain_slider() { return mpHemiGainSld; }
 	ModeSel* get_hemi_mode_sel() { return mpHemiModeSel; }
@@ -1059,7 +1261,8 @@ public:
 
 void AppWnd::file_open() {
 	QString mdlPath = QFileDialog::getOpenFileName(this, "Load crosscore model", "", "crosscore models (*.xmdl)");
-	if (mdlPath.length() > 0) {
+	QFileInfo fi = QFileInfo(mdlPath);
+	if (fi.exists()) {
 		QByteArray path = mdlPath.toLocal8Bit();
 		char* pPath = path.data();
 		if (pPath) {
@@ -1067,10 +1270,11 @@ void AppWnd::file_open() {
 			if (pData && pData->is<sxModelData>()) {
 				if (mpMdlData) {
 					nxData::unload(mpMdlData);
+					mpMdlData = nullptr;
 				}
 				mpMdlData = pData->as<sxModelData>();
 				if (mpOGLW) {
-					mpOGLW->set_mdl(mpMdlData);
+					mpOGLW->set_mdl(mpMdlData, fi.absoluteDir().absolutePath());
 				}
 				if (mpMdlData) {
 					if (mpMtlList) {
@@ -1112,6 +1316,9 @@ void AppWnd::file_open() {
 }
 
 void AppWnd::app_exit() {
+	if (mpOGLW) {
+		mpOGLW->reset_ogl();
+	}
 	close();
 }
 
@@ -1180,7 +1387,7 @@ void AppWnd::wnd_init() {
 	mpLightCtrl = new LightCtrl(pDock);
 	mpLightCtrl->setStyleSheet(ctrlStyleSheet);
 	mpLightCtrl->setMinimumWidth(180);
-	mpLightCtrl->setMinimumHeight(8);
+	mpLightCtrl->setMinimumHeight(20);
 	pDock->setWidget(mpLightCtrl);
 	addDockWidget(dockPlacementCtrl, pDock);
 
@@ -1238,6 +1445,16 @@ void AppWnd::wnd_init() {
 		pHemiModeSel->set_dst(mpOGLW->get_hemi_mode_ptr());
 		pHemiModeSel->set_update_widget(mpOGLW);
 
+		FloatSpin* pHemiUpperFactorSpin = mpLightCtrl->get_hemi_upper_factor();
+		pHemiUpperFactorSpin->set_dst(mpOGLW->get_hemi_upper_factor_ptr());
+		pHemiUpperFactorSpin->set_val_to_dst();
+		pHemiUpperFactorSpin->set_update_widget(mpOGLW);
+
+		FloatSpin* pHemiLowerFactorSpin = mpLightCtrl->get_hemi_lower_factor();
+		pHemiLowerFactorSpin->set_dst(mpOGLW->get_hemi_lower_factor_ptr());
+		pHemiLowerFactorSpin->set_val_to_dst();
+		pHemiLowerFactorSpin->set_update_widget(mpOGLW);
+
 		FloatSpin* pGammaSpin = mpColorCtrl->get_gamma_spin();
 		pGammaSpin->set_dst(mpOGLW->get_gamma_ptr());
 		pGammaSpin->set_val_to_dst();
@@ -1258,5 +1475,7 @@ int main(int argc, char* argv[]) {
 	QApplication app(argc, argv);
 	AppWnd wnd;
 	wnd.show();
-	return app.exec();
+	int res = app.exec();
+	nxCore::mem_dbg();
+	return res;
 }
