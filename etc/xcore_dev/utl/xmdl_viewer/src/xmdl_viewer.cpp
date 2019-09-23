@@ -211,6 +211,8 @@ private:
 	float mHemiLowerFactor;
 	float mGamma;
 
+	bool mDispTextures;
+
 	struct ViewCtrl {
 		QWidget* mpWgt;
 		cxQuat mSpin;
@@ -393,6 +395,7 @@ public:
 	mpMdl(nullptr), mMdlUpdateFlg(true), mppTexs(nullptr), mNumTexs(0),
 	mHemiMode(0), mHemiUpperFactor(1.0f), mHemiLowerFactor(1.0f),
 	mGamma(2.2f),
+	mDispTextures(true),
 	mProgId(0), mAttrLocPos(-1), mAttrLocNrm(-1), mAttrLocTex(-1), mAttrLocClr(-1), mAttrLocWgt(-1), mAttrLocIdx(-1),
 	mGPIdxXform((GLuint)-1), mGPIdxLight((GLuint)-1), mGPIdxColor((GLuint)-1), mGPIdxMaterial((GLuint)-1),
 	mSmpBase(-1),
@@ -638,7 +641,7 @@ public:
 				pfn->glUniform1i(mSmpBase, TU_BASE);
 				pfn->glActiveTexture(GL_TEXTURE0 + TU_BASE);
 				GLuint baseTexHandle = mWhiteTex;
-				if (pMtl) {
+				if (mDispTextures && pMtl) {
 					baseTexHandle = prepare_tex(pMtl->mBaseTexId);
 					if (!baseTexHandle) {
 						baseTexHandle = mWhiteTex;
@@ -860,6 +863,10 @@ public:
 		mViewCtrl.mPosOffs.zero();
 		mMdlUpdateFlg = true;
 		update();
+	}
+
+	void set_disp_textures(bool flg) {
+		mDispTextures = flg;
 	}
 
 	GPLight* get_gp_light() { return &mGPLight; }
@@ -1226,6 +1233,8 @@ protected:
 	QMenu* mpFileMenu;
 	QAction* mpFileOpenAct;
 	QAction* mpAppExitAct;
+	QMenu* mpDisplayMenu;
+	QAction* mpDispTexsAct;
 	OGLW* mpOGLW;
 	QListWidget* mpMtlList;
 	QListWidget* mpBatList;
@@ -1242,11 +1251,13 @@ signals:
 private slots:
 	void file_open();
 	void app_exit();
+	void disp_textures();
 
 public:
 	AppWnd(QWidget* pParent = nullptr)
 	: QMainWindow(pParent),
 	mpFileMenu(nullptr), mpFileOpenAct(nullptr), mpAppExitAct(nullptr),
+	mpDisplayMenu(nullptr), mpDispTexsAct(nullptr),
 	mpMtlList(nullptr), mpBatList(nullptr), mpSklList(nullptr),
 	mpLightCtrl(nullptr), mpColorCtrl(nullptr),
 	mpOGLW(nullptr),
@@ -1327,6 +1338,15 @@ void AppWnd::app_exit() {
 	close();
 }
 
+void AppWnd::disp_textures() {
+	if (mpDispTexsAct) {
+		if (mpOGLW) {
+			mpOGLW->set_disp_textures(mpDispTexsAct->isChecked());
+			mpOGLW->update();
+		}
+	}
+}
+
 void AppWnd::wnd_init() {
 	QPalette pal = palette();
 	pal.setColor(QPalette::Background, QColor(60, 70, 80));
@@ -1343,6 +1363,11 @@ void AppWnd::wnd_init() {
 	mpAppExitAct = new QAction("Exit", this);
 	connect(mpAppExitAct, &QAction::triggered, this, &AppWnd::app_exit);
 
+	mpDispTexsAct = new QAction("Textures", this);
+	mpDispTexsAct->setCheckable(true);
+	mpDispTexsAct->setChecked(true);
+	connect(mpDispTexsAct, &QAction::triggered, this, &AppWnd::disp_textures);
+
 	QMenuBar* pMenu = menuBar();
 	if (pMenu) {
 		mpFileMenu = pMenu->addMenu("&File");
@@ -1350,6 +1375,10 @@ void AppWnd::wnd_init() {
 			mpFileMenu->addAction(mpFileOpenAct);
 			mpFileMenu->addSeparator();
 			mpFileMenu->addAction(mpAppExitAct);
+		}
+		mpDisplayMenu = pMenu->addMenu("&Display");
+		if (mpDisplayMenu) {
+			mpDisplayMenu->addAction(mpDispTexsAct);
 		}
 		pMenu->setStyleSheet(
 			"QMenuBar{color:#909080;background-color:#333333;}QMenuBar::item{background:transparent;}QMenuBar::item:selected{background:white;}QMenuBar::item:selected{background:black;}"
