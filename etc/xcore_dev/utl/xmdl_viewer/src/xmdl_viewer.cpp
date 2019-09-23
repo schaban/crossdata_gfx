@@ -194,6 +194,7 @@ private:
 	GLuint mVB;
 	GLuint mIB16;
 	GLuint mIB32;
+	GLuint mWireIB16;
 	GLuint mXformUB;
 	GLuint mLightUB;
 	GLuint mColorUB;
@@ -212,6 +213,7 @@ private:
 	float mGamma;
 
 	bool mDispTextures;
+	bool mWireframe;
 
 	struct ViewCtrl {
 		QWidget* mpWgt;
@@ -241,6 +243,13 @@ private:
 			mPosOrg.setY(0);
 			mPosNow = mPosOrg;
 			mPosOld = mPosNow;
+			mPosOffs.zero();
+		}
+
+		void home() {
+			mQuat = nxQuat::from_degrees(-20.0f, 40.0f, 0.0f);
+			mSpin.identity();
+			mRelOffs = 0.0f;
 			mPosOffs.zero();
 		}
 
@@ -395,11 +404,12 @@ public:
 	mpMdl(nullptr), mMdlUpdateFlg(true), mppTexs(nullptr), mNumTexs(0),
 	mHemiMode(0), mHemiUpperFactor(1.0f), mHemiLowerFactor(1.0f),
 	mGamma(2.2f),
-	mDispTextures(true),
+	mDispTextures(true), mWireframe(false),
 	mProgId(0), mAttrLocPos(-1), mAttrLocNrm(-1), mAttrLocTex(-1), mAttrLocClr(-1), mAttrLocWgt(-1), mAttrLocIdx(-1),
 	mGPIdxXform((GLuint)-1), mGPIdxLight((GLuint)-1), mGPIdxColor((GLuint)-1), mGPIdxMaterial((GLuint)-1),
 	mSmpBase(-1),
-	mVB(0), mIB16(0), mIB32(0), mXformUB(0), mLightUB(0), mColorUB(0), mMaterialUB(0),
+	mVB(0), mIB16(0), mIB32(0), mWireIB16(0),
+	mXformUB(0), mLightUB(0), mColorUB(0), mMaterialUB(0),
 	mWhiteTex(0)
 	{
 		for (int i = 0; i < MAX_XFORMS; ++i) {
@@ -596,7 +606,7 @@ public:
 			if (!pBat) continue;
 			const sxModelData::Material* pMtl = mpMdl->get_material(pBat->mMtlId);
 			if (pMtl) {
-				float alphaLim = pMtl->is_alpha() ? 0.5f : 0.0f;
+				float alphaLim = mWireframe ? 0.0f : (pMtl->is_alpha() ? 0.5f : 0.0f);
 				gpMtlBuf.baseColorAlphaLim.set(pMtl->mBaseColor.x, pMtl->mBaseColor.y, pMtl->mBaseColor.z, alphaLim);
 			} else {
 				gpMtlBuf.baseColorAlphaLim.set(1.0f, 1.0f, 1.0f, 0.0f);
@@ -660,16 +670,27 @@ public:
 
 			intptr_t org = 0;
 			GLenum typ = GL_NONE;
+			bool wire = false;
 			if (pBat->is_idx16()) {
-				pfn->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIB16);
-				org = pBat->mIdxOrg * sizeof(uint16_t);
+				if (mWireframe) {
+					pfn->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mWireIB16);
+					org = pBat->mIdxOrg * sizeof(uint16_t) * 2;
+					wire = true;
+				} else {
+					pfn->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIB16);
+					org = pBat->mIdxOrg * sizeof(uint16_t);
+				}
 				typ = GL_UNSIGNED_SHORT;
 			} else {
 				pfn->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIB32);
 				org = pBat->mIdxOrg * sizeof(uint32_t);
 				typ = GL_UNSIGNED_INT;
 			}
-			pfn->glDrawElements(GL_TRIANGLES, pBat->mTriNum * 3, typ, (const void*)org);
+			if (wire) {
+				pfn->glDrawElements(GL_LINES, pBat->mTriNum * 6, typ, (const void*)org);
+			} else {
+				pfn->glDrawElements(GL_TRIANGLES, pBat->mTriNum * 3, typ, (const void*)org);
+			}
 
 			if (mAttrLocPos >= 0) {
 				pfn->glDisableVertexAttribArray(mAttrLocPos);
@@ -737,6 +758,28 @@ public:
 					pfn->glBufferData(GL_ELEMENT_ARRAY_BUFFER, mpMdl->mIdx16Num * sizeof(uint16_t), pIdxData, GL_STATIC_DRAW);
 					pfn->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 				}
+				pfn->glGenBuffers(1, &mWireIB16);
+				if (mWireIB16) {
+					int nwidx = mpMdl->mIdx16Num * 2;
+					uint16_t* pWIdx = nxCore::tMem<uint16_t>::alloc(nwidx, "WireIdxTemp");
+					if (pWIdx) {
+						int ntri = mpMdl->mIdx16Num / 3;
+						int wi = 0;
+						for (int i = 0; i < ntri; ++i) {
+							int ti = i * 3;
+							for (int j = 0; j < 3; ++j) {
+								int j1 = (j + 1) % 3;
+								pWIdx[wi++] = pIdxData[ti + j];
+								pWIdx[wi++] = pIdxData[ti + j1];
+							}
+						}
+						pfn->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mWireIB16);
+						pfn->glBufferData(GL_ELEMENT_ARRAY_BUFFER, nwidx * sizeof(uint16_t), pWIdx, GL_STATIC_DRAW);
+						pfn->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+						nxCore::mem_free(pWIdx);
+						pWIdx = nullptr;
+					}
+				}
 			}
 		}
 		if (mpMdl->mIdx32Num > 0) {
@@ -767,6 +810,10 @@ public:
 		if (mIB32) {
 			pfn->glDeleteBuffers(1, &mIB32);
 			mIB32 = 0;
+		}
+		if (mWireIB16) {
+			pfn->glDeleteBuffers(1, &mWireIB16);
+			mWireIB16 = 0;
 		}
 		mpMdl->clear_tex_wk();
 	}
@@ -857,16 +904,26 @@ public:
 	void set_mdl(sxModelData* pMdl, QString dir) {
 		mpMdl = pMdl;
 		load_texs(dir);
-		mViewCtrl.mQuat = nxQuat::from_degrees(-20.0f, 40.0f, 0.0f);
-		mViewCtrl.mSpin.identity();
-		mViewCtrl.mRelOffs = 0.0f;
-		mViewCtrl.mPosOffs.zero();
 		mMdlUpdateFlg = true;
+		home_view();
+	}
+
+	void home_view() {
+		mViewCtrl.home();
 		update();
 	}
 
 	void set_disp_textures(bool flg) {
 		mDispTextures = flg;
+	}
+
+	void set_wireframe(bool flg) {
+		mWireframe = flg;
+	}
+
+	void toggle_wireframe() {
+		mWireframe ^= true;
+		update();
 	}
 
 	GPLight* get_gp_light() { return &mGPLight; }
@@ -1252,6 +1309,8 @@ private slots:
 	void file_open();
 	void app_exit();
 	void disp_textures();
+	void home_view();
+	void toggle_wireframe();
 
 public:
 	AppWnd(QWidget* pParent = nullptr)
@@ -1347,6 +1406,18 @@ void AppWnd::disp_textures() {
 	}
 }
 
+void AppWnd::home_view() {
+	if (mpOGLW) {
+		mpOGLW->home_view();
+	}
+}
+
+void AppWnd::toggle_wireframe() {
+	if (mpOGLW) {
+		mpOGLW->toggle_wireframe();
+	}
+}
+
 void AppWnd::wnd_init() {
 	QPalette pal = palette();
 	pal.setColor(QPalette::Background, QColor(60, 70, 80));
@@ -1358,15 +1429,20 @@ void AppWnd::wnd_init() {
 	resize(1000, 600);
 
 	mpFileOpenAct = new QAction("&Open", this);
+	mpFileOpenAct->setShortcut(Qt::CTRL | Qt::Key_O);
 	connect(mpFileOpenAct, &QAction::triggered, this, &AppWnd::file_open);
 
 	mpAppExitAct = new QAction("Exit", this);
+	mpAppExitAct->setShortcut(Qt::CTRL | Qt::Key_Q);
 	connect(mpAppExitAct, &QAction::triggered, this, &AppWnd::app_exit);
 
 	mpDispTexsAct = new QAction("Textures", this);
 	mpDispTexsAct->setCheckable(true);
 	mpDispTexsAct->setChecked(true);
 	connect(mpDispTexsAct, &QAction::triggered, this, &AppWnd::disp_textures);
+
+	connect(new QShortcut(QKeySequence(Qt::Key_H), this), &QShortcut::activated, this, &AppWnd::home_view);
+	connect(new QShortcut(QKeySequence(Qt::Key_W), this), &QShortcut::activated, this, &AppWnd::toggle_wireframe);
 
 	QMenuBar* pMenu = menuBar();
 	if (pMenu) {
