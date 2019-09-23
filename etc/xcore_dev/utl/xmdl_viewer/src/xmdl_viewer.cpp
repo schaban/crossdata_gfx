@@ -168,9 +168,6 @@ GLuint compile_prog_strs(QOpenGLFunctions* pfn, const char* pSrcVtx, const char*
 }
 
 
-static Qt::MouseButton s_rotBtn = Qt::LeftButton;
-static Qt::MouseButton s_posBtn = Qt::MiddleButton;
-
 class OGLW : public QOpenGLWidget {
 private:
 	cxView mView;
@@ -292,14 +289,22 @@ private:
 			return pos;
 		}
 
+		static bool is_rot_btn(QMouseEvent* pEvt) {
+			return (pEvt->buttons() & Qt::LeftButton);
+		}
+
+		static bool is_pos_btn(QMouseEvent* pEvt) {
+			return (pEvt->buttons() & Qt::MiddleButton) || (pEvt->buttons() & Qt::RightButton);
+		}
+
 		bool begin(QMouseEvent* pEvt) {
 			bool res = false;
-			if (pEvt->buttons() & s_rotBtn) {
+			if (is_rot_btn(pEvt)) {
 				mRotOrg = get_rel_pos(pEvt);
 				mRotNow = mRotOrg;
 				mRotOld = mRotOrg;
 				res = true;
-			} else if (pEvt->buttons() & s_posBtn) {
+			} else if (is_pos_btn(pEvt)) {
 				mPosOrg = get_rel_pos(pEvt);
 				mPosNow = mPosOrg;
 				mPosOld = mPosOrg;
@@ -310,7 +315,7 @@ private:
 
 		bool update(QMouseEvent* pEvt) {
 			bool res = false;
-			if (pEvt->buttons() & s_rotBtn) {
+			if (is_rot_btn(pEvt)) {
 				float dx = mRotNow.x() - mRotOld.x();
 				float dy = mRotNow.y() - mRotOld.y();
 				if (dx || dy) {
@@ -323,7 +328,7 @@ private:
 				mRotOld = mRotNow;
 				mRotNow = get_rel_pos(pEvt);
 				res = true;
-			} else if (pEvt->buttons() & s_posBtn) {
+			} else if (is_pos_btn(pEvt)) {
 				mPosOld = mPosNow;
 				mPosNow = get_rel_pos(pEvt);
 				float dx = mPosNow.x() - mPosOld.x();
@@ -343,11 +348,11 @@ private:
 
 		bool end(QMouseEvent* pEvt) {
 			bool res = false;
-			if (pEvt->buttons() & s_rotBtn) {
+			if (is_rot_btn(pEvt)) {
 				mRotNow = get_rel_pos(pEvt);
 				mRotOld = mRotNow;
 				res = true;
-			} else if (pEvt->buttons() & s_posBtn) {
+			} else if (is_pos_btn(pEvt)) {
 				mPosNow = get_rel_pos(pEvt);
 				mPosOld = mPosNow;
 				res = true;
