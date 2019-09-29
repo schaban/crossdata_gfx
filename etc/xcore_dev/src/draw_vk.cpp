@@ -66,6 +66,16 @@ struct GPXform {
 	xt_xmtx xforms[MAX_XFORMS];
 };
 
+struct MDL_GPU_WK {
+	sxModelData* pMdl;
+	VkBuffer* pVB;
+	VkBuffer* pIB;
+};
+
+typedef cxPlexList<MDL_GPU_WK> MdlGPUWkList;
+
+static MdlGPUWkList* s_pMdlGPUWkList = nullptr;
+
 static void* VKAPI_CALL vk_alloc(void* pData, size_t size, size_t alignment, VkSystemAllocationScope scope) {
 	const char* pTag = "vkMem";
 	switch (scope) {
@@ -1128,7 +1138,7 @@ void VK_GLB::mdl_prepare(sxModelData* pMdl) {
 			if (VK_SUCCESS == vres) {
 				const uint16_t* pIdxData = pMdl->get_idx16_top();
 				if (pIdxData) {
-					::memcpy(pMappedIB, pIdxData, ibMemReqs.size);
+					::memcpy(pMappedIB, pIdxData, (size_t)ibMemReqs.size);
 				}
 				vkUnmapMemory(mVkDevice, *pMemIB);
 				vres = vkBindBufferMemory(mVkDevice, *pIB, *pMemIB, 0);
@@ -1211,8 +1221,14 @@ void VK_GLB::end() {
 	uint32_t nextImgIdx = mSwapChainIdx;
 	while (true) {
 		vres = mDeviceFuncs.AcquireNextImage(mVkDevice, mSwapChain, UINT64_MAX, mImgSema[mSyncIdx], VK_NULL_HANDLE, &nextImgIdx);
-		if (VK_SUCCESS == vres) {
+		if (VK_SUCCESS == vres || VK_SUBOPTIMAL_KHR == vres) {
 			break;
+		} else if (VK_ERROR_OUT_OF_DATE_KHR == vres) {
+			VKG.reset_vk();
+			VKG.mInitFlg = VKG.init_vk();
+			if (VKG.mInitFlg) {
+				VKG.init_gpu_code();
+			}
 		}
 	}
 	mSwapChainIdx = nextImgIdx;
@@ -1238,7 +1254,7 @@ void VK_GLB::end() {
 	presentInfo.pImageIndices = &mSwapChainIdx;
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &mDrawSema[mSyncIdx];
-	mDeviceFuncs.QueuePresent(mGfxQue, &presentInfo);
+	vres = mDeviceFuncs.QueuePresent(mGfxQue, &presentInfo);
 
 	++mSyncIdx;
 	mSyncIdx %= FRAME_PRESENT_MAX;
@@ -1307,6 +1323,7 @@ void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode,
 
 static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 	::memset(&VKG, 0, sizeof(VKG));
+	s_pMdlGPUWkList = MdlGPUWkList::create("MdlGPUWkList");
 	VKG.init_alloc_cb();
 	VKG.mpAllocator = s_useAllocCB ? &VKG.mAllocCB : nullptr;
 	VKG.init_rsrc_mgr(pRsrcMgr);
@@ -1320,6 +1337,8 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 static void reset() {
 	if (!VKG.mInitFlg) return;
 	VKG.reset_vk();
+	MdlGPUWkList::destroy(s_pMdlGPUWkList);
+	s_pMdlGPUWkList = nullptr;
 	VKG.mInitFlg = false;
 }
 
