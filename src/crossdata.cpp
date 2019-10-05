@@ -3008,7 +3008,7 @@ bool cxFrustum::overlaps(const cxAABB& box) const {
 	static struct {
 		uint8_t i0, i1;
 	} edgeTbl[] = {
-		{ 0, 1 },{ 1, 2 },{ 3, 4 },{ 3, 0 },
+		{ 0, 1 },{ 1, 2 },{ 2, 3 },{ 3, 0 },
 		{ 4, 5 },{ 5, 6 },{ 6, 7 },{ 7, 4 },
 		{ 0, 4 },{ 1, 5 },{ 2, 6 },{ 3, 7 }
 	};
