@@ -3245,6 +3245,9 @@ public:
 
 	float get_aspect() const { return mAspect; }
 
+	float calc_fovx() const;
+	float calc_deg_fovx() const { return XD_RAD2DEG(calc_fovx()); }
+
 	void init(const int width = 800, const int height = 600);
 	void update();
 };

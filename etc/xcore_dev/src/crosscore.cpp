@@ -4540,6 +4540,10 @@ void cxColor::decode_bgr565(uint16_t bgr) {
 }
 
 
+XD_NOINLINE float cxView::calc_fovx() const {
+	return 2.0f * ::atanf(::tanf(XD_DEG2RAD(mDegFOVY) * 0.5f) * mAspect);
+}
+
 XD_NOINLINE void cxView::init(const int width, const int height) {
 	set_window(width, height);
 	set_deg_fovy(30.0f);
