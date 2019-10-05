@@ -4059,17 +4059,18 @@ bool cxFrustum::cull(const cxAABB& box) const {
 	return false;
 }
 
+static struct {
+	uint8_t i0, i1;
+} s_frustumEdgeTbl[] = {
+	{ 0, 1 },{ 1, 2 },{ 2, 3 },{ 3, 0 },
+	{ 4, 5 },{ 5, 6 },{ 6, 7 },{ 7, 4 },
+	{ 0, 4 },{ 1, 5 },{ 2, 6 },{ 3, 7 }
+};
+
 bool cxFrustum::overlaps(const cxAABB& box) const {
-	static struct {
-		uint8_t i0, i1;
-	} edgeTbl[] = {
-		{ 0, 1 },{ 1, 2 },{ 3, 4 },{ 3, 0 },
-		{ 4, 5 },{ 5, 6 },{ 6, 7 },{ 7, 4 },
-		{ 0, 4 },{ 1, 5 },{ 2, 6 },{ 3, 7 }
-	};
 	for (int i = 0; i < 12; ++i) {
-		cxVec p0 = mPnt[edgeTbl[i].i0];
-		cxVec p1 = mPnt[edgeTbl[i].i1];
+		cxVec p0 = mPnt[s_frustumEdgeTbl[i].i0];
+		cxVec p1 = mPnt[s_frustumEdgeTbl[i].i1];
 		if (box.seg_ck(p0, p1)) return true;
 	}
 	const int imin = 0;
@@ -4107,6 +4108,35 @@ bool cxFrustum::overlaps(const cxAABB& box) const {
 		if (nxGeom::seg_polyhedron_intersect(p0, p1, mPlane, 6)) return true;
 	}
 	return false;
+}
+
+void cxFrustum::dump_geo(FILE* pOut) const {
+	if (!pOut) return;
+	const int nedges = XD_ARY_LEN(s_frustumEdgeTbl);
+	::fprintf(pOut, "PGEOMETRY V5\n");
+	::fprintf(pOut, "NPoints %d NPrims %d\n", 8, nedges);
+	::fprintf(pOut, "NPointGroups 0 NPrimGroups 0\n");
+	::fprintf(pOut, "NPointAttrib 0 NVertexAttrib 0 NPrimAttrib 0 NAttrib 0\n");
+	for (int i = 0; i < 8; ++i) {
+		cxVec v = get_vertex(i);
+		::fprintf(pOut, "%f %f %f 1\n", v.x, v.y, v.z);
+	}
+	::fprintf(pOut, "Run %d Poly\n", nedges);
+	for (int i = 0; i < nedges; ++i) {
+		::fprintf(pOut, " 2 < %d %d\n", s_frustumEdgeTbl[i].i0, s_frustumEdgeTbl[i].i1);
+	}
+	::fprintf(pOut, "beginExtra\n");
+	::fprintf(pOut, "endExtra\n");
+}
+
+void cxFrustum::dump_geo(const char* pOutPath) const {
+	if (!pOutPath) return;
+	FILE* pOut = nxSys::fopen_w_txt(pOutPath);
+	if (!pOut) {
+		return;
+	}
+	dump_geo(pOut);
+	::fclose(pOut);
 }
 
 

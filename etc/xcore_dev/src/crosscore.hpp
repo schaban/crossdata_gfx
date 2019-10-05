@@ -3030,6 +3030,9 @@ public:
 	bool overlaps(const cxSphere& sph) const;
 	bool cull(const cxAABB& box) const;
 	bool overlaps(const cxAABB& box) const;
+
+	void dump_geo(FILE* pOut) const;
+	void dump_geo(const char* pOutPath) const;
 };
 
 
@@ -3239,6 +3242,8 @@ public:
 	void set_deg_fovy(const float fovy) {
 		mDegFOVY = fovy;
 	}
+
+	float get_aspect() const { return mAspect; }
 
 	void init(const int width = 800, const int height = 600);
 	void update();
