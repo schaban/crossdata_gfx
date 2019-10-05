@@ -3018,6 +3018,7 @@ public:
 	void init(const cxMtx& mtx, float fovy, float aspect, float znear, float zfar);
 
 	cxVec get_center() const;
+	cxVec get_vertex(const int idx) const;
 	cxPlane get_near_plane() const { return mPlane[0]; }
 	cxPlane get_far_plane() const { return mPlane[5]; }
 	cxPlane get_left_plane() const { return mPlane[1]; }

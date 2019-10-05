@@ -3996,6 +3996,15 @@ cxVec cxFrustum::get_center() const {
 	return c;
 }
 
+
+cxVec cxFrustum::get_vertex(const int idx) const {
+	cxVec v(0.0f);
+	if (unsigned(idx) < 8) {
+		v = mPnt[idx];
+	}
+	return v;
+}
+
 bool cxFrustum::cull(const cxSphere& sph) const {
 	cxVec c = sph.get_center();
 	float r = sph.get_radius();
