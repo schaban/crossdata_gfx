@@ -22,6 +22,18 @@ android_app* oglsys_get_app();
 #	define DYNAMICGLES_NO_NAMESPACE
 #	define DYNAMICEGL_NO_NAMESPACE
 #	include <DynamicGles.h>
+#elif defined(VIVANTE_FB)
+#	define OGLSYS_VIVANTE_FB
+#	undef OGLSYS_ES
+#	define OGLSYS_ES 1
+#	include <EGL/egl.h>
+#	include <EGL/eglext.h>
+#	include <EGL/eglvivante.h>
+#	include <GLES/gl.h>
+#	include <GLES/glext.h>
+#	include <GLES2/gl2.h>
+#	include <GLES2/gl2ext.h>
+#	include <GLES3/gl3.h>
 #elif defined(__APPLE__)
 #	define OGLSYS_APPLE
 #	define OGLSYS_MACOS

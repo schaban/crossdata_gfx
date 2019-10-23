@@ -83,6 +83,9 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_X11)
 	Display* mpXDisplay;
 	Window mXWnd;
+#elif defined(OGLSYS_VIVANTE_FB)
+	EGLNativeDisplayType mVivDisp;
+	EGLNativeWindowType mVivWnd;
 #endif
 
 	uint64_t mFrameCnt;
@@ -115,7 +118,11 @@ static struct OGLSysGlb {
 		PFNGLGENVERTEXARRAYSOESPROC pfnGenVertexArrays;
 		PFNGLDELETEVERTEXARRAYSOESPROC pfnDeleteVertexArrays;
 		PFNGLBINDVERTEXARRAYOESPROC pfnBindVertexArray;
+	#ifdef OGLSYS_VIVANTE_FB
+		void* pfnDrawElementsBaseVertex;
+	#else
 		PFNGLDRAWELEMENTSBASEVERTEXOESPROC pfnDrawElementsBaseVertex;
+	#endif
 #endif
 		bool bindlessTex;
 		bool ASTC_LDR;
@@ -736,6 +743,17 @@ void OGLSysGlb::init_wnd() {
 	XEvent evt;
 	XIfEvent(mpXDisplay, &evt, wait_MapNotify, (char*)mXWnd);
 	XSelectInput(mpXDisplay, mXWnd, ButtonPressMask | ButtonReleaseMask | KeyPressMask | KeyReleaseMask | PointerMotionMask);
+#elif defined(OGLSYS_VIVANTE_FB)
+	mVivDisp = fbGetDisplayByIndex(0);
+	int vivW = 0;
+	int vivH = 0;
+	fbGetDisplayGeometry(mVivDisp, &vivW, &vivH);
+	dbg_msg("Vivante display: %d x %d\n", vivW, vivH);
+	mWidth = vivW;
+	mHeight = vivH;
+	mWndW = mWidth;
+	mWndH = mHeight;
+	mVivWnd = fbCreateWindow(mVivDisp, 0, 0, mWidth, mHeight);
 #endif
 
 #if !defined(OGLSYS_ANDROID)
@@ -757,8 +775,19 @@ void OGLSysGlb::reset_wnd() {
 		XCloseDisplay(mpXDisplay);
 		mpXDisplay = nullptr;
 	}
+#elif defined(OGLSYS_VIVANTE_FB)
+	fbDestroyWindow(mVivWnd);
+	fbDestroyDisplay(mVivDisp);
 #endif
 }
+
+#if defined(OGLSYS_VIVANTE_FB)
+#	define OGLSYS_ES_ALPHA_SIZE 0
+#	define OGLSYS_ES_DEPTH_SIZE 16
+#else
+#	define OGLSYS_ES_ALPHA_SIZE 8
+#	define OGLSYS_ES_DEPTH_SIZE 24
+#endif
 
 void OGLSysGlb::init_ogl() {
 	if (mWithoutCtx) {
@@ -775,7 +804,9 @@ void OGLSysGlb::init_ogl() {
 	if (mpXDisplay) {
 		mEGL.display = eglGetDisplay((EGLNativeDisplayType)mpXDisplay);
 	}
-#endif
+#	elif defined(OGLSYS_VIVANTE_FB)
+	mEGL.display = eglGetDisplay(mVivDisp);
+#	endif
 	if (!valid_display()) return;
 	int verMaj = 0;
 	int verMin = 0;
@@ -789,8 +820,8 @@ void OGLSysGlb::init_ogl() {
 		EGL_RED_SIZE, 8,
 		EGL_GREEN_SIZE, 8,
 		EGL_BLUE_SIZE, 8,
-		EGL_ALPHA_SIZE, 8,
-		EGL_DEPTH_SIZE, 24,
+		EGL_ALPHA_SIZE, OGLSYS_ES_ALPHA_SIZE,
+		EGL_DEPTH_SIZE, OGLSYS_ES_DEPTH_SIZE,
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
 		EGL_NONE
@@ -800,14 +831,14 @@ void OGLSysGlb::init_ogl() {
 	flg = !!eglChooseConfig(mEGL.display, cfgAttrs, &mEGL.config, 1, &ncfg);
 	if (!flg) {
 		static EGLint cfgAttrs2[] = {
-				EGL_RED_SIZE, 8,
-				EGL_GREEN_SIZE, 8,
-				EGL_BLUE_SIZE, 8,
-				EGL_ALPHA_SIZE, 8,
-				EGL_DEPTH_SIZE, 24,
-				EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-				EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-				EGL_NONE
+			EGL_RED_SIZE, 8,
+			EGL_GREEN_SIZE, 8,
+			EGL_BLUE_SIZE, 8,
+			EGL_ALPHA_SIZE, OGLSYS_ES_ALPHA_SIZE,
+			EGL_DEPTH_SIZE, OGLSYS_ES_DEPTH_SIZE,
+			EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+			EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+			EGL_NONE
 		};
 		useGLES2 = true;
 		flg = !!eglChooseConfig(mEGL.display, cfgAttrs2, &mEGL.config, 1, &ncfg);
@@ -815,15 +846,17 @@ void OGLSysGlb::init_ogl() {
 	if (flg) flg = ncfg == 1;
 	if (!flg) return;
 	EGLNativeWindowType hwnd =
-#if defined(OGLSYS_ANDROID)
+#	if defined(OGLSYS_ANDROID)
 		mpNativeWnd
-#elif defined(OGLSYS_WINDOWS)
+#	elif defined(OGLSYS_WINDOWS)
 		mhWnd
-#elif defined(OGLSYS_X11)
+#	elif defined(OGLSYS_X11)
 		(EGLNativeWindowType)mXWnd
-#else
+#	elif defined(OGLSYS_VIVANTE_FB)
+		mVivWnd;
+#	else
 		(EGLNativeWindowType)0
-#endif
+#	endif
 		;
 	mEGL.surface = eglCreateWindowSurface(mEGL.display, mEGL.config, hwnd, nullptr);
 	if (!valid_surface()) return;
@@ -839,6 +872,15 @@ void OGLSysGlb::init_ogl() {
 			EGL_NONE
 	};
 	mEGL.context = eglCreateContext(mEGL.display, mEGL.config, nullptr, useGLES2 ? ctxAttrs2 : ctxAttrs);
+	if (!valid_context() && !useGLES2) {
+		static EGLint ctxAttrs3[] = {
+			EGL_CONTEXT_MAJOR_VERSION_KHR, 3,
+			EGL_CONTEXT_MINOR_VERSION_KHR, 0,
+			EGL_CONTEXT_CLIENT_VERSION, 3,
+			EGL_NONE
+		};
+		mEGL.context = eglCreateContext(mEGL.display, mEGL.config, nullptr, ctxAttrs3);
+	}
 	if (!valid_context()) return;
 	eglMakeCurrent(mEGL.display, mEGL.surface, mEGL.surface, mEGL.context);
 	eglSwapInterval(mEGL.display, 1);
@@ -941,7 +983,11 @@ void OGLSysGlb::init_ogl() {
 	mExts.pfnGenVertexArrays = (PFNGLGENVERTEXARRAYSOESPROC)eglGetProcAddress("glGenVertexArraysOES");
 	mExts.pfnDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSOESPROC)eglGetProcAddress("glDeleteVertexArraysOES");
 	mExts.pfnBindVertexArray = (PFNGLBINDVERTEXARRAYOESPROC)eglGetProcAddress("glBindVertexArrayOES");
+	#ifdef OGLSYS_VIVANTE_FB
+	mExts.pfnDrawElementsBaseVertex = nullptr;
+	#else
 	mExts.pfnDrawElementsBaseVertex = (PFNGLDRAWELEMENTSBASEVERTEXOESPROC)eglGetProcAddress("glDrawElementsBaseVertexOES");
+	#endif
 #endif
 }
 
@@ -1256,10 +1302,12 @@ namespace OGLSys {
 			++GLG.mFrameCnt;
 		}
 #else
-		if (pLoop) {
-			pLoop();
+		while (true) {
+			if (pLoop) {
+				pLoop();
+			}
+			++GLG.mFrameCnt;
 		}
-		++GLG.mFrameCnt;
 #endif
 	}
 
@@ -1614,9 +1662,11 @@ namespace OGLSys {
 
 	void draw_tris_base_vtx(const int ntris, const GLenum idxType, const intptr_t ibOrg, const int baseVtx) {
 #if OGLSYS_ES
+		#if !defined(OGLSYS_VIVANTE_FB)
 		if (GLG.mExts.pfnDrawElementsBaseVertex != nullptr) {
 			GLG.mExts.pfnDrawElementsBaseVertex(GL_TRIANGLES, ntris * 3, idxType, (const void*)ibOrg, baseVtx);
 		}
+		#endif
 #elif defined(OGLSYS_APPLE)
 #else
 		if (glDrawElementsBaseVertex != nullptr) {
