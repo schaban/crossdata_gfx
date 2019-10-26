@@ -749,11 +749,23 @@ void OGLSysGlb::init_wnd() {
 	int vivH = 0;
 	fbGetDisplayGeometry(mVivDisp, &vivW, &vivH);
 	dbg_msg("Vivante display: %d x %d\n", vivW, vivH);
+	int vivX = 0;
+	int vivY = 0;
+	if (mReduceRes) {
+		const float vivReduce = 0.5f;
+		int fullVivW = vivW;
+		int fullVivH = vivH;
+		vivW = int(float(fullVivW) * vivReduce);
+		vivH = int(float(fullVivH) * vivReduce);
+		vivX = (fullVivW - vivW) / 2;
+		vivY = (fullVivH - vivH) / 2;
+		dbg_msg("Reduced resolution: %d x %d\n", vivW, vivH);
+	}
 	mWidth = vivW;
 	mHeight = vivH;
 	mWndW = mWidth;
 	mWndH = mHeight;
-	mVivWnd = fbCreateWindow(mVivDisp, 0, 0, mWidth, mHeight);
+	mVivWnd = fbCreateWindow(mVivDisp, vivX, vivY, mWidth, mHeight);
 #endif
 
 #if !defined(OGLSYS_ANDROID)
@@ -787,6 +799,7 @@ void OGLSysGlb::reset_wnd() {
 #else
 #	define OGLSYS_ES_ALPHA_SIZE 8
 #	define OGLSYS_ES_DEPTH_SIZE 24
+
 #endif
 
 void OGLSysGlb::init_ogl() {
@@ -846,17 +859,17 @@ void OGLSysGlb::init_ogl() {
 	if (flg) flg = ncfg == 1;
 	if (!flg) return;
 	EGLNativeWindowType hwnd =
-#	if defined(OGLSYS_ANDROID)
+#if defined(OGLSYS_ANDROID)
 		mpNativeWnd
-#	elif defined(OGLSYS_WINDOWS)
+#elif defined(OGLSYS_WINDOWS)
 		mhWnd
-#	elif defined(OGLSYS_X11)
+#elif defined(OGLSYS_X11)
 		(EGLNativeWindowType)mXWnd
-#	elif defined(OGLSYS_VIVANTE_FB)
+#elif defined(OGLSYS_VIVANTE_FB)
 		mVivWnd;
-#	else
+#else
 		(EGLNativeWindowType)0
-#	endif
+#endif
 		;
 	mEGL.surface = eglCreateWindowSurface(mEGL.display, mEGL.config, hwnd, nullptr);
 	if (!valid_surface()) return;
@@ -988,6 +1001,30 @@ void OGLSysGlb::init_ogl() {
 	#else
 	mExts.pfnDrawElementsBaseVertex = (PFNGLDRAWELEMENTSBASEVERTEXOESPROC)eglGetProcAddress("glDrawElementsBaseVertexOES");
 	#endif
+#endif
+	
+#if defined(OGLSYS_VIVANTE_FB)
+	if (mReduceRes) {
+		int vivW = 0;
+		int vivH = 0;
+		fbGetDisplayGeometry(mVivDisp, &vivW, &vivH);
+		EGLNativeWindowType vivWnd = fbCreateWindow(mVivDisp, 0, 0, vivW, vivH);
+		EGLSurface vivSurf = eglCreateWindowSurface(mEGL.display, mEGL.config, vivWnd, nullptr);
+		eglMakeCurrent(mEGL.display, vivSurf, vivSurf, mEGL.context);
+		glViewport(0, 0, vivW, vivH);
+		glScissor(0, 0, vivW, vivH);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		for (int i = 0; i < 8; ++i) {
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+			eglSwapBuffers(mEGL.display, vivSurf);
+		}
+		eglDestroySurface(mEGL.display, vivSurf);
+		eglMakeCurrent(mEGL.display, mEGL.surface, mEGL.surface, mEGL.context);
+		fbDestroyWindow(vivWnd);
+		glViewport(0, 0, mWidth, mHeight);
+		glScissor(0, 0, mWidth, mHeight);
+	}
 #endif
 }
 
