@@ -5553,32 +5553,23 @@ public:
 		return mpProgPath;
 	}
 
-	int get_num_arg() const {
+	int get_args_count() const {
 		return mpArgLst ? mpArgLst->get_count() : 0;
 	}
 
-	const char* get_arg(int i) const;
+	const char* get_arg(const int i) const;
 
-	int get_num_opt() const {
+	int get_opts_count() const {
 		return mpOptMap ? mpOptMap->get_item_count() : 0;
 	}
 
 	const char* get_opt(const char* pName) const;
 
-	static cxCmdLine* create(int argc, char* argv[]) {
-		cxCmdLine* pCmdLine = (cxCmdLine*)nxCore::mem_alloc(sizeof(cxCmdLine), "xCmdLine");
-		if (pCmdLine) {
-			pCmdLine->ctor(argc, argv);
-		}
-		return pCmdLine;
-	}
+	int get_int_opt(const char* pName, const int defVal = 0);
+	float get_float_opt(const char* pName, const float defVal = 0.0f);
 
-	static void destroy(cxCmdLine* pCmdLine) {
-		if (pCmdLine) {
-			pCmdLine->dtor();
-			nxCore::mem_free(pCmdLine);
-		}
-	}
+	static cxCmdLine* create(int argc, char* argv[]);
+	static void destroy(cxCmdLine* pCmdLine);
 };
 
 class cxStopWatch {
@@ -5822,4 +5813,18 @@ public:
 	static cxResourceManager* create(const char* pAppPath, const char* pRelDataDir);
 	static void destroy(cxResourceManager* pMgr);
 };
+
+namespace nxApp {
+
+void init_params(int argc, char* argv[]);
+void reset();
+cxCmdLine* get_cmd_line();
+int get_opts_count();
+const char* get_opt(const char* pName);
+int get_int_opt(const char* pName, const int defVal = 0);
+float get_float_opt(const char* pName, const float defVal = 0.0f);
+int get_arg_count();
+const char* get_arg(const int idx);
+
+} // nxApp
 

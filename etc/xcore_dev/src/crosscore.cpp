@@ -11782,7 +11782,7 @@ XD_NOINLINE void cxCmdLine::dtor() {
 	mpStore = nullptr;
 }
 
-XD_NOINLINE const char* cxCmdLine::get_arg(int i) const {
+XD_NOINLINE const char* cxCmdLine::get_arg(const int i) const {
 	const char* pArg = nullptr;
 	if (mpArgLst) {
 		char** ppArg = mpArgLst->get_item(i);
@@ -11799,6 +11799,39 @@ XD_NOINLINE const char* cxCmdLine::get_opt(const char* pName) const {
 		mpOptMap->get(pName, &pVal);
 	}
 	return pVal;
+}
+
+XD_NOINLINE int cxCmdLine::get_int_opt(const char* pName, const int defVal) {
+	const char* pValStr = get_opt(pName);
+	int res = defVal;
+	if (pValStr) {
+		res = ::atoi(pValStr);
+	}
+	return res;
+}
+
+XD_NOINLINE float cxCmdLine::get_float_opt(const char* pName, const float defVal) {
+	const char* pValStr = get_opt(pName);
+	float res = defVal;
+	if (pValStr) {
+		res = float(::atof(pValStr));
+	}
+	return res;
+}
+
+/*static*/ cxCmdLine* cxCmdLine::create(int argc, char* argv[]) {
+	cxCmdLine* pCmdLine = (cxCmdLine*)nxCore::mem_alloc(sizeof(cxCmdLine), "xCmdLine");
+	if (pCmdLine) {
+		pCmdLine->ctor(argc, argv);
+	}
+	return pCmdLine;
+}
+
+/*static*/ void cxCmdLine::destroy(cxCmdLine* pCmdLine) {
+	if (pCmdLine) {
+		pCmdLine->dtor();
+		nxCore::mem_free(pCmdLine);
+	}
 }
 
 
@@ -12399,3 +12432,50 @@ void cxResourceManager::destroy(cxResourceManager* pMgr) {
 	nxCore::mem_free(pMgr);
 }
 
+
+namespace nxApp {
+
+cxCmdLine* s_pCmdLine = nullptr;
+
+void init_params(int argc, char* argv[]) {
+	if (s_pCmdLine) {
+		cxCmdLine::destroy(s_pCmdLine);
+		s_pCmdLine = nullptr;
+	}
+	s_pCmdLine = cxCmdLine::create(argc, argv);
+}
+
+void reset() {
+	cxCmdLine::destroy(s_pCmdLine);
+	s_pCmdLine = nullptr;
+}
+
+cxCmdLine* get_cmd_line() {
+	return s_pCmdLine;
+}
+
+int get_opts_count() {
+	return s_pCmdLine ? s_pCmdLine->get_opts_count() : 0;
+}
+
+const char* get_opt(const char* pName) {
+	return s_pCmdLine ? s_pCmdLine->get_opt(pName) : nullptr;
+}
+
+int get_int_opt(const char* pName, const int defVal) {
+	return s_pCmdLine ? s_pCmdLine->get_int_opt(pName, defVal) : defVal;
+}
+
+float get_float_opt(const char* pName, const float defVal) {
+	return s_pCmdLine ? s_pCmdLine->get_float_opt(pName, defVal) : defVal;
+}
+
+int get_args_count() {
+	return s_pCmdLine ? s_pCmdLine->get_args_count() : 0;
+}
+
+const char* get_arg(const int idx) {
+	return s_pCmdLine ? s_pCmdLine->get_arg(idx) : nullptr;
+}
+
+} // nxApp
