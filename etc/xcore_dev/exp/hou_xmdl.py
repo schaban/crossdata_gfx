@@ -634,6 +634,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 				for prim in gg.prims():
 					#if prim in primToPolIdx:
 					grp.ipols.append(primToPolIdx[prim])
+				grp.imtl = self.pols[grp.ipols[0]].imtl
 				grps.append(grp)
 		ngrps = len(grps)
 		xcore.dbgmsg(str(ngrps) + " polygon groups")
