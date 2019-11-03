@@ -11606,6 +11606,25 @@ void cxModelWork::frustum_cull(const cxFrustum* pFst, const bool precise) {
 	}
 }
 
+bool cxModelWork::calc_batch_visibility(const cxFrustum* pFst, const int ibat, const bool precise) {
+	bool visible = false;
+	if (pFst && ck_batch_id(ibat)) {
+		cxAABB batBB = mpBatBBoxes[ibat];
+		visible = !pFst->cull(batBB);
+		if (visible && precise) {
+			visible = pFst->overlaps(batBB);
+		}
+		if (mpCullBits) {
+			if (visible) {
+				XD_BIT_ARY_CL(uint32_t, mpCullBits, ibat);
+			} else {
+				XD_BIT_ARY_ST(uint32_t, mpCullBits, ibat);
+			}
+		}
+	}
+	return visible;
+}
+
 cxModelWork* cxModelWork::create(sxModelData* pMdl, const size_t paramMemSize, const size_t extMemSize) {
 	if (!pMdl) return nullptr;
 	cxModelWork* pWk = nullptr;

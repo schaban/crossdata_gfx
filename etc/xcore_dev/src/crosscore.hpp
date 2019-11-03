@@ -4833,10 +4833,15 @@ public:
 	int find_skel_node_id(const char* pName) const { return mpData ? mpData->find_skel_node_id(pName) : -1; }
 
 	int get_batches_num() const { return mpData ? mpData->mBatNum : 0; }
+	bool ck_batch_id(const int ibat) const { return mpData ? mpData->ck_batch_id(ibat) : false; }
+
+	int get_mtls_num() const { return mpData ? mpData->mMtlNum : 0; }
+	bool ck_mtl_id(const int imtl) const { return mpData ? mpData->ck_mtl_id(imtl) : false; }
 
 	void set_pose(const cxMotionWork* pMot);
 	void update_bounds();
 	void frustum_cull(const cxFrustum* pFst, const bool precise = true);
+	bool calc_batch_visibility(const cxFrustum* pFst, const int ibat, const bool precise = true);
 
 	static cxModelWork* create(sxModelData* pMdl, const size_t paramMemSize = 0, const size_t extMemSize = 0);
 	static void destroy(cxModelWork* pWk);
