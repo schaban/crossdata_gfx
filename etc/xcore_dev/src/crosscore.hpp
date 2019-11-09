@@ -302,7 +302,10 @@ struct sxJob {
 	xt_job_func mFunc;
 	void* mpData;
 	int32_t mId;
-	uint8_t mState[4];
+	union {
+		uint8_t mState[4];
+		int32_t mParam;
+	};
 };
 
 struct sxJobContext {
