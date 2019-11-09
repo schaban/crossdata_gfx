@@ -38,6 +38,7 @@ public:
 	DrawCallbackFunc mPostOpaqFunc;
 	BatchCallbackFunc mBatchPreDrawFunc;
 	BatchCallbackFunc mBatchPostDrawFunc;
+	sxJob* mpBatJobs;
 	bool mDisableDraw;
 	bool mDisableShadowCast;
 	int mRoutine[4];
@@ -52,6 +53,7 @@ public:
 	int find_skel_node_id(const char* pName) const { return mpMdlWk ? mpMdlWk->find_skel_node_id(pName) : -1; }
 	bool ck_skel_id(const int iskl) const { return mpMdlWk ? mpMdlWk->ck_skel_id(iskl) : false; }
 
+	int get_batches_num() const { return mpMdlWk ? mpMdlWk->get_batches_num() : 0; }
 	const char* get_batch_mtl_name(const int ibat) const;
 
 	void set_base_color_scl(const float r, const float g, const float b);
@@ -90,6 +92,7 @@ public:
 	void update_skin();
 	void update_bounds();
 	void update_visibility();
+	void update_batch_vilibility(const int ibat);
 
 	void move(const sxMotionData* pMot, const float frameAdd);
 

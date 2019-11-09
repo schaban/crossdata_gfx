@@ -10,6 +10,7 @@ static cxBrigade* s_pBgd = nullptr;
 static sxJobQueue* s_pJobQue = nullptr;
 static cxHeap** s_ppLocalHeaps = nullptr;
 static int s_numLocalHeaps = 0;
+static bool s_visTaskPerBat = true;
 
 static sxLock* s_pGlbRNGLock = nullptr;
 static sxRNG s_glbRNG;
@@ -71,13 +72,23 @@ static void obj_exec_func(const sxJobContext* pCtx) {
 	}
 }
 
-static void obj_visibility_func(const sxJobContext* pCtx) {
+static void obj_visibility_job_func(const sxJobContext* pCtx) {
 	if (!pCtx) return;
 	sxJob* pJob = pCtx->mpJob;
 	if (!pJob) return;
 	ScnObj* pObj = (ScnObj*)pJob->mpData;
 	if (!pObj) return;
 	pObj->update_visibility();
+}
+
+static void bat_visibility_job_func(const sxJobContext* pCtx) {
+	if (!pCtx) return;
+	sxJob* pJob = pCtx->mpJob;
+	if (!pJob) return;
+	ScnObj* pObj = (ScnObj*)pJob->mpData;
+	if (!pObj) return;
+	int ibat = pJob->mParam;
+	pObj->update_batch_vilibility(ibat);
 }
 
 static void obj_ctor(ScnObj* pObj) {
@@ -94,6 +105,8 @@ static void obj_dtor(ScnObj* pObj) {
 	pObj->mpMotWk = nullptr;
 	cxModelWork::destroy(pObj->mpMdlWk);
 	pObj->mpMdlWk = nullptr;
+	nxCore::mem_free(pObj->mpBatJobs);
+	pObj->mpBatJobs = nullptr;
 }
 
 namespace Scene {
@@ -825,6 +838,13 @@ ScnObj* add_obj(sxModelData* pMdl, const char* pName) {
 				if (pMdlParam) {
 					pMdlParam->reset();
 				}
+				pObj->mpBatJobs = (sxJob*)nxCore::mem_alloc(sizeof(sxJob) * nbat);
+				if (pObj->mpBatJobs) {
+					for (int i = 0; i < nbat; ++i) {
+						pObj->mpBatJobs[i].mpData = pObj;
+						pObj->mpBatJobs[i].mParam = i;
+					}
+				}
 				s_pObjMap->put(pObj->mpName, pObj);
 			}
 		}
@@ -945,19 +965,43 @@ void exec() {
 }
 
 void visibility() {
+	if (!s_pObjList) return;
 	int nobj = get_num_objs();
-	int njob = nobj;
-	if (njob < 1) return;
+	if (nobj < 1) return;
+	int njob = 0;
+	if (s_visTaskPerBat) {
+		int nbat = 0;
+		for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+			ScnObj* pObj = itr.item();
+			if (pObj) {
+				nbat += pObj->get_batches_num();
+			}
+		}
+		njob = nbat;
+	} else {
+		njob = nobj;
+	}
 	update_view();
 	update_shadow();
 	job_queue_alloc(njob);
 	if (s_pJobQue) {
 		nxTask::queue_purge(s_pJobQue);
-		if (s_pObjList) {
+		if (s_visTaskPerBat) {
 			for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
 				ScnObj* pObj = itr.item();
 				if (pObj) {
-					pObj->mJob.mFunc = obj_visibility_func;
+					int n = pObj->get_batches_num();
+					for (int i = 0; i < n; ++i) {
+						pObj->mpBatJobs[i].mFunc = bat_visibility_job_func;
+						nxTask::queue_add(s_pJobQue, &pObj->mpBatJobs[i]);
+					}
+				}
+			}
+		} else {
+			for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+				ScnObj* pObj = itr.item();
+				if (pObj) {
+					pObj->mJob.mFunc = obj_visibility_job_func;
 					nxTask::queue_add(s_pJobQue, &pObj->mJob);
 				}
 			}
@@ -1224,6 +1268,27 @@ void ScnObj::update_visibility() {
 							XD_BIT_ARY_ST(uint32_t, pCastBits, i);
 						}
 					}
+				}
+			}
+		}
+	}
+}
+
+void ScnObj::update_batch_vilibility(const int ibat) {
+	if (mpMdlWk) {
+		mpMdlWk->calc_batch_visibility(Scene::get_view_frustum_ptr(), ibat);
+		if (mpMdlWk->mpExtMem) {
+			uint32_t* pCastBits = (uint32_t*)mpMdlWk->mpExtMem;
+			if (mDisableShadowCast) {
+				XD_BIT_ARY_ST(uint32_t, pCastBits, ibat);
+			} else {
+				if (s_useShadowCastCull) {
+					bool vis = ck_bat_shadow_cast_vis(mpMdlWk, ibat);
+					if (!vis) {
+						XD_BIT_ARY_ST(uint32_t, pCastBits, ibat);
+					}
+				} else {
+					XD_BIT_ARY_CL(uint32_t, pCastBits, ibat);
 				}
 			}
 		}
