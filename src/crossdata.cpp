@@ -5174,7 +5174,7 @@ void sxRigData::calc_limb_local(LimbChain::Solution* pSolution, const LimbChain&
 	int parentIdx = get_parent_idx(chain.mTopCtrl);
 	if (!ck_node_idx(parentIdx)) return;
 	bool isExt = ck_node_idx(chain.mExtCtrl);
-	int rootIdx = rootIdx = isExt ? get_parent_idx(chain.mExtCtrl) : get_parent_idx(chain.mEndCtrl);
+	int rootIdx = isExt ? get_parent_idx(chain.mExtCtrl) : get_parent_idx(chain.mEndCtrl);
 	if (!ck_node_idx(rootIdx)) return;
 
 	sxLimbIKWork ik;
