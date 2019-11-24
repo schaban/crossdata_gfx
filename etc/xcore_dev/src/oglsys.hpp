@@ -23,7 +23,9 @@
  * THE SOFTWARE.
  */
 
-#define OGLSYS_ES 0
+#ifndef OGLSYS_ES
+#	define OGLSYS_ES 0
+#endif
 
 #if defined(ANDROID)
 #	define OGLSYS_ANDROID
