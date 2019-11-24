@@ -24,11 +24,11 @@
  */
 
 #include <cstdint>
-#include <memory>
-#include <cstdio>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
+
 #include "oglsys.hpp"
 
 #if defined(OGLSYS_ANDROID)
