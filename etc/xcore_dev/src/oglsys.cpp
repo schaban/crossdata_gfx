@@ -23,7 +23,6 @@
  * THE SOFTWARE.
  */
 
-#include <cstdint>
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
@@ -297,13 +296,22 @@ static struct OGLSysGlb {
 
 		void init_ext_ctx(HDC hDC) {
 			if (hDC && hCtx && wglCreateContextAttribsARB) {
-				int attribs[] = {
-					WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+				int attribsCompat[] = {
+					WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
 					WGL_CONTEXT_MINOR_VERSION_ARB, 0,
-					WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+					WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
 					0
 				};
-				hExtCtx = wglCreateContextAttribsARB(hDC, hCtx, attribs);
+				hExtCtx = wglCreateContextAttribsARB(hDC, hCtx, attribsCompat);
+				if (!hExtCtx) {
+					int attribsCore[] = {
+						WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+						WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+						WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+						0
+					};
+					hExtCtx = wglCreateContextAttribsARB(hDC, hCtx, attribsCore);
+				}
 				if (hExtCtx) {
 					BOOL flg = wglMakeCurrent(hDC, hExtCtx);
 					if (!flg) {

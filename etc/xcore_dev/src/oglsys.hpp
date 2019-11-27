@@ -27,6 +27,8 @@
 #	define OGLSYS_ES 0
 #endif
 
+#include <cstdint>
+
 #if defined(ANDROID)
 #	define OGLSYS_ANDROID
 #	undef OGLSYS_ES
