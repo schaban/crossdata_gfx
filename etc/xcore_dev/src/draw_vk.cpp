@@ -1323,13 +1323,13 @@ void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode,
 
 static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 	::memset(&VKG, 0, sizeof(VKG));
-	s_pMdlGPUWkList = MdlGPUWkList::create("MdlGPUWkList");
 	VKG.init_alloc_cb();
 	VKG.mpAllocator = s_useAllocCB ? &VKG.mAllocCB : nullptr;
 	VKG.init_rsrc_mgr(pRsrcMgr);
 	if (!pRsrcMgr) return;
 	VKG.mInitFlg = VKG.init_vk();
 	if (VKG.mInitFlg) {
+		s_pMdlGPUWkList = MdlGPUWkList::create("MdlGPUWkList");
 		VKG.init_gpu_code();
 	}
 }
