@@ -12,6 +12,8 @@ from array import array
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
 
 def writeBitMask(bw, bits, minIdx, maxIdx):
 	span = maxIdx - minIdx
@@ -380,7 +382,7 @@ class BVH:
 				self.polIds[idx + i] = self.polIds[idx + mid]
 				self.polIds[idx + mid] = t
 				mid += 1
-		if mid == 0 or mid == count: mid = count / 2
+		if mid == 0 or mid == count: mid = count // 2
 		return mid
 
 	def write(self, bw):
@@ -482,7 +484,7 @@ class GeoExporter(xcore.BaseExporter):
 				skin = PntSkin(self, pnt, skinAttr)
 				self.maxSkinWgt = max(skin.getWgtNum(), self.maxSkinWgt)
 				self.skinLst.append(skin)
-			#print "max wgt:", self.maxSkinWgt
+			#xcore.dbgmsg("max wgt: " + self.maxSkinWgt)
 			if self.maxSkinWgt:
 				self.skinFlg = True
 				self.skinNodeNum = len(self.skinNames)
@@ -551,7 +553,7 @@ class GeoExporter(xcore.BaseExporter):
 						self.pols[polNo].addSkinNodesToGrp(mtl)
 					mtl.maxWgtNum = maxWgtNum
 					if self.skinSphFlg: mtl.calcPolSkinSpheres()
-					#print "maxWgt/Mtl:", mtl.getName(), mtl.maxWgtNum
+					#xcore.dbgmsg("maxWgt/Mtl: " + mtl.getName() + " " + str(mtl.maxWgtNum))
 		#self.printMtlInfo()
 
 		self.pntGrp = []
@@ -594,8 +596,8 @@ class GeoExporter(xcore.BaseExporter):
 				self.pols[polIdx].grpMask |= 1 << i
 				self.pols[polIdx].grpNum += 1
 
-		#print "#pnt grp:", self.pntGrpNum
-		#print "#pol grp:", self.polGrpNum
+		#xcore.dbgmsg("#pnt grp: " + str(self.pntGrpNum))
+		#xcore.dbgmsg("#pol grp: " +str(self.polGrpNum))
 
 		self.addAttrStrings(self.glbAttrs)
 		self.addAttrStrings(self.pntAttrs)
@@ -609,12 +611,12 @@ class GeoExporter(xcore.BaseExporter):
 		if self.mtlNum > 0:
 			npol = 0
 			for i, mtl in enumerate(self.mtlLst):
-				print "-- Mtl[" + str(i) + "]"
-				print " Name:", mtl.getName()
-				print " Path:", mtl.getPath()
-				print " #pol:", mtl.getPolNum()
+				xcore.dbgmsg("-- Mtl[" + str(i) + "]")
+				xcore.dbgmsg(" Name: " + mtl.getName())
+				xcore.dbgmsg(" Path: " + mtl.getPath())
+				xcore.dbgmsg(" #pol: " + str(mtl.getPolNum()))
 				npol += mtl.getPolNum()
-			print "total pol #", npol
+			xcore.dbgmsg("total pol # " + str(npol))
 
 	def addAttrStrings(self, attrLst):
 		for attrIdx, attr in enumerate(attrLst):

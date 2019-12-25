@@ -12,6 +12,9 @@ from math import *
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
+
 def texPath(path):
 	if path.startswith("op:"): return path[3:]
 	return path
@@ -538,7 +541,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 			self.skinData = []
 			for ipnt, pnt in enumerate(self.pnts):
 				skin = pnt.floatListAttribValue(skinAttr)
-				nwgt = len(skin) / 2
+				nwgt = len(skin) // 2
 				iw = []
 				for i in xrange(nwgt):
 					idx = int(skin[i*2])
@@ -951,7 +954,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 			f.write(struct.pack("I", 0)) # +08 -> names
 			f.write(struct.pack("I", 0)) # +0C -> skel map
 			f.write(struct.pack("I", 0)) # +10 -> bat jlst data
-			f.write(struct.pack("I", len(self.jsphBats) / 4)) # +14 -> num bat items (spheres/jlst data)
+			f.write(struct.pack("I", len(self.jsphBats) // 4)) # +14 -> num bat items (spheres/jlst data)
 			bw.align(0x10)
 			bw.patch(skinInfoTop, bw.getPos() - top)
 			f.write(xcore.packTupF32(self.jsphMdl))
@@ -976,7 +979,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 		if nskl > 0:
 			bw.align(0x10)
 			bw.patch(self.patchPos + 0x14, bw.getPos() - top) # -> skel
-			mdata = ""
+			mdata = b""
 			for skelNode in self.skelNodes:
 				mdata += packXMtx(skelNode.lmtx)
 			for skelNode in self.skelNodes:

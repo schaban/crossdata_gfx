@@ -12,6 +12,8 @@ from array import array
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
 
 class ExprEntry:
 	def __init__(self, exprText, nodeName, nodePath = None, chanName = None):
@@ -35,7 +37,7 @@ class ExprEntry:
 		if self.chanName: self.chanNameId = strLst.add(self.chanName)
 
 	def printInfo(self):
-		print self.exprText,  "@", self.nodeName, self.nodePath, self.chanName
+		xcore.dbgmsg(self.exprText + " @ " + self.nodeName + " " + self.nodePath + " " + self.chanName)
 
 	def write(self, bw):
 		lib = self.lib

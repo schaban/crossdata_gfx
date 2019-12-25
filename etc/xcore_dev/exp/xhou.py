@@ -91,7 +91,7 @@ def qget(r):
 def qord(rord):
 	id = 0
 	for i in xrange(3): id += (ord(rord[i]) - ord('x')) << (i*2)
-	return (id / 3) - 2
+	return (id // 3) - 2
 
 def qrot(rot, rord):
 	tbl = [
@@ -902,7 +902,7 @@ class Pol:
 			self.tris = [0, 1, 2]
 
 		self.ibuf = []
-		ntris = len(self.tris) / 3
+		ntris = len(self.tris) // 3
 		for i in xrange(ntris):
 			for j in xrange(3):
 				self.ibuf.append(self.pids[self.tris[i*3 + j]])
@@ -923,7 +923,7 @@ class Pol:
 		return max(self.pids)
 
 	def numTris(self):
-		return len(self.tris) / 3
+		return len(self.tris) // 3
 
 	def numVtx(self):
 		return len(self.pids)

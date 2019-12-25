@@ -12,6 +12,8 @@ from array import array
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
 
 def vecAll(vec, val):
 	for elem in vec:

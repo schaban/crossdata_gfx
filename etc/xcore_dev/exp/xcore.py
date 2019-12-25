@@ -355,7 +355,7 @@ def quatFromSV(v, angNrm = True):
 	return q
 
 def packTupF32(t):
-	s = ""
+	s = b""
 	for x in t: s += struct.pack("f", x)
 	return s
 
@@ -378,7 +378,7 @@ def fresnelFromIOR(ior):
 	return r * r
 
 def rgba8(data, gamma = 1.0):
-	n = len(data) / 4
+	n = len(data) // 4
 	fmt = str(n) + "f"
 	lst = list(struct.unpack(fmt, data))
 	if gamma > 0.0 and gamma != 1.0:
@@ -391,7 +391,7 @@ def rgba8(data, gamma = 1.0):
 
 
 class XORDER:
-	def __init__(self): raise Error, "enum"
+	def __init__(self): pass
 XORDER.SRT = 0
 XORDER.STR = 1
 XORDER.RST = 2
@@ -405,7 +405,7 @@ def xformOrdFromStr(str):
 
 
 class RORDER:
-	def __init__(self): raise Error, "enum"
+	def __init__(self): pass
 RORDER.XYZ = 0
 RORDER.XZY = 1
 RORDER.YXZ = 2
@@ -601,7 +601,7 @@ class StrList:
 				s = self.lst[i]
 				h = strHash16(s)
 				self.sortedLst.append([h, s, i])
-			self.sortedLst.sort(cmp=lambda s0, s1: cmp(s0[0], s1[0]))
+			self.sortedLst.sort(key=lambda s: s[0])
 			self.sortedMap = [-1 for i in xrange(strNum)]
 			for i in xrange(strNum):
 				self.sortedMap[self.sortedLst[i][2]] = i
@@ -835,7 +835,7 @@ class Expr:
 		self.reset()
 
 	def reset(self):
-		self.text =""
+		self.text = ""
 		self.ptr = 0
 		self.ch = '\0'
 		self.tok = ExprToken()
@@ -945,13 +945,13 @@ class Expr:
 				self.unread()
 				if ch == '<': code.info = ExprCode.CMP_LT
 				elif ch == '>': code.info = ExprCode.CMP_GT
-				else: print "Invalid CMP"
+				else: dbgmsg("Invalid CMP")
 			else:
 				if ch == '<': code.info = ExprCode.CMP_LE
 				elif ch == '>': code.info = ExprCode.CMP_GE
 				elif ch == '=': code.info = ExprCode.CMP_EQ
 				elif ch == '!': code.info = ExprCode.CMP_NE
-				else: print "Invalid CMP"
+				else: dbgmsg("Invalid CMP")
 		return code
 
 	def getTok(self):
@@ -1105,7 +1105,7 @@ class Expr:
 				symIdx = code.info
 				sym = self.strs.get(symIdx)
 				opStr += " " + sym
-			print '%(#)02X' % {"#":addr}, ":", opStr
+			dbgmsg('%(#)02X' % {"#":addr} + " : " + opStr)
 
 	def write(self, bw):
 		top = bw.getPos()

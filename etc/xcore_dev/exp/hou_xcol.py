@@ -12,6 +12,9 @@ from math import *
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
+
 class ColBVHNode:
 	def __init__(self, bvh):
 		self.bvh = bvh
@@ -97,7 +100,7 @@ class ColBVH:
 				self.ipols[idx + i] = self.ipols[idx + mid]
 				self.ipols[idx + mid] = t
 				mid += 1
-		if mid == 0 or mid == cnt: mid = cnt / 2
+		if mid == 0 or mid == cnt: mid = cnt // 2
 		return mid
 
 	def writeNodeBoxes(self, bw):

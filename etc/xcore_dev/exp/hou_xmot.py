@@ -12,6 +12,9 @@ from math import *
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
+
 class MotTrk:
 	def __init__(self, data):
 		self.mask = 0

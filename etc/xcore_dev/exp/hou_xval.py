@@ -12,9 +12,11 @@ from array import array
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
 
 class ValType:
-	def __init__(self): raise Error, "enum ctor"
+	def __init__(self): pass
 ValType.UNKNOWN = 0
 ValType.FLOAT = 1
 ValType.VEC2 = 2
@@ -161,10 +163,10 @@ class ValGrpList:
 		for node in nodeLst:
 			self.lst.append(ValGrp(xval, node, fnameFlg, folders))
 		if 0:
-			print "#vec2", v2Lst.num()
-			print "#vec3", v3Lst.num()
-			print "#vec4", v4Lst.num()
-			print "#", v2Lst.num() + v3Lst.num() + v4Lst.num()
+			xcore.dbgmsg("#vec2 " + str(v2Lst.num()))
+			xcore.dbgmsg("#vec3 " + str(v3Lst.num()))
+			xcore.dbgmsg("#vec4 " + str(v4Lst.num()))
+			xcore.dbgmsg("# " + str(v2Lst.num() + v3Lst.num() + v4Lst.num()))
 		for grp in self.lst:
 			for prm in grp.lst:
 				if prm.type == ValType.VEC4:
@@ -177,7 +179,6 @@ class ValGrpList:
 			for prm in grp.lst:
 				if prm.type == ValType.VEC2:
 					prm.valId = vecLst.add(v2Lst.get(prm.valId))
-		#print "#vec", vecLst.num()
 
 	def write(self, bw, top):
 		lstTop = bw.getPos()
@@ -214,7 +215,7 @@ class ValExporter(xcore.BaseExporter):
 def expVal(lst, outPath, fnameFlg = False, folders = None):
 	val = ValExporter()
 	val.build(lst, fnameFlg, folders)
-	print "Saving values to", outPath
+	xcore.dbgmsg("Saving values to " + outPath)
 	val.save(outPath)
 
 def expValByType(outPath, typLst, folders = None, rootPath = "/obj"):

@@ -12,6 +12,8 @@ from array import array
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
 
 class NodeInfo:
 	def __init__(self, xkfr, node, nodePathId, nodeNameId, nodeTypeId):
@@ -108,10 +110,9 @@ class KfrExporter(xcore.BaseExporter):
 						fnoMin = fno
 						fnoMax = fno
 				self.maxFrame = max(fnoMax, self.maxFrame)
-		#print "Anim clip from", self.minFrame, "to", self.maxFrame
+		#xcore.dbgmsg("Anim clip from " + str(self.minFrame) + " to " + str(self.maxFrame))
 		fcvLst = []
 		for i, info in enumerate(infoLst):
-			#print i, info.nameInfo.nodeName, info.nameInfo.chName, info.param.path()
 			fcvLst.append(xhou.FCurve(info.param.path(), self.minFrame, self.maxFrame, info.nameInfo))
 		self.fcv = []
 		for fcv in fcvLst:
@@ -235,13 +236,13 @@ def test(outPath):
 	chLst = xhou.getChannelsInGroup("MOT") # "EXP"
 	kfr = KfrExporter()
 	kfr.build(chLst, minFrame, maxFrame, hou.fps())
-	print "Saving keyframes to", outPath
+	xcore.dbgmsg("Saving keyframes to " + outPath)
 	kfr.save(outPath)
 
 def testClip(outPath):
 	kfr = KfrExporter()
 	kfr.buildFromClip("/obj/motionfx/MOT_newclip1", hou.fps())
-	print "Saving clip keyframes to", outPath
+	xcore.dbgmsg("Saving clip keyframes to " + outPath)
 	kfr.save(outPath)
 
 if __name__=="__main__":

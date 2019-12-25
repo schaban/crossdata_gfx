@@ -12,6 +12,8 @@ from array import array
 import xcore
 import xhou
 
+try: xrange
+except: xrange = range
 
 def writeBits(bw, bits, nbits):
 	nbytes = xcore.ceilDiv(nbits, 8)
@@ -146,7 +148,7 @@ class ImgExporter(xcore.BaseExporter):
 		for i, pln in enumerate(plnLst):
 			bw.align(4)
 			bw.patch(infoTop + (i*0x20), bw.getPos() - top)
-			print "Saving plane", pln.name
+			xcore.dbgmsg("Saving plane " + pln.name)
 			pln.writeData(bw)
 
 	def save(self, outPath):

@@ -5,6 +5,7 @@ import hou
 import os
 import imp
 import re
+import array
 import struct
 import inspect
 from math import *
@@ -12,9 +13,11 @@ from math import *
 import xcore
 import xhou
 
-class TexFormat:
-	def __init__(self): raise Error, "TexFormat ctor"
+try: xrange
+except: xrange = range
 
+class TexFormat:
+	def __init__(self): pass
 TexFormat.RGBA_BYTE_LINEAR = 0
 TexFormat.RGBA_BYTE_GAMMA2 = 1
 
@@ -42,11 +45,22 @@ class TexExporter(xcore.BaseExporter):
 		h = self.h
 		dfmt = hou.imageDepth.Float32
 		esize = 4
-		c = cop.allPixelsAsString(plane="C", depth=dfmt)
-		if "A" in cop.planes():
-			a = cop.allPixelsAsString(plane="A", depth=dfmt)
+		useStrs = sys.version_info[0] < 3
+		if useStrs:
+			c = cop.allPixelsAsString(plane="C", depth=dfmt)
 		else:
-			a = ""
+			cdat = cop.allPixels(plane="C")
+			c = struct.pack(str(w*h*3)+"f", *cdat)
+		if "A" in cop.planes():
+			if useStrs:
+				a = cop.allPixelsAsString(plane="A", depth=dfmt)
+			else:
+				adat = cop.allPixels(plane="A")
+				a = b""
+				for i in xrange(w*h):
+					a += struct.pack("f", adat[i])
+		else:
+			a = b""
 			for i in xrange(w*h):
 				a += struct.pack("f", 1.0)
 		self.dataStrs = []
