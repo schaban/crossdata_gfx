@@ -4546,9 +4546,9 @@ XD_NOINLINE float cxView::calc_fovx() const {
 
 XD_NOINLINE void cxView::init(const int width, const int height) {
 	set_window(width, height);
-	set_deg_fovy(30.0f);
-	set_z_planes(0.1f, 1000.0f);
 	set_frame(cxVec(0.75f, 1.3f, 3.5f), cxVec(0.0f, 0.95f, 0.0f));
+	set_range(0.1f, 1000.0f);
+	set_deg_fovy(30.0f);
 	update();
 }
 
@@ -6264,7 +6264,7 @@ void sxLimbIKWork::calc_local(bool fixPos) {
 	mTopL = mTopW * mParentW.get_inverted();
 	mRotL = mRotW * mTopW.get_inverted();
 	mEndL = mEndW * mRotW.get_inverted();
-	if (fixPos && mpChain) {
+	if (fixPos && mpRig && mpChain) {
 		mTopL.set_translation(mpRig->get_lpos(mpChain->mTop));
 		mRotL.set_translation(mpRig->get_lpos(mpChain->mRot));
 		mEndL.set_translation(mpRig->get_lpos(mpChain->mEnd));
@@ -6282,7 +6282,7 @@ void sxRigData::calc_limb_local(LimbChain::Solution* pSolution, const LimbChain&
 	int parentIdx = get_parent_idx(chain.mTopCtrl);
 	if (!ck_node_idx(parentIdx)) return;
 	bool isExt = ck_node_idx(chain.mExtCtrl);
-	int rootIdx = rootIdx = isExt ? get_parent_idx(chain.mExtCtrl) : get_parent_idx(chain.mEndCtrl);
+	int rootIdx = isExt ? get_parent_idx(chain.mExtCtrl) : get_parent_idx(chain.mEndCtrl);
 	if (!ck_node_idx(rootIdx)) return;
 
 	sxLimbIKWork ik;
@@ -11345,8 +11345,8 @@ void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameA
 void cxMotionWork::calc_world() {
 	int nskel = mpMdlData->mSklNum;
 	::memcpy(mpPrevXformsW, mpXformsW, nskel * sizeof(xt_xmtx));
+	const int32_t* pParents = mpMdlData->get_skel_parents_ptr();
 	for (int i = 0; i < nskel; ++i) {
-		const int32_t* pParents = mpMdlData->get_skel_parents_ptr();
 		int iparent = pParents[i];
 		if (iparent >= 0 && iparent < nskel) {
 			mpXformsW[i] = nxMtx::xmtx_concat(mpXformsL[i], mpXformsW[iparent]);
@@ -11370,6 +11370,8 @@ xt_xmtx cxMotionWork::get_node_prev_world_xform(const int inode) const {
 	xt_xmtx owm;
 	if (ck_node_id(inode) && mpPrevXformsW) {
 		owm = mpPrevXformsW[inode];
+	} else {
+		owm.identity();
 	}
 	return owm;
 }
@@ -11382,6 +11384,15 @@ xt_xmtx cxMotionWork::calc_node_world_xform(const int inode, xt_xmtx* pParentXfo
 		wm.identity();
 	}
 	return wm;
+}
+
+cxMtx cxMotionWork::calc_node_world_mtx(const int inode, cxMtx* pParentMtx) const {
+	xt_xmtx parentXform;
+	xt_xmtx worldXform = calc_node_world_xform(inode, pParentMtx ? &parentXform : nullptr);
+	if (pParentMtx) {
+		*pParentMtx = nxMtx::mtx_from_xmtx(parentXform);
+	}
+	return nxMtx::mtx_from_xmtx(worldXform);
 }
 
 void cxMotionWork::reset_node_local_xform(const int inode) {

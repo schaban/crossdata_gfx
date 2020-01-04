@@ -3225,19 +3225,19 @@ public:
 
 	cxView() { init(); }
 
-	void set_frame(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f)) {
-		mPos = pos;
-		mTgt = tgt;
-		mUp = up;
-	}
-
 	void set_window(const int width, const int height) {
 		mWidth = width;
 		mHeight = height;
 		mAspect = nxCalc::div0(float(width), float(height));
 	}
 
-	void set_z_planes(const float znear, const float zfar) {
+	void set_frame(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f)) {
+		mPos = pos;
+		mTgt = tgt;
+		mUp = up;
+	}
+
+	void set_range(const float znear, const float zfar) {
 		mNear = znear;
 		mFar = zfar;
 	}
@@ -4609,6 +4609,7 @@ struct sxTextureData : public sxData {
 
 	Format get_format() const { return Format(mFormat & 0xFF); }
 	bool mipmap_disabled() const { return (mFlags & 1) != 0; }
+	bool mipmap_enabled() const { return !mipmap_disabled(); }
 	bool is_gamma2() const;
 	const void* get_data_ptr() const { return mDataOffs ? XD_INCR_PTR(this, mDataOffs) : nullptr; }
 
@@ -4795,6 +4796,7 @@ public:
 	xt_xmtx get_node_local_xform(const int inode) const;
 	xt_xmtx get_node_prev_world_xform(const int inode) const;
 	xt_xmtx calc_node_world_xform(const int inode, xt_xmtx* pParentXform = nullptr) const;
+	cxMtx calc_node_world_mtx(const int inode, cxMtx* pParentMtx) const;
 
 	void reset_node_local_xform(const int inode);
 	void set_node_local_xform(const int inode, const xt_xmtx& lm);
