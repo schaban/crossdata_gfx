@@ -212,6 +212,25 @@ void Ponytail::move() {
 }
 
 
+void LegInfo::init(const ScnObj* pObj, const char side, const bool ext) {
+	char jname[64];
+	XD_SPRINTF(XD_SPRINTF_BUF(jname, sizeof(jname)), "j_Hip_%c", side);
+	inodeTop = pObj->find_skel_node_id(jname);
+	XD_SPRINTF(XD_SPRINTF_BUF(jname, sizeof(jname)), "j_Knee_%c", side);
+	inodeRot = pObj->find_skel_node_id(jname);
+	XD_SPRINTF(XD_SPRINTF_BUF(jname, sizeof(jname)), "j_Ankle_%c", side);
+	inodeEnd = pObj->find_skel_node_id(jname);
+	if (ext) {
+		XD_SPRINTF(XD_SPRINTF_BUF(jname, sizeof(jname)), "j_Toe_%c", side);
+		inodeExt = pObj->find_skel_node_id(jname);
+	} else {
+		inodeExt = -1;
+	}
+	inodeEff = inodeExt < 0 ? inodeEnd : inodeExt;
+	effY = pObj->calc_skel_rest_world_mtx(inodeEff).get_translation().y - 0.01f;
+}
+
+
 namespace DynRig {
 
 void calc_forearm_twist(ScnObj* pObj, const int wristId, const int forearmId, const float wristInfluence) {
@@ -320,6 +339,28 @@ void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, co
 	float y = nxCalc::fit(val, 0.0f, 1.0f, yopen, yclosed);
 	pObj->set_skel_local_ty(eyelidL, y);
 	pObj->set_skel_local_ty(eyelidR, y);
+}
+
+void leg_adjust(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
+	if (!pObj) return;
+	if (!pCol) return;
+	if (!pLeg) return;
+	cxMotionWork* pMotWk = pObj->mpMotWk;
+	if (!pMotWk) return;
+	cxVec legPos = pMotWk->calc_node_world_mtx(pLeg->inodeEff).get_translation();
+	cxVec legUp = legPos;
+	legUp.y += 0.1f;
+	cxVec legDn = legPos;
+	legDn.y -= 0.5f;
+	cxLineSeg seg(legUp, legDn);
+	sxCollisionData::NearestHit hit = pCol->nearest_hit(seg);
+	if (hit.count > 0) {
+		float hy = hit.pos.y + pLeg->effY;
+		if (hy > legPos.y) {
+			cxVec effPos(legPos.x, hy, legPos.z);
+			pMotWk->adjust_leg(effPos, pLeg->inodeTop, pLeg->inodeRot, pLeg->inodeEnd, pLeg->inodeExt);
+		}
+	}
 }
 
 } // DynRig

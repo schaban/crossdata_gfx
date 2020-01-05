@@ -30,6 +30,17 @@ struct Ponytail {
 	void move();
 };
 
+struct LegInfo {
+	float effY;
+	int inodeTop;
+	int inodeRot;
+	int inodeEnd;
+	int inodeExt;
+	int inodeEff;
+
+	void init(const ScnObj* pObj, const char side, const bool ext);
+};
+
 namespace DynRig {
 
 void calc_forearm_twist(ScnObj* pObj, const int wristId, const int forearmId, const float wristInfluence = 0.5f);
@@ -48,6 +59,8 @@ void calc_shoulder_axis_rot_l(ScnObj* pObj, const float shoulderJntInfluence, co
 void calc_shoulder_axis_rot_r(ScnObj* pObj, const float shoulderJntInfluence, const int axisIdx);
 
 void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, const float t, const float p1 = 0.65f, const float p2 = 0.95f);
+
+void leg_adjust(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg);
 
 } // DynRig
 

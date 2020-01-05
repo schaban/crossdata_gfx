@@ -6236,6 +6236,21 @@ struct sxLimbIKWork {
 	exAxis mAxis;
 	exAxis mUp;
 
+	void set_axis_leg() {
+		mAxis = exAxis::MINUS_Y;
+		mUp = exAxis::PLUS_Z;
+	}
+
+	void set_axis_arm_l() {
+		mAxis = exAxis::PLUS_X;
+		mUp = exAxis::MINUS_Z;
+	}
+
+	void set_axis_arm_r() {
+		mAxis = exAxis::MINUS_X;
+		mUp = exAxis::MINUS_Z;
+	}
+
 	void calc_world();
 	void calc_local(bool fixPos = true);
 };
@@ -10355,6 +10370,11 @@ xt_xmtx sxModelData::calc_skel_world_xform(const int inode, const xt_xmtx* pLocX
 	return xm;
 }
 
+cxVec sxModelData::get_skel_local_offs(const int inode) const {
+	xt_xmtx lx = get_skel_local_xform(inode);
+	return nxMtx::xmtx_get_pos(lx);
+}
+
 const int32_t* sxModelData::get_skel_names_ptr() const {
 	const int32_t* p = nullptr;
 	const xt_xmtx* pXforms = get_skel_xforms_ptr();
@@ -11104,6 +11124,7 @@ struct sxColRangeCtx {
 			}
 			int ntris = mpCol->get_pol_num_tris(ipol);
 			for (int i = 0; i < ntris; ++i) {
+				tri.itri = i;
 				for (int j = 0; j < 3; ++j) {
 					ipnt[j] = mpCol->get_pol_tri_pnt_idx(ipol, i, j);
 				}
@@ -11155,6 +11176,104 @@ XD_NOINLINE int sxCollisionData::for_tris_in_range(const TriFunc func, const cxA
 		}
 	}
 	return ctx.mTriCnt;
+}
+
+struct sxColHitCtx {
+	cxAABB mBBox;
+	cxLineSeg mSeg;
+	const sxCollisionData* mpCol;
+	const sxCollisionData::HitFunc* mpFunc;
+	void* mpFuncWk;
+	int mHitCnt;
+	bool mContinue;
+
+	void for_pol_tris(const int ipol) {
+		cxAABB polBBox = mpCol->get_pol_bbox(ipol);
+		if (mBBox.overlaps(polBBox) && polBBox.seg_ck(mSeg)) {
+			sxCollisionData::Tri tri;
+			const cxVec* pPnts = reinterpret_cast<const cxVec*>(XD_INCR_PTR(mpCol, mpCol->mPntOffs));
+			int ipnt[3];
+			tri.ipol = ipol;
+			tri.nrm = mpCol->get_pol_normal(ipol);
+			int ntris = mpCol->get_pol_num_tris(ipol);
+			for (int i = 0; i < ntris; ++i) {
+				tri.itri = i;
+				for (int j = 0; j < 3; ++j) {
+					ipnt[j] = mpCol->get_pol_tri_pnt_idx(ipol, i, j);
+				}
+				for (int j = 0; j < 3; ++j) {
+					tri.vtx[j] = pPnts[ipnt[j]];
+				}
+				cxVec hitPos;
+				bool hitFlg = nxGeom::seg_tri_intersect_cw(mSeg.get_pos0(), mSeg.get_pos1(), tri.vtx[0], tri.vtx[1], tri.vtx[2], &hitPos, &tri.nrm);
+				if (hitFlg) {
+					float dist = nxVec::dist(mSeg.get_pos0(), hitPos);
+					mContinue = (*mpFunc)(*mpCol, tri, hitPos, dist, mpFuncWk);
+					++mHitCnt;
+				}
+				if (!mContinue) break;
+			}
+		}
+	}
+
+	void for_bvh_tris(const int inode) {
+		if (!mContinue) return;
+		const cxAABB* pNodeBBox = reinterpret_cast<const cxAABB*>(XD_INCR_PTR(mpCol, mpCol->mBVHBBoxOffs)) + inode;
+		if (mBBox.overlaps(*pNodeBBox)) {
+			const sxCollisionData::BVHNodeInfo* pNodeInfo = reinterpret_cast<const sxCollisionData::BVHNodeInfo*>(XD_INCR_PTR(mpCol, mpCol->mBVHInfoOffs)) + inode;
+			if (pNodeInfo->is_leaf()) {
+				for_pol_tris(pNodeInfo->get_pol_id());
+			} else {
+				for_bvh_tris(pNodeInfo->mLeft);
+				for_bvh_tris(pNodeInfo->mRight);
+			}
+		}
+	}
+};
+
+XD_NOINLINE int sxCollisionData::hit_check(const HitFunc func, const cxLineSeg& seg, void* pWk) {
+	sxColHitCtx ctx;
+	ctx.mSeg = seg;
+	ctx.mBBox.from_seg(seg);
+	ctx.mpCol = this;
+	ctx.mpFunc = &func;
+	ctx.mpFuncWk = pWk;
+	ctx.mContinue = true;
+	ctx.mHitCnt = 0;
+	if (mBVHBBoxOffs && mBVHInfoOffs) {
+		ctx.for_bvh_tris(0);
+	} else {
+		for (uint32_t i = 0; i < mPolNum; ++i) {
+			ctx.for_pol_tris(i);
+			if (!ctx.mContinue) break;
+		}
+	}
+	return ctx.mHitCnt;
+}
+
+static bool xcol_nearest_hit_func(const sxCollisionData& col, const sxCollisionData::Tri& tri, const cxVec& pos, const float dist, void* pWk) {
+	if (!pWk) return false;
+	sxCollisionData::NearestHit* pHit = (sxCollisionData::NearestHit*)pWk;
+	if (pHit->count > 0) {
+		if (dist < pHit->dist) {
+			pHit->pos = pos;
+			pHit->dist = dist;
+		}
+	} else {
+		pHit->pos = pos;
+		pHit->dist = dist;
+	}
+	++pHit->count;
+	return true;
+}
+
+sxCollisionData::NearestHit sxCollisionData::nearest_hit(const cxLineSeg& seg) {
+	NearestHit hit;
+	hit.pos = seg.get_pos0();
+	hit.dist = 0.0f;
+	hit.count = 0;
+	sxCollisionData::hit_check(xcol_nearest_hit_func, seg, &hit);
+	return hit;
 }
 
 void sxCollisionData::dump_pol_geo(FILE* pOut) const {
@@ -11339,6 +11458,45 @@ void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameA
 	}
 	if (pLoopFlg) {
 		*pLoopFlg = loop;
+	}
+}
+
+void cxMotionWork::adjust_leg(const cxVec& effPos, const int inodeTop, const int inodeRot, const int inodeEnd, const int inodeExt) {
+	sxModelData* pMdl = mpMdlData;
+	if (!pMdl) return;
+	if (!ck_node_id(inodeTop)) return;
+	if (!ck_node_id(inodeRot)) return;
+	if (!ck_node_id(inodeEnd)) return;
+	bool isExt = ck_node_id(inodeExt);
+	sxLimbIKWork ik;
+	ik.set_axis_leg();
+	ik.mpRig = nullptr;
+	ik.mpChain = nullptr;
+	ik.mTopW = calc_node_world_mtx(inodeTop, &ik.mParentW);
+	ik.mRotW = calc_node_world_mtx(inodeRot);
+	ik.mEndW = calc_node_world_mtx(inodeEnd);
+	if (isExt) {
+		ik.mExtW = calc_node_world_mtx(inodeExt);
+		ik.mExtW.set_translation(effPos);
+		cxQuat extRot = nxQuat::from_mtx(ik.mExtW);
+		cxVec endOffs = pMdl->get_skel_local_offs(inodeExt);
+		ik.mEndW.set_translation(effPos - extRot.apply(endOffs));
+	} else {
+		ik.mExtW.identity();
+		ik.mEndW.set_translation(effPos);
+	}
+	ik.mRotOffs = pMdl->get_skel_local_offs(inodeRot);
+	ik.mDistTopRot = ik.mRotOffs.mag();
+	ik.mDistRotEnd = pMdl->get_skel_local_offs(inodeEnd).mag();
+	ik.mDistTopEnd = nxVec::dist(ik.mTopW.get_translation(), ik.mEndW.get_translation());
+	ik.calc_world();
+	ik.calc_local();
+	mpXformsL[inodeTop] = nxMtx::xmtx_from_mtx(ik.mTopL);
+	mpXformsL[inodeRot] = nxMtx::xmtx_from_mtx(ik.mRotL);
+	mpXformsL[inodeEnd] = nxMtx::xmtx_from_mtx(ik.mEndL);
+	if (isExt) {
+		ik.mExtL = ik.mExtW * ik.mEndW.get_inverted();
+		mpXformsL[inodeExt] = nxMtx::xmtx_from_mtx(ik.mExtL);
 	}
 }
 

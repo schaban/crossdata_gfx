@@ -2348,6 +2348,12 @@ inline cxMtx mk_translation(const cxVec& tv) {
 
 void clean_rotations(cxMtx* pMtx, const int n);
 
+inline xt_xmtx xmtx_identity() {
+	xt_xmtx xm;
+	xm.identity();
+	return xm;
+}
+
 cxMtx mtx_from_xmtx(const xt_xmtx& xm);
 xt_xmtx xmtx_from_mtx(const cxMtx& m);
 
@@ -2607,6 +2613,12 @@ inline cxQuat from_degrees(float dx, float dy, float dz, exRotOrd ord = exRotOrd
 inline cxQuat from_log_vec(const cxVec& v, bool nrmFlg = true) {
 	cxQuat q;
 	q.from_log_vec(v, nrmFlg);
+	return q;
+}
+
+inline cxQuat from_mtx(const cxMtx& mtx) {
+	cxQuat q;
+	q.from_mtx(mtx);
 	return q;
 }
 
@@ -4569,6 +4581,7 @@ struct sxModelData : public sxData {
 	xt_xmtx get_skel_local_xform(const int inode) const;
 	xt_xmtx get_skel_inv_world_xform(const int inode) const;
 	xt_xmtx calc_skel_world_xform(const int inode, const xt_xmtx* pLocXforms, xt_xmtx* pParentXform = nullptr) const;
+	cxVec get_skel_local_offs(const int inode) const;
 	const int32_t* get_skel_names_ptr() const;
 	const int32_t* get_skel_parents_ptr() const;
 	const char* get_skel_name(const int iskl) const;
@@ -4714,7 +4727,14 @@ struct sxCollisionData : public sxData {
 		int itri;
 	};
 
+	struct NearestHit {
+		cxVec pos;
+		float dist;
+		int count;
+	};
+
 	typedef bool (*TriFunc)(const sxCollisionData& col, const Tri& tri, void* pWk);
+	typedef bool (*HitFunc)(const sxCollisionData& col, const Tri& tri, const cxVec& pos, const float dist, void* pWk);
 
 	bool ck_pid(const int pid) const { return uint32_t(pid) < mPntNum; }
 	bool ck_pnt_id(const int ipnt) const { return ck_pid(ipnt); }
@@ -4736,6 +4756,9 @@ struct sxCollisionData : public sxData {
 
 	int for_all_tris(const TriFunc func, void* pWk, const bool calcNormals = true) const;
 	int for_tris_in_range(const TriFunc func, const cxAABB& bbox, void* pWk, const bool calcNormals = true) const;
+
+	int hit_check(const HitFunc func, const cxLineSeg& seg, void* pWk);
+	NearestHit nearest_hit(const cxLineSeg& seg);
 
 	void dump_pol_geo(FILE* pOut) const;
 	void dump_pol_geo(const char* pOutPath) const;
@@ -4791,12 +4814,15 @@ public:
 	int find_node_id(const char* pName) const { return mpMdlData ? mpMdlData->find_skel_node_id(pName) : -1; }
 
 	void apply_motion(const sxMotionData* pMotData, const float frameAdd, float* pLoopFlg = nullptr);
+
+	void adjust_leg(const cxVec& effPos, const int inodeTop, const int inodeRot, const int inodeEnd, const int inodeExt);
+
 	void calc_world();
 
 	xt_xmtx get_node_local_xform(const int inode) const;
 	xt_xmtx get_node_prev_world_xform(const int inode) const;
 	xt_xmtx calc_node_world_xform(const int inode, xt_xmtx* pParentXform = nullptr) const;
-	cxMtx calc_node_world_mtx(const int inode, cxMtx* pParentMtx) const;
+	cxMtx calc_node_world_mtx(const int inode, cxMtx* pParentMtx = nullptr) const;
 
 	void reset_node_local_xform(const int inode);
 	void set_node_local_xform(const int inode, const xt_xmtx& lm);
@@ -4836,6 +4862,9 @@ public:
 	bool has_skel() const { return mpData && mpData->has_skel(); }
 	bool ck_skel_id(const int iskl) const { return mpData ? mpData->ck_skel_id(iskl) : false; }
 	int find_skel_node_id(const char* pName) const { return mpData ? mpData->find_skel_node_id(pName) : -1; }
+
+	xt_xmtx calc_skel_rest_world_xform(const int iskl) const { return mpData ? mpData->calc_skel_world_xform(iskl, nullptr) : nxMtx::xmtx_identity(); }
+	cxMtx calc_skel_rest_world_mtx(const int iskl) const { return nxMtx::mtx_from_xmtx(calc_skel_rest_world_xform(iskl)); }
 
 	int get_batches_num() const { return mpData ? mpData->mBatNum : 0; }
 	bool ck_batch_id(const int ibat) const { return mpData ? mpData->ck_batch_id(ibat) : false; }

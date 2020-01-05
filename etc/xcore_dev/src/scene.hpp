@@ -47,6 +47,8 @@ public:
 	float mFltWk[16];
 	void* mPtrWk[4];
 
+	bool ck_name(const char* pName) const { return nxCore::str_eq(mpName, pName); }
+
 	sxModelData* get_model_data() { return mpMdlWk ? mpMdlWk->mpData : nullptr; }
 	const sxModelData* get_model_data() const { return mpMdlWk ? mpMdlWk->mpData : nullptr; }
 	bool has_skel() const { return mpMdlWk && mpMdlWk->has_skel(); }
@@ -102,6 +104,7 @@ public:
 	cxMtx get_skel_local_rest_mtx(const int iskl) const;
 	cxMtx get_skel_prev_world_mtx(const int iskl) const;
 	cxMtx calc_skel_world_mtx(const int iskl, cxMtx* pNodeParentMtx = nullptr) const;
+	cxMtx calc_skel_rest_world_mtx(const int iskl) const { return mpMdlWk ? mpMdlWk->calc_skel_rest_world_mtx(iskl) : nxMtx::identity(); }
 
 	cxQuat get_skel_local_quat(const int iskl, const bool clean = false) const;
 	cxQuat get_skel_local_rest_quat(const int iskl, const bool clean = false) const;
