@@ -169,11 +169,11 @@ void def_fclose(xt_fhandle fh) {
 size_t def_fsize(xt_fhandle fh) {
 	long len = 0;
 	FILE* f = (FILE*)fh;
-	long old = ftell(f);
-	if (0 == fseek(f, 0, SEEK_END)) {
-		len = ftell(f);
+	long old = ::ftell(f);
+	if (0 == ::fseek(f, 0, SEEK_END)) {
+		len = ::ftell(f);
 	}
-	fseek(f, old, SEEK_SET);
+	::fseek(f, old, SEEK_SET);
 	return (size_t)len;
 }
 
@@ -181,7 +181,7 @@ size_t def_fread(xt_fhandle fh, void* pDst, size_t size) {
 	size_t nread = 0;
 	if (fh && pDst && size) {
 		FILE* f = (FILE*)fh;
-		nread = fread(pDst, 1, size, f);
+		nread = ::fread(pDst, 1, size, f);
 	}
 	return nread;
 }
