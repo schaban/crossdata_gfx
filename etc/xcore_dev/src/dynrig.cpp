@@ -228,6 +228,14 @@ void LegInfo::init(const ScnObj* pObj, const char side, const bool ext) {
 	}
 	inodeEff = inodeExt < 0 ? inodeEnd : inodeExt;
 	effY = pObj->calc_skel_world_rest_mtx(inodeEff).get_translation().y - 0.01f;
+	if (ext) {
+		cxVec effOffs = pObj->get_skel_local_rest_pos(inodeEff) * 0.5f;
+		effOffsX = effOffs.x;
+		effOffsZ = effOffs.z;
+	} else {
+		effOffsX = 0.0f;
+		effOffsZ = 0.0f;
+	}
 }
 
 
@@ -347,10 +355,12 @@ void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
 	if (!pLeg) return;
 	cxMotionWork* pMotWk = pObj->mpMotWk;
 	if (!pMotWk) return;
-	cxVec legPos = pMotWk->calc_node_world_mtx(pLeg->inodeEff).get_translation();
-	cxVec legUp = legPos;
+	cxMtx effW = pMotWk->calc_node_world_mtx(pLeg->inodeEff);
+	cxVec legPos = effW.get_translation();
+	cxVec ckOffs = effW.calc_vec(cxVec(-pLeg->effOffsX, 0.0f, -pLeg->effOffsZ));
+	cxVec legUp = legPos + ckOffs;
+	cxVec legDn = legUp;
 	legUp.y += 0.1f;
-	cxVec legDn = legPos;
 	legDn.y -= 0.5f;
 	cxLineSeg seg(legUp, legDn);
 	sxCollisionData::NearestHit hit = pCol->nearest_hit(seg);

@@ -32,6 +32,8 @@ struct Ponytail {
 
 struct LegInfo {
 	float effY;
+	float effOffsX;
+	float effOffsZ;
 	int inodeTop;
 	int inodeRot;
 	int inodeEnd;
