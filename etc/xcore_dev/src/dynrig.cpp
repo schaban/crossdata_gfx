@@ -341,7 +341,7 @@ void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, co
 	pObj->set_skel_local_ty(eyelidR, y);
 }
 
-void leg_adjust(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
+void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
 	if (!pObj) return;
 	if (!pCol) return;
 	if (!pLeg) return;
@@ -356,10 +356,12 @@ void leg_adjust(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
 	sxCollisionData::NearestHit hit = pCol->nearest_hit(seg);
 	if (hit.count > 0) {
 		float hy = hit.pos.y + pLeg->effY;
+		float ay = legPos.y;
 		if (hy > legPos.y) {
-			cxVec effPos(legPos.x, hy, legPos.z);
-			pMotWk->adjust_leg(effPos, pLeg->inodeTop, pLeg->inodeRot, pLeg->inodeEnd, pLeg->inodeExt);
+			ay = hy;
 		}
+		cxVec effPos(legPos.x, ay, legPos.z);
+		pMotWk->adjust_leg(effPos, pLeg->inodeTop, pLeg->inodeRot, pLeg->inodeEnd, pLeg->inodeExt);
 	}
 }
 
