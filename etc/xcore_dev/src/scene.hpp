@@ -104,7 +104,7 @@ public:
 	cxMtx get_skel_local_rest_mtx(const int iskl) const;
 	cxMtx get_skel_prev_world_mtx(const int iskl) const;
 	cxMtx calc_skel_world_mtx(const int iskl, cxMtx* pNodeParentMtx = nullptr) const;
-	cxMtx calc_skel_rest_world_mtx(const int iskl) const { return mpMdlWk ? mpMdlWk->calc_skel_rest_world_mtx(iskl) : nxMtx::identity(); }
+	cxMtx calc_skel_world_rest_mtx(const int iskl) const { return mpMdlWk ? mpMdlWk->calc_skel_world_rest_mtx(iskl) : nxMtx::identity(); }
 
 	cxQuat get_skel_local_quat(const int iskl, const bool clean = false) const;
 	cxQuat get_skel_local_rest_quat(const int iskl, const bool clean = false) const;

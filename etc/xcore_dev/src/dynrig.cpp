@@ -227,7 +227,7 @@ void LegInfo::init(const ScnObj* pObj, const char side, const bool ext) {
 		inodeExt = -1;
 	}
 	inodeEff = inodeExt < 0 ? inodeEnd : inodeExt;
-	effY = pObj->calc_skel_rest_world_mtx(inodeEff).get_translation().y - 0.01f;
+	effY = pObj->calc_skel_world_rest_mtx(inodeEff).get_translation().y - 0.01f;
 }
 
 
