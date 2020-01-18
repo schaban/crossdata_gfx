@@ -1,4 +1,4 @@
-#version 310 es
+#version 300 es
 precision highp float;
 
 #define MAX_XFORMS 128
