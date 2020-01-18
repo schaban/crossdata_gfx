@@ -3407,7 +3407,7 @@ void cxDualQuat::interpolate(const cxDualQuat& dqA, const cxDualQuat& dqB, float
 
 namespace nxGeom {
 
-bool seg_seg_overlap_2d(float s0x0, float s0y0, float s0x1, float s0y1, float s1x0, float s1y0, float s1x1, float s1y1) {
+bool seg_seg_overlap_2d(const float s0x0, const float s0y0, const float s0x1, const float s0y1, const float s1x0, const float s1y0, const float s1x1, const float s1y1) {
 	bool res = false;
 	float a1 = signed_tri_area_2d(s0x0, s0y0, s0x1, s0y1, s1x1, s1y1);
 	float a2 = signed_tri_area_2d(s0x0, s0y0, s0x1, s0y1, s1x0, s1y0);
@@ -3661,7 +3661,7 @@ void update_nrm_newell(cxVec* pNrm, cxVec* pVtxI, cxVec* pVtxJ) {
 	*pNrm += cxVec(dv[1], dv[2], dv[0]) * cxVec(sv[2], sv[0], sv[1]);
 }
 
-cxVec poly_normal_cw(cxVec* pVtx, int vtxNum) {
+cxVec poly_normal_cw(cxVec* pVtx, const int vtxNum) {
 	cxVec nrm;
 	nrm.zero();
 	for (int i = 0; i < vtxNum; ++i) {
@@ -3673,7 +3673,7 @@ cxVec poly_normal_cw(cxVec* pVtx, int vtxNum) {
 	return nrm;
 }
 
-cxVec poly_normal_ccw(cxVec* pVtx, int vtxNum) {
+cxVec poly_normal_ccw(cxVec* pVtx, const int vtxNum) {
 	cxVec nrm;
 	nrm.zero();
 	for (int i = 0; i < vtxNum; ++i) {
@@ -3730,7 +3730,7 @@ float seg_seg_dist2(const cxVec& s0p0, const cxVec& s0p1, const cxVec& s1p0, con
 	return (bp1 - bp0).mag2();
 }
 
-bool cap_aabb_overlap(const cxVec& cp0, const cxVec& cp1, float cr, const cxVec& bmin, const cxVec& bmax) {
+bool cap_aabb_overlap(const cxVec& cp0, const cxVec& cp1, const float cr, const cxVec& bmin, const cxVec& bmax) {
 	cxVec brad = (bmax - bmin) * 0.5f;
 	cxVec bcen = (bmin + bmax) * 0.5f;
 	cxVec ccen = (cp0 + cp1) * 0.5f;

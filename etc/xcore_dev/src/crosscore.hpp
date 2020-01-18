@@ -2730,11 +2730,11 @@ inline cxVec tri_normal_ccw(const cxVec& v0, const cxVec& v1, const cxVec& v2) {
 	return nxVec::cross(v1 - v0, v2 - v0).get_normalized();
 }
 
-inline float signed_tri_area_2d(float ax, float ay, float bx, float by, float cx, float cy) {
+inline float signed_tri_area_2d(const float ax, const float ay, const float bx, const float by, const float cx, const float cy) {
 	return (ax - cx)*(by - cy) - (ay - cy)*(bx - cx);
 }
 
-bool seg_seg_overlap_2d(float s0x0, float s0y0, float s0x1, float s0y1, float s1x0, float s1y0, float s1x1, float s1y1);
+bool seg_seg_overlap_2d(const float s0x0, const float s0y0, const float s0x1, const float s0y1, const float s1x0, const float s1y0, const float s1x1, const float s1y1);
 bool seg_plane_intersect(const cxVec& p0, const cxVec& p1, const cxPlane& pln, float* pT = nullptr);
 bool seg_quad_intersect_cw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, cxVec* pHitPos = nullptr, cxVec* pHitNrm = nullptr);
 bool seg_quad_intersect_cw_n(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, const cxVec& nrm, cxVec* pHitPos = nullptr);
@@ -2749,8 +2749,8 @@ cxVec barycentric(const cxVec& pos, const cxVec& v0, const cxVec& v1, const cxVe
 float quad_dist2(const cxVec& pos, const cxVec vtx[4]);
 int quad_convex_ck(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3);
 void update_nrm_newell(cxVec* pNrm, cxVec* pVtxI, cxVec* pVtxJ);
-cxVec poly_normal_cw(cxVec* pVtx, int vtxNum);
-cxVec poly_normal_ccw(cxVec* pVtx, int vtxNum);
+cxVec poly_normal_cw(cxVec* pVtx, const int vtxNum);
+cxVec poly_normal_ccw(cxVec* pVtx, const int vtxNum);
 
 inline float line_pnt_closest(const cxVec& lp0, const cxVec& lp1, const cxVec& pnt, cxVec* pClosestPos = nullptr, cxVec* pLineDir = nullptr) {
 	cxVec dir = lp1 - lp0;
@@ -2790,7 +2790,7 @@ inline bool pnt_in_aabb(const cxVec& pos, const cxVec& min, const cxVec& max) {
 	return true;
 }
 
-inline bool pnt_in_sph(const cxVec& pos, const cxVec& sphc, float sphr, float* pSqDist = nullptr) {
+inline bool pnt_in_sph(const cxVec& pos, const cxVec& sphc, const float sphr, float* pSqDist = nullptr) {
 	float d2 = nxVec::dist2(pos, sphc);
 	float r2 = nxCalc::sq(sphr);
 	if (pSqDist) {
@@ -2799,7 +2799,7 @@ inline bool pnt_in_sph(const cxVec& pos, const cxVec& sphc, float sphr, float* p
 	return d2 <= r2;
 }
 
-inline bool pnt_in_cap(const cxVec& pos, const cxVec& cp0, const cxVec& cp1, float cr, float* pSqDist = nullptr) {
+inline bool pnt_in_cap(const cxVec& pos, const cxVec& cp0, const cxVec& cp1, const float cr, float* pSqDist = nullptr) {
 	float d2 = nxVec::dist2(pos, seg_pnt_closest(cp0, cp1, pos));
 	float r2 = nxCalc::sq(cr);
 	if (pSqDist) {
@@ -2815,19 +2815,19 @@ inline bool aabb_aabb_overlap(const cxVec& min0, const cxVec& max0, const cxVec&
 	return true;
 }
 
-inline bool sph_sph_overlap(const cxVec& s0c, float s0r, const cxVec& s1c, float s1r) {
+inline bool sph_sph_overlap(const cxVec& s0c, const float s0r, const cxVec& s1c, const float s1r) {
 	float cdd = nxVec::dist2(s0c, s1c);
 	float rsum = s0r + s1r;
 	return cdd <= nxCalc::sq(rsum);
 }
 
-inline bool sph_aabb_overlap(const cxVec& sc, float sr, const cxVec& bmin, const cxVec& bmax) {
+inline bool sph_aabb_overlap(const cxVec& sc, const float sr, const cxVec& bmin, const cxVec& bmax) {
 	cxVec pos = sc.get_clamped(bmin, bmax);
 	float dd = nxVec::dist2(sc, pos);
 	return dd <= nxCalc::sq(sr);
 }
 
-inline bool sph_cap_overlap(const cxVec& sc, float sr, const cxVec& cp0, const cxVec& cp1, float cr, cxVec* pCapAxisPos = nullptr) {
+inline bool sph_cap_overlap(const cxVec& sc, const float sr, const cxVec& cp0, const cxVec& cp1, const float cr, cxVec* pCapAxisPos = nullptr) {
 	cxVec pos = seg_pnt_closest(cp0, cp1, sc);
 	bool flg = sph_sph_overlap(sc, sr, pos, cr);
 	if (flg && pCapAxisPos) {
@@ -2836,13 +2836,13 @@ inline bool sph_cap_overlap(const cxVec& sc, float sr, const cxVec& cp0, const c
 	return flg;
 }
 
-inline bool cap_cap_overlap(const cxVec& c0p0, const cxVec& c0p1, float cr0, const cxVec& c1p0, const cxVec& c1p1, float cr1) {
+inline bool cap_cap_overlap(const cxVec& c0p0, const cxVec& c0p1, const float cr0, const cxVec& c1p0, const cxVec& c1p1, const float cr1) {
 	float dist2 = seg_seg_dist2(c0p0, c0p1, c1p0, c1p1);
 	float rsum2 = nxCalc::sq(cr0 + cr1);
 	return dist2 <= rsum2;
 }
 
-bool cap_aabb_overlap(const cxVec& cp0, const cxVec& cp1, float cr, const cxVec& bmin, const cxVec& bmax);
+bool cap_aabb_overlap(const cxVec& cp0, const cxVec& cp1, const float cr, const cxVec& bmin, const cxVec& bmax);
 
 bool tri_aabb_overlap(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& bmin, const cxVec& bmax);
 bool tri_aabb_overlap(const cxVec vtx[3], const cxVec& bmin, const cxVec& bmax);
