@@ -260,8 +260,9 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	glUseProgram(s_progId);
 
 	s_gpXform.viewProj = pCtx->view.viewProjMtx;
+	int xformsNum = 1;
 	if (pWk->mpSkinXforms) {
-		int xformsNum = pMdl->mSknNum;
+		xformsNum = pMdl->mSknNum;
 		if (xformsNum > MAX_XFORMS) xformsNum = MAX_XFORMS;
 		::memcpy(s_gpXform.xforms, pWk->mpSkinXforms, xformsNum * sizeof(xt_xmtx));
 	} else if (pWk->mpWorldXform) {
@@ -270,7 +271,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		s_gpXform.xforms[0].identity();
 	}
 
-	size_t xformSize = sizeof(s_gpXform);
+	size_t xformSize = sizeof(xt_mtx) + sizeof(xt_xmtx)*xformsNum;
 	glBindBufferBase(GL_UNIFORM_BUFFER, gpBindingXform, pGPUWk->bufGPXform);
 	if (pGPUWk->xformUpdateFlg) {
 		glBindBuffer(GL_UNIFORM_BUFFER, pGPUWk->bufGPXform);
