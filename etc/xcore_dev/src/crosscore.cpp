@@ -11853,6 +11853,11 @@ cxModelWork* cxModelWork::create(sxModelData* pMdl, const size_t paramMemSize, c
 		pWk->mpCullBits = offsCull ? (uint32_t*)XD_INCR_PTR(pWk, offsCull) : nullptr;
 		pWk->mpParamMem = offsParam ? XD_INCR_PTR(pWk, offsParam) : nullptr;
 		pWk->mpExtMem = offsExt ? XD_INCR_PTR(pWk, offsExt) : nullptr;
+		if (nskin > 0) {
+			pWk->mRenderMask = 1.0f;
+		} else {
+			pWk->mRenderMask = 0.0f;
+		}
 	}
 	return pWk;
 }

@@ -638,10 +638,11 @@ static void prepare_texture(sxTextureData* pTex) {
 		glBindTexture(GL_TEXTURE_2D, *pHandle);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pTex->mWidth, pTex->mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pTex->get_data_ptr());
-		if (s_useMipmaps) {
+		bool mipmapEnabled = pTex->mipmap_enabled();
+		if (s_useMipmaps && mipmapEnabled) {
 			glGenerateMipmap(GL_TEXTURE_2D);
 		}
-		def_tex_params(!pTex->mipmap_disabled());
+		def_tex_params(mipmapEnabled);
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 }

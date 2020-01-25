@@ -4856,6 +4856,7 @@ public:
 	uint32_t* mpCullBits;
 	void* mpParamMem;
 	void* mpExtMem;
+	float mRenderMask;
 	int mVariation;
 	bool mBoundsValid;
 
