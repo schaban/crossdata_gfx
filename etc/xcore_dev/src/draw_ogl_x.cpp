@@ -4,6 +4,8 @@
 
 #define MAX_XFORMS 128
 
+DRW_IMPL_BEGIN
+
 static cxResourceManager* s_pRsrcMgr = nullptr;
 
 struct GPUVtx {
@@ -30,7 +32,7 @@ static GLint s_locIdx = -1;
 
 static GLuint s_gpIdxXform = (GLuint)-1;
 static GPXform s_gpXform;
-static const int gpBindingXform = 0;
+static const GLuint gpBindingXform = 0;
 
 struct MDL_GPU_WK {
 	sxModelData* pMdl;
@@ -382,6 +384,8 @@ static void begin(const cxColor& clearColor) {
 static void end() {
 	OGLSys::swap();
 }
+
+DRW_IMPL_END
 
 namespace Draw {
 

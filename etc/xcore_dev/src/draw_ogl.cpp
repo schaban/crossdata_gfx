@@ -11,6 +11,8 @@
 #define DRW_LIMIT_JMAP 1
 #define DRW_USE_VAO 1
 
+DRW_IMPL_BEGIN
+
 static bool s_useMipmaps = true;
 
 static cxResourceManager* s_pRsrcMgr = nullptr;
@@ -1607,6 +1609,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	}
 }
 
+DRW_IMPL_END
 
 namespace Draw {
 

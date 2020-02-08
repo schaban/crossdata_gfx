@@ -2,6 +2,10 @@
 #	define DRW_NO_VULKAN 0
 #endif
 
+#define DRW_IMPL_BEGIN namespace {
+#define DRW_IMPL_END }
+
+
 namespace Draw {
 
 	enum Mode {
