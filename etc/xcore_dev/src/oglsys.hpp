@@ -95,7 +95,7 @@ android_app* oglsys_get_app();
 #endif
 
 struct OGLSysIfc {
-	void* (*mem_alloc)(size_t size);
+	void* (*mem_alloc)(size_t size, const char* pTag);
 	void (*mem_free)(void* p);
 	void (*dbg_msg)(const char* pFmt, ...);
 	const char* (*load_glsl)(const char* pPath, size_t* pSize);

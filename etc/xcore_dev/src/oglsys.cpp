@@ -169,8 +169,8 @@ static struct OGLSysGlb {
 
 	KBD_STATE mKbdState;
 
-	void* mem_alloc(size_t size) {
-		return mIfc.mem_alloc ? mIfc.mem_alloc(size) : malloc(size);
+	void* mem_alloc(size_t size, const char* pTag) {
+		return mIfc.mem_alloc ? mIfc.mem_alloc(size, pTag) : malloc(size);
 	}
 
 	void mem_free(void* p) {
@@ -215,7 +215,7 @@ static struct OGLSysGlb {
 				}
 				fseek(pFile, 0, SEEK_SET);
 				if (size) {
-					pCode = (const char*)mem_alloc(size);
+					pCode = (const char*)mem_alloc(size, "OGLSys:GLSL");
 					if (pCode) {
 						fread((void*)pCode, 1, size, pFile);
 					}
@@ -1445,7 +1445,7 @@ namespace OGLSys {
 					GLint infoLen = 0;
 					glGetShaderiv(sid, GL_INFO_LOG_LENGTH, &infoLen);
 					if (infoLen > 0) {
-						char* pInfo = (char*)GLG.mem_alloc(infoLen);
+						char* pInfo = (char*)GLG.mem_alloc(infoLen, "OGLSys:ShaderInfo");
 						if (pInfo) {
 							glGetShaderInfoLog(sid, infoLen, &infoLen, pInfo);
 							const int infoBlkSize = 512;
@@ -1516,7 +1516,7 @@ namespace OGLSys {
 					GLint infoLen = 0;
 					glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &infoLen);
 					if (infoLen > 0) {
-						char* pInfo = (char*)GLG.mem_alloc(infoLen);
+						char* pInfo = (char*)GLG.mem_alloc(infoLen, "OGLSys:ProgInfo");
 						if (pInfo) {
 							glGetProgramInfoLog(pid, infoLen, &infoLen, pInfo);
 							GLG.dbg_msg("%s", pInfo);
@@ -1549,7 +1549,7 @@ namespace OGLSys {
 				glGetProgramiv(pid, GL_PROGRAM_BINARY_LENGTH_OES, &len);
 				if (len > 0) {
 					size = (size_t)len;
-					pBin = GLG.mem_alloc(size);
+					pBin = GLG.mem_alloc(size, "OGLSys:ProgBin");
 					if (pBin) {
 						GLG.mExts.pfnGetProgramBinary(pid, len, &len, &fmt, pBin);
 					} else {
@@ -1565,7 +1565,7 @@ namespace OGLSys {
 				glGetProgramiv(pid, GL_PROGRAM_BINARY_LENGTH, &len);
 				if (len > 0) {
 					size = (size_t)len;
-					pBin = GLG.mem_alloc(size);
+					pBin = GLG.mem_alloc(size, "OGLSys:ProgBin");
 					if (pBin) {
 						glGetProgramBinary(pid, len, &len, &fmt, pBin);
 					} else {
@@ -1831,7 +1831,7 @@ namespace OGLSys {
 				GLint fmtLst[16];
 				GLint* pLst = fmtLst;
 				if (nfmt > sizeof(fmtLst) / sizeof(fmtLst[0])) {
-					pLst = (GLint*)GLG.mem_alloc(nfmt * sizeof(GLint));
+					pLst = (GLint*)GLG.mem_alloc(nfmt * sizeof(GLint), "OGLSys:BinFmts");
 				}
 				if (pLst) {
 					glGetIntegerv(GL_SHADER_BINARY_FORMATS, fmtLst);
