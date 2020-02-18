@@ -96,6 +96,17 @@ struct KBD_STATE {
 	bool ctrl[_KBD_CTRL_NUM_];
 };
 
+#if OGLSYS_ES
+typedef GLuint (GL_APIENTRYP OGLSYS_PFNGLGETUNIFORMBLOCKINDEXPROC)(GLuint, const GLchar*);
+typedef void (GL_APIENTRYP OGLSYS_PFNGLGETACTIVEUNIFORMBLOCKIVPROC)(GLuint, GLuint, GLenum, GLint*);
+typedef void (GL_APIENTRYP OGLSYS_PFNGLGETUNIFORMINDICESPROC)(GLuint, GLsizei, const GLchar* const*, GLuint*);
+typedef void (GL_APIENTRYP OGLSYS_PFNGLGETACTIVEUNIFORMSIVPROC)(GLuint, GLsizei, const GLuint*, GLenum, GLint*);
+typedef void* (GL_APIENTRYP OGLSYS_PFNGLMAPBUFFERRANGEPROC)(GLenum, GLintptr, GLsizeiptr, GLbitfield);
+typedef GLboolean (GL_APIENTRYP OGLSYS_PFNGLUNMAPBUFFERPROC)(GLenum);
+typedef void (GL_APIENTRYP OGLSYS_PFNGLUNIFORMBLOCKBINDINGPROC)(GLuint, GLuint, GLuint);
+typedef void (GL_APIENTRYP OGLSYS_PFNGLBINDBUFFERBASEPROC)(GLenum, GLuint, GLuint);
+#endif
+
 static struct OGLSysGlb {
 #if defined(OGLSYS_WINDOWS)
 	HINSTANCE mhInstance;
@@ -147,6 +158,14 @@ static struct OGLSysGlb {
 	#else
 		PFNGLDRAWELEMENTSBASEVERTEXOESPROC pfnDrawElementsBaseVertex;
 	#endif
+		OGLSYS_PFNGLGETUNIFORMBLOCKINDEXPROC pfnGetUniformBlockIndex;
+		OGLSYS_PFNGLGETACTIVEUNIFORMBLOCKIVPROC pfnGetActiveUniformBlockiv;
+		OGLSYS_PFNGLGETUNIFORMINDICESPROC pfnGetUniformIndices;
+		OGLSYS_PFNGLGETACTIVEUNIFORMSIVPROC pfnGetActiveUniformsiv;
+		OGLSYS_PFNGLMAPBUFFERRANGEPROC pfnMapBufferRange;
+		OGLSYS_PFNGLUNMAPBUFFERPROC pfnUnmapBuffer;
+		OGLSYS_PFNGLUNIFORMBLOCKBINDINGPROC pfnUniformBlockBinding;
+		OGLSYS_PFNGLBINDBUFFERBASEPROC pfnBindBufferBase;
 #endif
 		bool bindlessTex;
 		bool ASTC_LDR;
@@ -1034,6 +1053,14 @@ void OGLSysGlb::init_ogl() {
 	#else
 	mExts.pfnDrawElementsBaseVertex = (PFNGLDRAWELEMENTSBASEVERTEXOESPROC)eglGetProcAddress("glDrawElementsBaseVertexOES");
 	#endif
+	mExts.pfnGetUniformBlockIndex = (OGLSYS_PFNGLGETUNIFORMBLOCKINDEXPROC)eglGetProcAddress("glGetUniformBlockIndex");
+	mExts.pfnGetActiveUniformBlockiv = (OGLSYS_PFNGLGETACTIVEUNIFORMBLOCKIVPROC)eglGetProcAddress("glGetActiveUniformBlockiv");
+	mExts.pfnGetUniformIndices = (OGLSYS_PFNGLGETUNIFORMINDICESPROC)eglGetProcAddress("glGetUniformIndices");
+	mExts.pfnGetActiveUniformsiv = (OGLSYS_PFNGLGETACTIVEUNIFORMSIVPROC)eglGetProcAddress("glGetActiveUniformsiv");
+	mExts.pfnMapBufferRange = (OGLSYS_PFNGLMAPBUFFERRANGEPROC)eglGetProcAddress("glMapBufferRange");
+	mExts.pfnUnmapBuffer = (OGLSYS_PFNGLUNMAPBUFFERPROC)eglGetProcAddress("glUnmapBuffer");
+	mExts.pfnUniformBlockBinding = (OGLSYS_PFNGLUNIFORMBLOCKBINDINGPROC)eglGetProcAddress("glUniformBlockBinding");
+	mExts.pfnBindBufferBase = (OGLSYS_PFNGLBINDBUFFERBASEPROC)eglGetProcAddress("glBindBufferBase");
 #endif
 	
 #if defined(OGLSYS_VIVANTE_FB)
@@ -1117,6 +1144,263 @@ static bool xbtn_xlat(const XEvent& evt, OGLSysMouseState::BTN* pBtn) {
 	return res;
 }
 #endif
+
+void OGLSysParamsBuf::init(GLuint progId, const GLchar* pName, GLuint binding, const GLchar** ppFieldNames, const int numFields) {
+	mpStorage = nullptr;
+	mBufHandle = 0;
+#if OGLSYS_ES
+	if (!GLG.mExts.pfnGetUniformBlockIndex) {
+		return;
+	}
+#endif
+	mpName = pName;
+	mProgId = progId;
+#if OGLSYS_ES
+	mBlockIdx = GLG.mExts.pfnGetUniformBlockIndex(mProgId, pName);
+#else
+	mBlockIdx = glGetUniformBlockIndex(mProgId, pName);
+#endif
+	glGenBuffers(1, &mBufHandle);
+	mBindingIdx = binding;
+#if OGLSYS_ES
+	GLG.mExts.pfnGetActiveUniformBlockiv(mProgId, mBlockIdx, GL_UNIFORM_BLOCK_DATA_SIZE, &mSize);
+#else
+	glGetActiveUniformBlockiv(mProgId, mBlockIdx, GL_UNIFORM_BLOCK_DATA_SIZE, &mSize);
+#endif
+	mpStorage = GLG.mem_alloc(mSize, "OGLSys:PrmsBuf:storage");
+	if (mpStorage) {
+		::memset(mpStorage, 0, mSize);
+	}
+	glBindBuffer(GL_UNIFORM_BUFFER, mBufHandle);
+	glBufferData(GL_UNIFORM_BUFFER, mSize, nullptr, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	mNumFields = numFields;
+	mpFieldNames = ppFieldNames;
+	mpFieldIndices = (GLuint*)GLG.mem_alloc(mNumFields * sizeof(GLuint), "OGLSys:PrmsBuf:indices");
+	if (mpFieldIndices) {
+#if OGLSYS_ES
+		GLG.mExts.pfnGetUniformIndices(mProgId, mNumFields, mpFieldNames, mpFieldIndices);
+#else
+		glGetUniformIndices(mProgId, mNumFields, mpFieldNames, mpFieldIndices);
+#endif
+	}
+	mpFieldOffsets = (GLint*)GLG.mem_alloc(mNumFields * sizeof(GLint), "OGLSys:PrmsBuf:offsets");
+	if (mpFieldOffsets) {
+#if OGLSYS_ES
+		GLG.mExts.pfnGetActiveUniformsiv(mProgId, mNumFields, mpFieldIndices, GL_UNIFORM_OFFSET, mpFieldOffsets);
+#else
+		glGetActiveUniformsiv(mProgId, mNumFields, mpFieldIndices, GL_UNIFORM_OFFSET, mpFieldOffsets);
+#endif
+	}
+	mpFieldTypes = (GLint*)GLG.mem_alloc(mNumFields * sizeof(GLint), "OGLSys:PrmsBuf:types");
+	if (mpFieldTypes) {
+#if OGLSYS_ES
+		GLG.mExts.pfnGetActiveUniformsiv(mProgId, mNumFields, mpFieldIndices, GL_UNIFORM_TYPE, mpFieldTypes);
+#else
+		glGetActiveUniformsiv(mProgId, mNumFields, mpFieldIndices, GL_UNIFORM_TYPE, mpFieldTypes);
+#endif
+	}
+	mUpdateFlg = true;
+}
+
+void OGLSysParamsBuf::reset() {
+	if (mBufHandle) {
+		glDeleteBuffers(1, &mBufHandle);
+		mBufHandle = 0;
+	}
+	if (mNumFields) {
+		GLG.mem_free(mpFieldIndices);
+		mpFieldIndices = nullptr;
+		GLG.mem_free(mpFieldOffsets);
+		mpFieldOffsets = nullptr;
+		GLG.mem_free(mpFieldTypes);
+		mpFieldTypes = nullptr;
+		mNumFields = 0;
+	}
+	if (mpStorage) {
+		GLG.mem_free(mpStorage);
+		mpStorage = nullptr;
+	}
+}
+
+int OGLSysParamsBuf::find_field(const char* pName) {
+	int idx = -1;
+	if (pName && mpFieldNames) {
+		for (int i = 0; i < mNumFields; ++i) {
+			if (::strcmp(mpFieldNames[i], pName) == 0) {
+				idx = i;
+				break;
+			}
+		}
+	}
+	return idx;
+}
+
+static void prmsbuf_set_flt(OGLSysParamsBuf& buf, float* pFlt, const float val) {
+	if (*pFlt != val) {
+		*pFlt = val;
+		buf.mUpdateFlg = true;
+	}
+}
+
+void OGLSysParamsBuf::set(const int idx, const float x) {
+	if (ck_field_idx(idx)) {
+		GLint offs = mpFieldOffsets[idx];
+		if (offs >= 0) {
+			void* pData = ((uint8_t*)mpStorage) + offs;
+			GLfloat* pFlt = (GLfloat*)pData;
+			switch (mpFieldTypes[idx]) {
+				case GL_FLOAT:
+					prmsbuf_set_flt(*this, pFlt, x);
+					break;
+				case GL_FLOAT_VEC2:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], x);
+					break;
+				case GL_FLOAT_VEC3:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], x);
+					prmsbuf_set_flt(*this, &pFlt[2], x);
+					break;
+				case GL_FLOAT_VEC4:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], x);
+					prmsbuf_set_flt(*this, &pFlt[2], x);
+					prmsbuf_set_flt(*this, &pFlt[3], x);
+					break;
+				default:
+					break;
+			}
+		}
+	}
+}
+
+void OGLSysParamsBuf::set(const int idx, const float x, const float y) {
+	if (ck_field_idx(idx)) {
+		GLint offs = mpFieldOffsets[idx];
+		if (offs >= 0) {
+			void* pData = ((uint8_t*)mpStorage) + offs;
+			GLfloat* pFlt = (float*)pData;
+			switch (mpFieldTypes[idx]) {
+				case GL_FLOAT:
+					prmsbuf_set_flt(*this, pFlt, x);
+					break;
+				case GL_FLOAT_VEC2:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					break;
+				case GL_FLOAT_VEC3:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					prmsbuf_set_flt(*this, &pFlt[2], 0.0f);
+					break;
+				case GL_FLOAT_VEC4:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					prmsbuf_set_flt(*this, &pFlt[2], 0.0f);
+					prmsbuf_set_flt(*this, &pFlt[3], 0.0f);
+					break;
+				default:
+					break;
+			}
+		}
+	}
+}
+
+void OGLSysParamsBuf::set(const int idx, const float x, const float y, const float z) {
+	if (ck_field_idx(idx)) {
+		GLint offs = mpFieldOffsets[idx];
+		if (offs >= 0) {
+			void* pData = ((uint8_t*)mpStorage) + offs;
+			GLfloat* pFlt = (float*)pData;
+			switch (mpFieldTypes[idx]) {
+				case GL_FLOAT:
+					prmsbuf_set_flt(*this, pFlt, x);
+					break;
+				case GL_FLOAT_VEC2:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					break;
+				case GL_FLOAT_VEC3:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					prmsbuf_set_flt(*this, &pFlt[2], z);
+					break;
+				case GL_FLOAT_VEC4:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					prmsbuf_set_flt(*this, &pFlt[2], z);
+					prmsbuf_set_flt(*this, &pFlt[3], 0.0f);
+					break;
+				default:
+					break;
+			}
+		}
+	}
+}
+
+void OGLSysParamsBuf::set(const int idx, const float x, const float y, const float z, const float w) {
+	if (ck_field_idx(idx)) {
+		GLint offs = mpFieldOffsets[idx];
+		if (offs >= 0) {
+			void* pData = ((uint8_t*)mpStorage) + offs;
+			GLfloat* pFlt = (float*)pData;
+			switch (mpFieldTypes[idx]) {
+				case GL_FLOAT:
+					prmsbuf_set_flt(*this, pFlt, x);
+					break;
+				case GL_FLOAT_VEC2:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					break;
+				case GL_FLOAT_VEC3:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					prmsbuf_set_flt(*this, &pFlt[2], z);
+					break;
+				case GL_FLOAT_VEC4:
+					prmsbuf_set_flt(*this, &pFlt[0], x);
+					prmsbuf_set_flt(*this, &pFlt[1], y);
+					prmsbuf_set_flt(*this, &pFlt[2], z);
+					prmsbuf_set_flt(*this, &pFlt[3], w);
+					break;
+				default:
+					break;
+			}
+		}
+	}
+}
+
+void OGLSysParamsBuf::send() {
+	if (mpStorage && mUpdateFlg) {
+		glBindBuffer(GL_UNIFORM_BUFFER, mBufHandle);
+#if OGLSYS_ES
+		void* pDst = GLG.mExts.pfnMapBufferRange(GL_UNIFORM_BUFFER, 0, mSize, GL_MAP_WRITE_BIT);
+#else
+		void* pDst = glMapBufferRange(GL_UNIFORM_BUFFER, 0, mSize, GL_MAP_WRITE_BIT);
+#endif
+		if (pDst) {
+			::memcpy(pDst, mpStorage, mSize);
+#if OGLSYS_ES
+			GLG.mExts.pfnUnmapBuffer(GL_UNIFORM_BUFFER);
+#else
+			glUnmapBuffer(GL_UNIFORM_BUFFER);
+#endif
+		}
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		mUpdateFlg = false;
+	}
+}
+
+void OGLSysParamsBuf::bind() {
+#if OGLSYS_ES
+	GLG.mExts.pfnUniformBlockBinding(mProgId, mBlockIdx, mBindingIdx);
+	GLG.mExts.pfnBindBufferBase(GL_UNIFORM_BUFFER, mBindingIdx, mBufHandle);
+#else
+	glUniformBlockBinding(mProgId, mBlockIdx, mBindingIdx);
+	glBindBufferBase(GL_UNIFORM_BUFFER, mBindingIdx, mBufHandle);
+#endif
+}
 
 namespace OGLSys {
 

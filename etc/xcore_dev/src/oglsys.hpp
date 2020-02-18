@@ -169,6 +169,37 @@ struct OGLSysInput {
 	float pressure;
 };
 
+struct OGLSysParamsBuf {
+	const GLchar* mpName;
+	GLuint mProgId;
+	GLuint mBlockIdx;
+	GLuint mBufHandle;
+	GLuint mBindingIdx;
+	GLint mSize;
+	int mNumFields;
+	const GLchar** mpFieldNames;
+	GLuint* mpFieldIndices;
+	GLint* mpFieldOffsets;
+	GLint* mpFieldTypes;
+	void* mpStorage;
+	bool mUpdateFlg;
+
+	void init(GLuint progId, const GLchar* pName, GLuint binding, const GLchar** ppFieldNames, const int numFields);
+	void reset();
+	int find_field(const char* pName);
+	bool ck_field_idx(const int idx) const { return idx >= 0 && idx < mNumFields; }
+	void set(const int idx, const float x);
+	void set(const char* pName, const float x) { set(find_field(pName), x); }
+	void set(const int idx, const float x, const float y);
+	void set(const char* pName, const float x, const float y) { set(find_field(pName), x, y); };
+	void set(const int idx, const float x, const float y, const float z);
+	void set(const char* pName, const float x, const float y, const float z) { set(find_field(pName), x, y, z); };
+	void set(const int idx, const float x, const float y, const float z, const float w);
+	void set(const char* pName, const float x, const float y, const float z, const float w) { set(find_field(pName), x, y, z, w); };
+	void send();
+	void bind();
+};
+
 namespace OGLSys {
 
 	typedef void (*InputHandler)(const OGLSysInput& inp, void* pWk);
