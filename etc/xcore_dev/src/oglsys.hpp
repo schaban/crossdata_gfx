@@ -46,11 +46,21 @@
 android_app* oglsys_get_app();
 #elif defined(X11)
 #	define OGLSYS_X11
-#	undef OGLSYS_ES
-#	define OGLSYS_ES 1
-#	define DYNAMICGLES_NO_NAMESPACE
-#	define DYNAMICEGL_NO_NAMESPACE
-#	include <DynamicGles.h>
+#	if OGLSYS_ES
+#		define DYNAMICGLES_NO_NAMESPACE
+#		define DYNAMICEGL_NO_NAMESPACE
+#		include <DynamicGles.h>
+#	else
+#		include <GL/glcorearb.h>
+#		include <GL/glext.h>
+#		define OGL_FN(_type, _name) extern PFNGL##_type##PROC gl##_name;
+#		undef OGL_FN_CORE
+#		define OGL_FN_CORE
+#		undef OGL_FN_EXTRA
+#		define OGL_FN_EXTRA
+#		include "oglsys.inc"
+#		undef OGL_FN
+#	endif
 #elif defined(VIVANTE_FB)
 #	define OGLSYS_VIVANTE_FB
 #	undef OGLSYS_ES

@@ -50,6 +50,17 @@
 #		define OGL_FN_EXTRA
 #		include "oglsys.inc"
 #		undef OGL_FN
+#	elif defined(X11)
+#		include <dlfcn.h>
+#		include <GL/glx.h>
+#		define GET_GL_FN(_name) *(void**)&_name = mGLX.get_func_ptr(#_name)
+#		define OGL_FN(_type, _name) PFNGL##_type##PROC gl##_name;
+#		undef OGL_FN_CORE
+#		define OGL_FN_CORE
+#		undef OGL_FN_EXTRA
+#		define OGL_FN_EXTRA
+#		include "oglsys.inc"
+#		undef OGL_FN
 #	endif
 #endif
 
@@ -272,13 +283,13 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_WINDOWS)
 	struct WGL {
 		HMODULE hLib;
-		PROC(APIENTRY *wglGetProcAddress)(LPCSTR);
-		HGLRC(APIENTRY *wglCreateContext)(HDC);
-		BOOL(APIENTRY *wglDeleteContext)(HGLRC);
-		BOOL(APIENTRY *wglMakeCurrent)(HDC, HGLRC);
-		HGLRC(WINAPI *wglCreateContextAttribsARB)(HDC, HGLRC, const int*);
+		PROC (APIENTRY *wglGetProcAddress)(LPCSTR);
+		HGLRC (APIENTRY *wglCreateContext)(HDC);
+		BOOL (APIENTRY *wglDeleteContext)(HGLRC);
+		BOOL (APIENTRY *wglMakeCurrent)(HDC, HGLRC);
+		HGLRC (WINAPI *wglCreateContextAttribsARB)(HDC, HGLRC, const int*);
 		const char* (APIENTRY *wglGetExtensionsStringEXT)();
-		BOOL(APIENTRY *wglSwapIntervalEXT)(int);
+		BOOL (APIENTRY *wglSwapIntervalEXT)(int);
 		int (APIENTRY *wglGetSwapIntervalEXT)();
 		HGLRC hCtx;
 		HGLRC hExtCtx;
@@ -363,6 +374,51 @@ static struct OGLSysGlb {
 			}
 		}
 	} mWGL;
+#elif defined(X11)
+	struct GLX {
+		typedef XVisualInfo* (*OGLSYS_PFNGLXCHOOSEVISUAL)(Display*, int, int*);
+		typedef GLXContext (*OGLSYS_PFNGLXCREATECONTEXT)(Display*, XVisualInfo*, GLXContext, Bool);
+		typedef void (*OGLSYS_PFNGLXDESTROYCONTEXT)(Display*, GLXContext);
+		typedef Bool (*OGLSYS_PFNGLXMAKECURRENT)(Display*, GLXDrawable, GLXContext);
+		typedef void (*OGLSYS_PFNGLXSWAPBUFFERS)(Display*, GLXDrawable);
+
+		void* mpLib;
+		GLXContext mCtx;
+		OGLSYS_PFNGLXCHOOSEVISUAL mpfnGLXChooseVisual;
+		OGLSYS_PFNGLXCREATECONTEXT mpfnGLXCreateContext;
+		OGLSYS_PFNGLXDESTROYCONTEXT mpfnGLXDestroyContext;
+		OGLSYS_PFNGLXMAKECURRENT mpfnGLXMakeCurrent;
+		OGLSYS_PFNGLXSWAPBUFFERS mpfnGLXSwapBuffers;
+
+		bool valid() const { return !!mpLib; }
+
+		void* get_func_ptr(const char* pName) {
+			void* pFunc = nullptr;
+			if (mpLib) {
+				pFunc = ::dlsym(mpLib, pName);
+			}
+			return pFunc;
+		}
+
+		void init() {
+			mpLib = ::dlopen("libGL.so.1", RTLD_LAZY | RTLD_GLOBAL);
+			::printf("GLX:mpLib = %p\n", mpLib);
+			if (mpLib) {
+				mpfnGLXChooseVisual = (OGLSYS_PFNGLXCHOOSEVISUAL)get_func_ptr("glXChooseVisual");
+				mpfnGLXCreateContext = (OGLSYS_PFNGLXCREATECONTEXT)get_func_ptr("glXCreateContext");
+				mpfnGLXDestroyContext = (OGLSYS_PFNGLXDESTROYCONTEXT)get_func_ptr("glXDestroyContext");
+				mpfnGLXMakeCurrent = (OGLSYS_PFNGLXMAKECURRENT)get_func_ptr("glXMakeCurrent");
+				mpfnGLXSwapBuffers = (OGLSYS_PFNGLXSWAPBUFFERS)get_func_ptr("glXSwapBuffers");
+			}
+		}
+
+		void reset() {
+			if (valid()) {
+				::dlclose(mpLib);
+				mpLib = nullptr;
+			}
+		}
+	} mGLX;
 #endif
 
 #if OGLSYS_ES
@@ -382,6 +438,8 @@ static struct OGLSysGlb {
 		}
 		return p;
 	}
+#elif defined(OGLSYS_X11)
+	bool valid_ogl() const { return mGLX.valid(); }
 #elif defined(OGLSYS_APPLE)
 	bool valid_ogl() const { return true; }
 #endif
@@ -395,6 +453,10 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_WINDOWS)
 		if (valid_ogl()) {
 			mWGL.wglMakeCurrent(mhDC, nullptr);
+		}
+#elif defined(X11)
+		if (valid_ogl()) {
+			mGLX.mpfnGLXMakeCurrent(mpXDisplay, None, NULL);
 		}
 #endif
 	}
@@ -1007,6 +1069,48 @@ void OGLSysGlb::init_ogl() {
 
 	mWGL.set_swap_interval(1);
 	mWGL.ok = true;
+#elif defined(X11)
+	if (mpXDisplay) {
+		mGLX.init();
+		GLint viAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
+		XVisualInfo* pVI = mGLX.mpfnGLXChooseVisual(mpXDisplay, 0, viAttrs);
+		mGLX.mCtx = mGLX.mpfnGLXCreateContext(mpXDisplay, pVI, NULL, GL_TRUE);
+		if (mGLX.mCtx) {
+			mGLX.mpfnGLXMakeCurrent(mpXDisplay, mXWnd, mGLX.mCtx);
+		}
+	}
+#	define OGL_FN(_type, _name) GET_GL_FN(gl##_name);
+#	undef OGL_FN_CORE
+#	define OGL_FN_CORE
+#	undef OGL_FN_EXTRA
+#	define OGL_FN_EXTRA
+#	include "oglsys.inc"
+#	undef OGL_FN
+
+	int allCnt = 0;
+	int okCnt = 0;
+#	define OGL_FN(_type, _name) if (gl##_name) { ++okCnt; } else { dbg_msg("missing OGL core function #%d: %s\n", allCnt, "gl"#_name); } ++allCnt;
+#	undef OGL_FN_CORE
+#	define OGL_FN_CORE
+#	undef OGL_FN_EXTRA
+#	include "oglsys.inc"
+#	undef OGL_FN
+	dbg_msg("OGL core functions: %d/%d\n", okCnt, allCnt);
+	if (allCnt != okCnt) {
+		mGLX.reset();
+		return;
+	}
+
+	allCnt = 0;
+	okCnt = 0;
+#	define OGL_FN(_type, _name) if (gl##_name) { ++okCnt; } else { dbg_msg("missing OGL extra function #%d: %s\n", allCnt, "gl"#_name); } ++allCnt;
+#	undef OGL_FN_CORE
+#	undef OGL_FN_EXTRA
+#	define OGL_FN_EXTRA
+#	include "oglsys.inc"
+#	undef OGL_FN
+	dbg_msg("OGL extra functions: %d/%d\n", okCnt, allCnt);
+
 #endif
 
 	dbg_msg("OpenGL version: %s\n", glGetString(GL_VERSION));
@@ -1062,7 +1166,7 @@ void OGLSysGlb::init_ogl() {
 	mExts.pfnUniformBlockBinding = (OGLSYS_PFNGLUNIFORMBLOCKBINDINGPROC)eglGetProcAddress("glUniformBlockBinding");
 	mExts.pfnBindBufferBase = (OGLSYS_PFNGLBINDBUFFERBASEPROC)eglGetProcAddress("glBindBufferBase");
 #endif
-	
+
 #if defined(OGLSYS_VIVANTE_FB)
 	if (mReduceRes) {
 		int vivW = 0;
@@ -1100,6 +1204,10 @@ void OGLSysGlb::reset_ogl() {
 		FreeLibrary(mWGL.hLib);
 	}
 	ZeroMemory(&mWGL, sizeof(mWGL));
+#elif defined(X11)
+	if (mGLX.valid()) {
+		mGLX.mpfnGLXDestroyContext(mpXDisplay, mGLX.mCtx);
+	}
 #endif
 }
 
@@ -1445,6 +1553,8 @@ namespace OGLSys {
 		eglSwapBuffers(GLG.mEGL.display, GLG.mEGL.surface);
 #elif defined(OGLSYS_WINDOWS)
 		::SwapBuffers(GLG.mhDC);
+#elif defined(X11)
+		GLG.mGLX.mpfnGLXSwapBuffers(GLG.mpXDisplay, GLG.mXWnd);
 #endif
 	}
 
