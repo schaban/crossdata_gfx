@@ -52,7 +52,11 @@
 #		undef OGL_FN
 #	elif defined(X11)
 #		include <dlfcn.h>
-#		include <GL/glx.h>
+		typedef void* GLXContext;
+		typedef XID GLXDrawable;
+#		define GLX_RGBA 4
+#		define GLX_DOUBLEBUFFER	5
+#		define GLX_DEPTH_SIZE 12
 #		define GET_GL_FN(_name) *(void**)&_name = mGLX.get_func_ptr(#_name)
 #		define OGL_FN(_type, _name) PFNGL##_type##PROC gl##_name;
 #		undef OGL_FN_CORE
