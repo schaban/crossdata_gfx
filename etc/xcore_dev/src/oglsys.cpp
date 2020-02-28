@@ -50,7 +50,7 @@
 #		define OGL_FN_EXTRA
 #		include "oglsys.inc"
 #		undef OGL_FN
-#	elif defined(X11)
+#	elif defined(OGLSYS_X11)
 #		include <dlfcn.h>
 		typedef void* GLXContext;
 		typedef XID GLXDrawable;
@@ -378,7 +378,7 @@ static struct OGLSysGlb {
 			}
 		}
 	} mWGL;
-#elif defined(X11)
+#elif defined(OGLSYS_X11)
 	struct GLX {
 		typedef XVisualInfo* (*OGLSYS_PFNGLXCHOOSEVISUAL)(Display*, int, int*);
 		typedef GLXContext (*OGLSYS_PFNGLXCREATECONTEXT)(Display*, XVisualInfo*, GLXContext, Bool);
@@ -458,7 +458,7 @@ static struct OGLSysGlb {
 		if (valid_ogl()) {
 			mWGL.wglMakeCurrent(mhDC, nullptr);
 		}
-#elif defined(X11)
+#elif defined(OGLSYS_X11)
 		if (valid_ogl()) {
 			mGLX.mpfnGLXMakeCurrent(mpXDisplay, None, NULL);
 		}
@@ -1073,7 +1073,7 @@ void OGLSysGlb::init_ogl() {
 
 	mWGL.set_swap_interval(1);
 	mWGL.ok = true;
-#elif defined(X11)
+#elif defined(OGLSYS_X11)
 	if (mpXDisplay) {
 		mGLX.init();
 		GLint viAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
@@ -1208,7 +1208,7 @@ void OGLSysGlb::reset_ogl() {
 		FreeLibrary(mWGL.hLib);
 	}
 	ZeroMemory(&mWGL, sizeof(mWGL));
-#elif defined(X11)
+#elif defined(OGLSYS_X11)
 	if (mGLX.valid()) {
 		mGLX.mpfnGLXDestroyContext(mpXDisplay, mGLX.mCtx);
 	}
@@ -1557,7 +1557,7 @@ namespace OGLSys {
 		eglSwapBuffers(GLG.mEGL.display, GLG.mEGL.surface);
 #elif defined(OGLSYS_WINDOWS)
 		::SwapBuffers(GLG.mhDC);
-#elif defined(X11)
+#elif defined(OGLSYS_X11)
 		GLG.mGLX.mpfnGLXSwapBuffers(GLG.mpXDisplay, GLG.mXWnd);
 #endif
 	}
@@ -1827,6 +1827,22 @@ namespace OGLSys {
 
 	uint64_t get_frame_count() {
 		return GLG.mFrameCnt;
+	}
+
+	void* get_proc_addr(const char* pName) {
+		void* pAddr = nullptr;
+		if (pName) {
+#if OGLSYS_ES
+			pAddr = (void*)eglGetProcAddress(pName);
+#else
+#	if defined(OGLSYS_WINDOWS)
+			pAddr = GLG.get_func_ptr(pName);
+#	elif defined(OGLSYS_X11)
+			pAddr = GLG.mGLX.get_func_ptr(pName);
+#	endif
+#endif
+		}
+		return pAddr;
 	}
 
 	GLuint compile_shader_str(const char* pSrc, size_t srcSize, GLenum kind) {

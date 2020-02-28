@@ -231,6 +231,8 @@ namespace OGLSys {
 	int get_height();
 	uint64_t get_frame_count();
 
+	void* get_proc_addr(const char* pName);
+
 	GLuint compile_shader_str(const char* pSrc, size_t srcSize, GLenum kind);
 	GLuint compile_shader_file(const char* pSrcPath, GLenum kind);
 	GLuint link_prog(const GLuint* pSIDs, const int nSIDs);
