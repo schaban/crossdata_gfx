@@ -204,14 +204,14 @@ static struct OGLSysGlb {
 	KBD_STATE mKbdState;
 
 	void* mem_alloc(size_t size, const char* pTag) {
-		return mIfc.mem_alloc ? mIfc.mem_alloc(size, pTag) : malloc(size);
+		return mIfc.mem_alloc ? mIfc.mem_alloc(size, pTag) : ::malloc(size);
 	}
 
 	void mem_free(void* p) {
 		if (mIfc.mem_free) {
 			mIfc.mem_free(p);
 		} else {
-			free(p);
+			::free(p);
 		}
 	}
 
@@ -234,27 +234,29 @@ static struct OGLSysGlb {
 		if (mIfc.load_glsl) {
 			return mIfc.load_glsl(pPath, pSize);
 		} else {
-			const char* pCode = nullptr;
+			char* pCode = nullptr;
 			size_t size = 0;
 			FILE* pFile = nullptr;
 			const char* pMode = "rb";
 #if defined(_MSC_VER)
-			fopen_s(&pFile, pPath, pMode);
+			::fopen_s(&pFile, pPath, pMode);
 #else
-			pFile = fopen(pPath, pMode);
+			pFile = ::fopen(pPath, pMode);
 #endif
 			if (pFile) {
-				if (fseek(pFile, 0, SEEK_END) == 0) {
-					size = ftell(pFile);
+				if (::fseek(pFile, 0, SEEK_END) == 0) {
+					size = ::ftell(pFile);
 				}
-				fseek(pFile, 0, SEEK_SET);
+				::fseek(pFile, 0, SEEK_SET);
 				if (size) {
-					pCode = (const char*)mem_alloc(size, "OGLSys:GLSL");
+					pCode = (char*)mem_alloc(size, "OGLSys:GLSL");
+					size_t nread = 0;
 					if (pCode) {
-						fread((void*)pCode, 1, size, pFile);
+						::memset(pCode, 0, size);
+						nread = ::fread(pCode, 1, size, pFile);
 					}
 				}
-				fclose(pFile);
+				::fclose(pFile);
 			}
 			if (pSize) {
 				*pSize = size;
