@@ -1001,7 +1001,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 					mtl.write(bw)
 			for imtl, mtl in enumerate(self.mtls):
 				if mtl.swapIds:
-					bw.patch(mtlsTop + (imtl*Material.SIZE) + Material.SWAPS_OFFS, bw.getPos() - top)
+					bw.patch(mtlsTop + (imtl*MdlMaterial.SIZE) + MdlMaterial.SWAPS_OFFS, bw.getPos() - top)
 					bw.writeI32(len(mtl.swapIds))
 					for swpId in mtl.swapIds:
 						bw.writeI32(swpId)
