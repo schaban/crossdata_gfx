@@ -2107,7 +2107,7 @@ namespace OGLSys {
 		}
 #else
 		if (handle != 0) {
-			if (glGetQueryObjectiv) {
+			if (glGetQueryObjectui64v && glGetQueryObjectiv) {
 				GLint flg = 0;
 				while (!flg) {
 					glGetQueryObjectiv(handle, GL_QUERY_RESULT_AVAILABLE, &flg);
