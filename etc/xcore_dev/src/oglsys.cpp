@@ -38,7 +38,6 @@
 #	include <X11/Xutil.h>
 #endif
 
-
 #if !OGLSYS_ES
 #	if defined(OGLSYS_WINDOWS)
 #		define GET_GL_FN(_name) *(PROC*)&_name = (PROC)get_func_ptr(#_name)
@@ -1939,15 +1938,15 @@ namespace OGLSys {
 							GLG.mem_free(pInfo);
 							pInfo = nullptr;
 						}
-						for (int i = 0; i < nSIDs; ++i) {
-							GLuint sid = pSIDs[i];
-							if (sid) {
-								glDetachShader(pid, sid);
-							}
-						}
-						glDeleteProgram(pid);
-						pid = 0;
 					}
+					for (int i = 0; i < nSIDs; ++i) {
+						GLuint sid = pSIDs[i];
+						if (sid) {
+							glDetachShader(pid, sid);
+						}
+					}
+					glDeleteProgram(pid);
+					pid = 0;
 				}
 			}
 		}
