@@ -453,6 +453,10 @@ cxVec get_view_up() {
 	return s_drwCtx.view.up;
 }
 
+cxVec get_view_dir() {
+	return s_drwCtx.view.get_dir();
+}
+
 float get_view_near() {
 	return s_drwCtx.view.znear;
 }

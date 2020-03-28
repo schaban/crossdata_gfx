@@ -196,6 +196,7 @@ cxMtx get_inv_proj_mtx();
 cxMtx get_inv_view_proj_mtx();
 cxVec get_view_pos();
 cxVec get_view_tgt();
+cxVec get_view_dir();
 cxVec get_view_up();
 float get_view_near();
 float get_view_far();
