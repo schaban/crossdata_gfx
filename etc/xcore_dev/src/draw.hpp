@@ -70,6 +70,8 @@ namespace Draw {
 				this->up = up;
 			}
 
+			cxVec get_dir() const { return (tgt - pos).get_normalized(); }
+
 			void reset() {
 				set_view(cxVec(0.75f, 1.3f, 3.5f), cxVec(0.0f, 0.95f, 0.0f));
 				znear = 0.1f;
