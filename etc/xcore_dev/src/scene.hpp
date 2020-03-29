@@ -228,6 +228,7 @@ void reset_hemi();
 void set_spec_dir(const cxVec& v);
 void set_spec_dir_to_shadow();
 void set_spec_rgb(const float r, const float g, const float b);
+void set_spec_shadowing(const float s);
 
 void set_fog_rgb(const float r, const float g, const float b);
 void set_fog_density(const float a);

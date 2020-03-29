@@ -746,6 +746,10 @@ void set_spec_rgb(const float r, const float g, const float b) {
 	s_drwCtx.spec.set_rgb(r, g, b);
 }
 
+void set_spec_shadowing(const float s) {
+	s_drwCtx.spec.shadowing = nxCalc::saturate(s);
+}
+
 void set_fog_rgb(const float r, const float g, const float b) {
 	s_drwCtx.fog.set_rgb(r, g, b);
 }
