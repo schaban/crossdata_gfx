@@ -1049,6 +1049,7 @@ void draw(bool discard) {
 static void obj_bat_draw(ScnObj* pObj, const int ibat, const Draw::Mode mode) {
 	cxModelWork* pWk = pObj->mpMdlWk;
 	if (!pWk) return;
+	if (pWk->is_bat_mtl_hidden(ibat)) return;
 	bool cullFlg = false;
 	bool isShadowcast = mode == Draw::DRWMODE_SHADOW_CAST;
 	if (isShadowcast) {

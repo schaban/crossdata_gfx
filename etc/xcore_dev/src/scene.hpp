@@ -138,6 +138,10 @@ public:
 		return mpMdlWk ? mpMdlWk->mVariation : 0;
 	}
 
+	void hide_mtl(const char* pMtlName, const bool hide = true) {
+		if (mpMdlWk) mpMdlWk->hide_mtl(pMtlName, hide);
+	}
+
 	void draw_opaq();
 	void draw_semi(const bool discard = true);
 	void draw(const bool discard = true);

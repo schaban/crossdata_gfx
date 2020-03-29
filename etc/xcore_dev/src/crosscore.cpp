@@ -10089,6 +10089,21 @@ const sxModelData::Material* sxModelData::get_material(const int imtl) const {
 	return pMtl;
 }
 
+int sxModelData::find_material_id(const char* pName) const {
+	int imtl = -1;
+	int iname = find_str(pName);
+	if (iname >= 0) {
+		for (uint32_t i = 0; i < mMtlNum; ++i) {
+			const Material* pMtl = get_material(i);
+			if (pMtl && pMtl->mNameId == iname) {
+				imtl = int(i);
+				break;
+			}
+		}
+	}
+	return imtl;
+}
+
 const char* sxModelData::get_material_name(const int imtl) const {
 	const char* pMtlName = nullptr;
 	const Material* pMtl = get_material(imtl);
@@ -11722,6 +11737,36 @@ void cxModelWork::set_pose(const cxMotionWork* pMot) {
 	}
 }
 
+void cxModelWork::hide_mtl(const int imtl, const bool hide) {
+	if (!mpData) return;
+	if (mpData->ck_mtl_id(imtl) && mpHideBits) {
+		if (hide) {
+			XD_BIT_ARY_ST(uint32_t, mpHideBits, imtl);
+		} else {
+			XD_BIT_ARY_CL(uint32_t, mpHideBits, imtl);
+		}
+	}
+}
+
+bool cxModelWork::is_mtl_hidden(const int imtl) const {
+	bool hidden = false;
+	if (mpData && mpData->ck_mtl_id(imtl) && mpHideBits) {
+		hidden = XD_BIT_ARY_CK(uint32_t, mpHideBits, imtl);
+	}
+	return hidden;
+}
+
+bool cxModelWork::is_bat_mtl_hidden(const int ibat) const {
+	bool hidden = false;
+	if (mpData) {
+		const sxModelData::Batch* pBat = mpData->get_batch_ptr(ibat);
+		if (pBat) {
+			hidden = is_mtl_hidden(pBat->mMtlId);
+		}
+	}
+	return hidden;
+}
+
 void cxModelWork::update_bounds() {
 	if (!mpData) return;
 	if (mpData->has_skin()) {
@@ -11836,6 +11881,9 @@ cxModelWork* cxModelWork::create(sxModelData* pMdl, const size_t paramMemSize, c
 	size += nbat * sizeof(cxAABB);
 	size_t offsCull = size;
 	size += XD_ALIGN(XD_BIT_ARY_SIZE(uint8_t, nbat), 0x10);
+	int nmtl = pMdl->mMtlNum;
+	size_t offsHide = size;
+	size += XD_ALIGN(XD_BIT_ARY_SIZE(uint8_t, nmtl), 0x10);
 	size_t offsParam = 0;
 	if (paramMemSize) {
 		offsParam = size;
@@ -11872,6 +11920,7 @@ cxModelWork* cxModelWork::create(sxModelData* pMdl, const size_t paramMemSize, c
 			pWk->mBoundsValid = true;
 		}
 		pWk->mpCullBits = offsCull ? (uint32_t*)XD_INCR_PTR(pWk, offsCull) : nullptr;
+		pWk->mpHideBits = offsHide ? (uint32_t*)XD_INCR_PTR(pWk, offsHide) : nullptr;
 		pWk->mpParamMem = offsParam ? XD_INCR_PTR(pWk, offsParam) : nullptr;
 		pWk->mpExtMem = offsExt ? XD_INCR_PTR(pWk, offsExt) : nullptr;
 		if (nskin > 0) {

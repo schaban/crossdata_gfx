@@ -4576,6 +4576,7 @@ struct sxModelData : public sxData {
 	PntSkin get_pnt_skin(const int pid) const;
 	const cxSphere* get_mdl_spheres() const;
 	const Material* get_material(const int imtl) const;
+	int find_material_id(const char* pName) const;
 	const char* get_material_name(const int imtl) const;
 	const char* get_material_path(const int imtl) const;
 	bool mtl_has_swaps(const int imtl) const;
@@ -4875,6 +4876,7 @@ public:
 	xt_xmtx* mpSkinXforms;
 	cxAABB* mpBatBBoxes;
 	uint32_t* mpCullBits;
+	uint32_t* mpHideBits;
 	void* mpParamMem;
 	void* mpExtMem;
 	float mRenderMask;
@@ -4893,6 +4895,11 @@ public:
 
 	int get_mtls_num() const { return mpData ? mpData->mMtlNum : 0; }
 	bool ck_mtl_id(const int imtl) const { return mpData ? mpData->ck_mtl_id(imtl) : false; }
+	int find_mtl_id(const char* pMtlName) { return mpData ? mpData->find_material_id(pMtlName) : -1; }
+	void hide_mtl(const int imtl, const bool hide = true);
+	void hide_mtl(const char* pMtlName, const bool hide = true) { hide_mtl(find_mtl_id(pMtlName), hide); }
+	bool is_mtl_hidden(const int imtl) const;
+	bool is_bat_mtl_hidden(const int ibat) const;
 
 	void set_pose(const cxMotionWork* pMot);
 	void update_bounds();
