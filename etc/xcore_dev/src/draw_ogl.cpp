@@ -1609,23 +1609,25 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	}
 }
 
+Draw::Ifc s_ifc;
+
+struct DrwInit {
+	DrwInit() {
+		::memset(&s_ifc, 0, sizeof(s_ifc));
+		s_ifc.info.pName = "ogl";
+		s_ifc.info.needOGLContext = true;
+		s_ifc.init = init;
+		s_ifc.reset = reset;
+		s_ifc.get_screen_width = get_screen_width;
+		s_ifc.get_screen_height = get_screen_height;
+		s_ifc.get_shadow_bias_mtx = get_shadow_bias_mtx;
+		s_ifc.begin = begin;
+		s_ifc.end = end;
+		s_ifc.batch = batch;
+		Draw::register_ifc_impl(&s_ifc);
+	}
+} s_drwInit;
+
 DRW_IMPL_END
 
-namespace Draw {
-
-Ifc get_impl_ogl() {
-	Ifc ifc;
-	::memset(&ifc, 0, sizeof(ifc));
-	ifc.init = init;
-	ifc.reset = reset;
-	ifc.get_screen_width = get_screen_width;
-	ifc.get_screen_height = get_screen_height;
-	ifc.get_shadow_bias_mtx = get_shadow_bias_mtx;
-	ifc.begin = begin;
-	ifc.end = end;
-	ifc.batch = batch;
-	return ifc;
-}
-
-} // Draw
 

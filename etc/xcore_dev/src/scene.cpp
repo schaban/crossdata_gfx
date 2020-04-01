@@ -2,7 +2,7 @@
 #include "draw.hpp"
 #include "scene.hpp"
 
-static Draw::Ifc s_draw;
+static Draw::Ifc* s_pDraw = nullptr;
 
 static cxResourceManager* s_pRsrcMgr = nullptr;
 
@@ -47,7 +47,7 @@ void ScnCfg::set_defaults() {
 	pDataDir = "../data";
 	shadowMapSize = 2048;
 #endif
-	drawImplType = 0;
+	pDrawIfcName = nullptr;
 	numWorkers = 4;
 	localHeapSize = 0;
 	useSpec = true;
@@ -114,18 +114,7 @@ namespace Scene {
 void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
 
-	switch (cfg.drawImplType) {
-		case 0:
-		default:
-			s_draw = Draw::get_impl_ogl();
-			break;
-		case 1:
-			s_draw = Draw::get_impl_ogl_x();
-			break;
-		case 2:
-			s_draw = Draw::get_impl_vk();
-			break;
-	}
+	s_pDraw = Draw::find_ifc_impl(cfg.pDrawIfcName);
 
 	s_pRsrcMgr = cxResourceManager::create(cfg.pAppPath, cfg.pDataDir);
 	if (!s_pRsrcMgr) return;
@@ -147,7 +136,9 @@ void init(const ScnCfg& cfg) {
 	s_drwCtx.reset();
 	s_drwCtxSP = 0;
 
-	s_draw.init(cfg.shadowMapSize, s_pRsrcMgr);
+	if (s_pDraw) {
+		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
+	}
 
 	s_frameCnt = 0;
 
@@ -173,7 +164,9 @@ void reset() {
 	free_local_heaps();
 
 	release_all_gfx();
-	s_draw.reset();
+	if (s_pDraw) {
+		s_pDraw->reset();
+	}
 	del_all_objs();
 	unload_all_pkgs();
 
@@ -277,12 +270,16 @@ void unload_all_pkgs() {
 
 
 void frame_begin(const cxColor& clearColor) {
-	s_draw.begin(clearColor);
+	if (s_pDraw) {
+		s_pDraw->begin(clearColor);
+	}
 	purge_local_heaps();
 }
 
 void frame_end() {
-	s_draw.end();
+	if (s_pDraw) {
+		s_pDraw->end();
+	}
 	++s_frameCnt;
 }
 
@@ -382,7 +379,9 @@ uint64_t glb_rng_next() {
 
 static void update_view() {
 	if (s_viewUpdateFlg) {
-		s_drwCtx.view.update(s_draw.get_screen_width(), s_draw.get_screen_height());
+		if (s_pDraw) {
+			s_drwCtx.view.update(s_pDraw->get_screen_width(), s_pDraw->get_screen_height());
+		}
 	}
 	s_viewUpdateFlg = false;
 }
@@ -683,7 +682,9 @@ static void update_shadow() {
 		update_shadow_persp();
 	}
 	if (s_shadowUpdateFlg) {
-		s_drwCtx.shadow.mtx = s_drwCtx.shadow.viewProjMtx * s_draw.get_shadow_bias_mtx();
+		if (s_pDraw) {
+			s_drwCtx.shadow.mtx = s_drwCtx.shadow.viewProjMtx * s_pDraw->get_shadow_bias_mtx();
+		}
 	}
 	s_shadowUpdateFlg = false;
 }
@@ -1071,7 +1072,9 @@ static void obj_bat_draw(ScnObj* pObj, const int ibat, const Draw::Mode mode) {
 	Scene::update_view();
 	Scene::update_shadow();
 	Draw::Context* pCtx = &s_drwCtx;
-	s_draw.batch(pWk, ibat, mode, pCtx);
+	if (s_pDraw) {
+		s_pDraw->batch(pWk, ibat, mode, pCtx);
+	}
 	if (!isShadowcast) {
 		if (pObj->mBatchPostDrawFunc) {
 			pObj->mBatchPostDrawFunc(pObj, ibat);
@@ -1575,4 +1578,41 @@ void ScnObj::shadow_cast() {
 	for (uint32_t i = 0; i < pMdl->mBatNum; ++i) {
 		obj_bat_draw(this, i, Draw::DRWMODE_SHADOW_CAST);
 	}
+}
+
+
+namespace Draw {
+
+static Ifc* s_ifcLst[16];
+
+int32_t register_ifc_impl(Ifc* pIfc) {
+	static int32_t s_idx = 0;
+	int idx = s_idx;
+	if (pIfc) {
+		idx = nxSys::atomic_inc(&s_idx) - 1;
+		int maxIfcs = (int)XD_ARY_LEN(s_ifcLst);
+		if (idx < maxIfcs) {
+			s_ifcLst[idx] = pIfc;
+		} else {
+			nxSys::atomic_dec(&s_idx);
+			idx = -1;
+		}
+	}
+	return idx;
+}
+
+Ifc* find_ifc_impl(const char* pName) {
+	Ifc* pIfc = nullptr;
+	if (pName) {
+		int n = register_ifc_impl(nullptr);
+		for (int i = 0; i < n; ++i) {
+			if (nxCore::str_eq(pName, s_ifcLst[i]->info.pName)) {
+				pIfc = s_ifcLst[i];
+				break;
+			}
+		}
+	}
+	return pIfc;
+}
+
 }

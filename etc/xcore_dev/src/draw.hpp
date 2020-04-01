@@ -292,6 +292,11 @@ namespace Draw {
 	};
 
 	struct Ifc {
+		struct Info {
+			const char* pName;
+			bool needOGLContext;
+		} info;
+
 		void (*init)(int shadowSize, cxResourceManager* pRsrcMgr);
 		void (*reset)();
 
@@ -306,8 +311,7 @@ namespace Draw {
 		void (*batch)(cxModelWork* pWk, const int ibat, const Mode mode, const Context* pCtx);
 	};
 
-	Ifc get_impl_ogl();
-	Ifc get_impl_ogl_x();
-	Ifc get_impl_vk();
+	int32_t register_ifc_impl(Ifc* pIfc);
+	Ifc* find_ifc_impl(const char* pName);
 
 } // Draw

@@ -22,6 +22,8 @@ void noop_batch(cxModelWork*, const int, const Mode, const Context*) {}
 Ifc get_impl_vk() {
 	Ifc ifc;
 	::memset(&ifc, 0, sizeof(ifc));
+	s_ifc.info.pName = "_vk_nop_";
+	s_ifc.info.needOGLContext = false;
 	ifc.init = noop_init;
 	ifc.reset = noop_reset;
 	ifc.get_screen_width = dummy_get_screen_width;
@@ -37,6 +39,8 @@ Ifc get_impl_vk() {
 
 
 #else // DRW_NO_VULKAN
+
+DRW_IMPL_BEGIN
 
 #if defined(OGLSYS_WINDOWS)
 #	define VK_USE_PLATFORM_WIN32_KHR
@@ -1378,23 +1382,27 @@ static void end() {
 	VKG.end();
 }
 
-namespace Draw {
+Draw::Ifc s_ifc;
 
-Ifc get_impl_vk() {
-	Ifc ifc;
-	::memset(&ifc, 0, sizeof(ifc));
-	ifc.init = init;
-	ifc.reset = reset;
-	ifc.get_screen_width = get_screen_width;
-	ifc.get_screen_height = get_screen_height;
-	ifc.get_shadow_bias_mtx = get_shadow_bias_mtx;
-	ifc.begin = begin;
-	ifc.end = end;
-	ifc.batch = batch;
-	return ifc;
-}
+struct DrwInit {
+	DrwInit() {
+		::memset(&s_ifc, 0, sizeof(s_ifc));
+		s_ifc.info.pName = "vk";
+		s_ifc.info.needOGLContext = false;
+		s_ifc.init = init;
+		s_ifc.reset = reset;
+		s_ifc.get_screen_width = get_screen_width;
+		s_ifc.get_screen_height = get_screen_height;
+		s_ifc.get_shadow_bias_mtx = get_shadow_bias_mtx;
+		s_ifc.begin = begin;
+		s_ifc.end = end;
+		s_ifc.batch = batch;
+		Draw::register_ifc_impl(&s_ifc);
+	}
+} s_drwInit;
 
-} // Draw
+DRW_IMPL_END
+
 
 #endif // DRW_NO_VULKAN
 
