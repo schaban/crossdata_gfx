@@ -786,6 +786,18 @@ void worker_stop(sxWorker* pWrk) {
 
 #endif // XD_TSK_NATIVE_*
 
+
+#if !defined(XD_MSC_ATOMIC)
+int32_t atomic_inc(int32_t* p) {
+	auto pA = (std::atomic<int32_t>*)p;
+	return pA->fetch_add(1) + 1;
+}
+int32_t atomic_dec(int32_t* p) {
+	auto pA = (std::atomic<int32_t>*)p;
+	return pA->fetch_sub(1) - 1;
+}
+#endif
+
 } // nxSys
 
 

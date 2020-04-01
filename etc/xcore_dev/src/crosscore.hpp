@@ -43,6 +43,11 @@
 
 #if defined(_MSC_VER)
 #	include <malloc.h>
+#	include <intrin.h>
+#	pragma intrinsic(_InterlockedIncrement)
+#	pragma intrinsic(_InterlockedDecrement)
+#	pragma intrinsic(_InterlockedExchangeAdd)
+#	define XD_MSC_ATOMIC
 #endif
 
 #define _USE_MATH_DEFINES
@@ -163,6 +168,14 @@ void worker_destroy(sxWorker* pWrk);
 void worker_exec(sxWorker* pWrk);
 void worker_wait(sxWorker* pWrk);
 void worker_stop(sxWorker* pWrk);
+
+#if defined(XD_MSC_ATOMIC)
+inline int32_t atomic_inc(int32_t* p) { return int32_t(_InterlockedIncrement((long*)p)); }
+inline int32_t atomic_dec(int32_t* p) { return int32_t(_InterlockedDecrement((long*)p)); }
+#else
+int32_t atomic_inc(int32_t* p);
+int32_t atomic_dec(int32_t* p);
+#endif
 
 } // nxSys
 
