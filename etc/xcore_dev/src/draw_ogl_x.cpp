@@ -385,7 +385,7 @@ static void end() {
 	OGLSys::swap();
 }
 
-Draw::Ifc s_ifc;
+static Draw::Ifc s_ifc;
 
 struct DrwInit {
 	DrwInit() {

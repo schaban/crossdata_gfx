@@ -1609,7 +1609,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	}
 }
 
-Draw::Ifc s_ifc;
+static Draw::Ifc s_ifc;
 
 struct DrwInit {
 	DrwInit() {

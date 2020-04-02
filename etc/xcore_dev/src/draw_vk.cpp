@@ -1346,7 +1346,7 @@ static void end() {
 	VKG.end();
 }
 
-Draw::Ifc s_ifc;
+static Draw::Ifc s_ifc;
 
 struct DrwInit {
 	DrwInit() {
