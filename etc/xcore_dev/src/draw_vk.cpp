@@ -2,43 +2,7 @@
 #include "oglsys.hpp"
 #include "draw.hpp"
 
-#if DRW_NO_VULKAN
-
-namespace Draw {
-
-static void noop_init(int, cxResourceManager*) {}
-static void noop_reset() {}
-static int dummy_get_screen_width() { return 0; }
-static int dummy_get_screen_height() { return 0; }
-
-static cxMtx dummy_get_shadow_bias_mtx() {
-	return nxMtx::identity();
-}
-
-void noop_begin(const cxColor&) {}
-void noop_end() {}
-void noop_batch(cxModelWork*, const int, const Mode, const Context*) {}
-
-Ifc get_impl_vk() {
-	Ifc ifc;
-	::memset(&ifc, 0, sizeof(ifc));
-	s_ifc.info.pName = "_vk_nop_";
-	s_ifc.info.needOGLContext = false;
-	ifc.init = noop_init;
-	ifc.reset = noop_reset;
-	ifc.get_screen_width = dummy_get_screen_width;
-	ifc.get_screen_height = dummy_get_screen_height;
-	ifc.get_shadow_bias_mtx = dummy_get_shadow_bias_mtx;
-	ifc.begin = noop_begin;
-	ifc.end = noop_end;
-	ifc.batch = noop_batch;
-	return ifc;
-}
-
-} // Draw
-
-
-#else // DRW_NO_VULKAN
+#if !DRW_NO_VULKAN
 
 DRW_IMPL_BEGIN
 
