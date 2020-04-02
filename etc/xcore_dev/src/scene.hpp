@@ -152,6 +152,7 @@ namespace Scene {
 
 void init(const ScnCfg& cfg);
 void reset();
+const char* get_draw_ifc_name();
 cxResourceManager* get_rsrc_mgr();
 const char* get_data_path();
 

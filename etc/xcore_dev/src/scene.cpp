@@ -140,6 +140,8 @@ void init(const ScnCfg& cfg) {
 		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
 	}
 
+	nxCore::dbg_msg("draw ifc: %s\n", get_draw_ifc_name());
+
 	s_frameCnt = 0;
 
 	s_scnInitFlg = true;
@@ -178,6 +180,10 @@ void reset() {
 	s_pRsrcMgr = nullptr;
 
 	s_scnInitFlg = false;
+}
+
+const char* get_draw_ifc_name() {
+	return s_pDraw ? s_pDraw->info.pName : "<none>";
 }
 
 cxResourceManager* get_rsrc_mgr() {
