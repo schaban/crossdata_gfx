@@ -536,7 +536,7 @@ public:
 		viewPos += viewTns;
 		cxVec viewUp = viewRot.apply(nxVec::get_axis(exAxis::PLUS_Y));
 		mView.set_frame(viewPos, viewTgt, viewUp);
-		mView.set_z_planes(0.1f, mdlMaxSize * 5.0f);
+		mView.set_range(0.1f, mdlMaxSize * 5.0f);
 		mView.update();
 
 		pfn->glUseProgram(mProgId);
