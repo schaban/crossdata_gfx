@@ -47,7 +47,6 @@ void ScnCfg::set_defaults() {
 	pDataDir = "../data";
 	shadowMapSize = 2048;
 #endif
-	pDrawIfcName = nullptr;
 	numWorkers = 4;
 	localHeapSize = 0;
 	useSpec = true;
@@ -114,7 +113,7 @@ namespace Scene {
 void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
 
-	s_pDraw = Draw::find_ifc_impl(cfg.pDrawIfcName);
+	s_pDraw = Draw::get_ifc_impl();
 
 	s_pRsrcMgr = cxResourceManager::create(cfg.pAppPath, cfg.pDataDir);
 	if (!s_pRsrcMgr) return;
@@ -1621,4 +1620,19 @@ Ifc* find_ifc_impl(const char* pName) {
 	return pIfc;
 }
 
+Ifc* get_ifc_impl() {
+	static const char* s_pDefDrawIfcName = "ogl";
+	const char* pIfcName = s_pDefDrawIfcName;
+	const char* pImplName = nxApp::get_opt("draw");
+	if (pImplName) {
+		pIfcName = pImplName;
+	}
+	Draw::Ifc* pIfc = Draw::find_ifc_impl(pIfcName);
+	if (!pIfc) {
+		pIfcName = s_pDefDrawIfcName;
+		pIfc = Draw::find_ifc_impl(pIfcName);
+	}
+	return pIfc;
 }
+
+} // Draw

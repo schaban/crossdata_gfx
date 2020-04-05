@@ -3,7 +3,6 @@ typedef cxResourceManager::Pkg Pkg;
 struct ScnCfg {
 	const char* pAppPath;
 	const char* pDataDir;
-	const char* pDrawIfcName;
 	int shadowMapSize;
 	int numWorkers;
 	size_t localHeapSize;

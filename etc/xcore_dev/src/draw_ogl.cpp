@@ -1630,4 +1630,3 @@ struct DrwInit {
 
 DRW_IMPL_END
 
-

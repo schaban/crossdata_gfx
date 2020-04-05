@@ -313,5 +313,6 @@ namespace Draw {
 
 	int32_t register_ifc_impl(Ifc* pIfc);
 	Ifc* find_ifc_impl(const char* pName);
+	Ifc* get_ifc_impl();
 
 } // Draw
