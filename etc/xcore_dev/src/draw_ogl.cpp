@@ -1531,21 +1531,26 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		pProg->set_inv_gamma(invGamma);
 	}
 
-	if (pProg->mSmpLink.Base >= 0 && s_pRsrcMgr) {
-		int tid = pMtl->mBaseTexId;
-		if (tid >= 0) {
-			sxModelData::TexInfo* pTexInfo = pMdl->get_tex_info(tid);
-			GLuint* pTexHandle = pTexInfo->get_wk<GLuint>();
-			if (*pTexHandle == 0) {
-				const char* pTexName = pMdl->get_tex_name(tid);
-				sxTextureData* pTex = s_pRsrcMgr->find_texture_for_model(pMdl, pTexName);
-				*pTexHandle = get_tex_handle(pTex);
-			}
-			if (*pTexHandle) {
-				glActiveTexture(GL_TEXTURE0 + Draw::TEXUNIT_Base);
-				glBindTexture(GL_TEXTURE_2D, *pTexHandle);
+	if (pProg->mSmpLink.Base >= 0) {
+		GLuint htex = 0;
+		if (s_pRsrcMgr) {
+			int tid = pMtl->mBaseTexId;
+			if (tid >= 0) {
+				sxModelData::TexInfo* pTexInfo = pMdl->get_tex_info(tid);
+				GLuint* pTexHandle = pTexInfo->get_wk<GLuint>();
+				if (*pTexHandle == 0) {
+					const char* pTexName = pMdl->get_tex_name(tid);
+					sxTextureData* pTex = s_pRsrcMgr->find_texture_for_model(pMdl, pTexName);
+					*pTexHandle = get_tex_handle(pTex);
+				}
+				htex = *pTexHandle;
 			}
 		}
+		if (!htex) {
+			htex = OGLSys::get_white_tex();
+		}
+		glActiveTexture(GL_TEXTURE0 + Draw::TEXUNIT_Base);
+		glBindTexture(GL_TEXTURE_2D, htex);
 	}
 
 	if (pProg->mSmpLink.Bump >= 0 && s_pRsrcMgr) {
