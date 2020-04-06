@@ -260,7 +260,10 @@ ScnObj* find_obj(const char* pName);
 void del_obj(ScnObj* pObj);
 void del_all_objs();
 int add_all_pkg_objs(Pkg* pPkg, const char* pNamePrefix = nullptr);
+int add_all_pkg_objs(const char* pPkgName, const char* pNamePrefix = nullptr);
 int get_num_objs();
+void set_obj_exec_func(const char* pName, ScnObj::ExecFunc exec);
+void set_obj_del_func(const char* pName, ScnObj::DelFunc del);
 cxVec get_obj_world_pos(const char* pName);
 cxVec get_obj_center_pos(const char* pName);
 

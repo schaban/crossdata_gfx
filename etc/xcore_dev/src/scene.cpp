@@ -926,8 +926,26 @@ int add_all_pkg_objs(Pkg* pPkg, const char* pNamePrefix) {
 	return nobj;
 }
 
+int add_all_pkg_objs(const char* pPkgName, const char* pNamePrefix) {
+	return add_all_pkg_objs(Scene::load_pkg(pPkgName), pNamePrefix);
+}
+
 int get_num_objs() {
 	return s_pObjList ? s_pObjList->get_count() : 0;
+}
+
+void set_obj_exec_func(const char* pName, ScnObj::ExecFunc exec) {
+	ScnObj* pObj = find_obj(pName);
+	if (pObj) {
+		pObj->mExecFunc = exec;
+	}
+}
+
+void set_obj_del_func(const char* pName, ScnObj::DelFunc del) {
+	ScnObj* pObj = find_obj(pName);
+	if (pObj) {
+		pObj->mDelFunc = del;
+	}
 }
 
 cxVec get_obj_world_pos(const char* pName) {
