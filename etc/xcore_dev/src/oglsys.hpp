@@ -252,6 +252,9 @@ namespace OGLSys {
 
 	void draw_tris_base_vtx(const int ntris, const GLenum idxType, const intptr_t ibOrg, const int baseVtx);
 
+	GLuint get_black_tex();
+	GLuint get_white_tex();
+
 	bool ext_ck_bindless_texs();
 	bool ext_ck_derivatives();
 	bool ext_ck_vtx_half();

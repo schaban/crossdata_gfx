@@ -154,6 +154,11 @@ static struct OGLSysGlb {
 	GLint mDefFBO;
 	GLint mMaxTexSize;
 
+	struct DefTexs {
+		GLuint black;
+		GLuint white;
+	} mDefTexs;
+
 	struct Exts {
 #if OGLSYS_ES
 		PFNGLGENQUERIESEXTPROC pfnGenQueries;
@@ -1201,6 +1206,14 @@ void OGLSysGlb::reset_ogl() {
 	if (mWithoutCtx) {
 		return;
 	}
+	if (mDefTexs.black) {
+		glDeleteTextures(1, &mDefTexs.black);
+		mDefTexs.black = 0;
+	}
+	if (mDefTexs.white) {
+		glDeleteTextures(1, &mDefTexs.white);
+		mDefTexs.white = 0;
+	}
 #if OGLSYS_ES
 	mEGL.reset();
 #elif defined(OGLSYS_WINDOWS)
@@ -1216,30 +1229,34 @@ void OGLSysGlb::reset_ogl() {
 #endif
 }
 
+static bool str_eq(const char* pStr1, const char* pStr2) {
+	return ::strcmp(pStr1, pStr2) == 0;
+}
+
 void OGLSysGlb::handle_ogl_ext(const GLubyte* pStr, const int lenStr) {
 	char buf[128];
 	if (lenStr < sizeof(buf) - 1) {
-		memset(buf, 0, sizeof(buf));
-		memcpy(buf, pStr, lenStr);
-		if (strcmp(buf, "GL_KHR_texture_compression_astc_ldr") == 0) {
+		::memset(buf, 0, sizeof(buf));
+		::memcpy(buf, pStr, lenStr);
+		if (str_eq(buf, "GL_KHR_texture_compression_astc_ldr")) {
 			mExts.ASTC_LDR = true;
-		} else if (strcmp(buf, "GL_EXT_texture_compression_dxt1") == 0) {
+		} else if (str_eq(buf, "GL_EXT_texture_compression_dxt1")) {
 			mExts.DXT1 = true;
-		} else if (strcmp(buf, "GL_EXT_texture_compression_s3tc") == 0) {
+		} else if (str_eq(buf, "GL_EXT_texture_compression_s3tc")) {
 			mExts.S3TC = true;
-		} else if (strcmp(buf, "GL_EXT_disjoint_timer_query") == 0) {
+		} else if (str_eq(buf, "GL_EXT_disjoint_timer_query")) {
 			mExts.disjointTimer = true;
-		} else if (strcmp(buf, "GL_ARB_bindless_texture") == 0) {
+		} else if (str_eq(buf, "GL_ARB_bindless_texture")) {
 			mExts.bindlessTex = true;
-		} else if (strcmp(buf, "GL_OES_standard_derivatives") == 0) {
+		} else if (str_eq(buf, "GL_OES_standard_derivatives")) {
 			mExts.derivs = true;
-		} else if (strcmp(buf, "GL_OES_vertex_half_float") == 0) {
+		} else if (str_eq(buf, "GL_OES_vertex_half_float")) {
 			mExts.vtxHalf = true;
-		} else if (strcmp(buf, "GL_OES_element_index_uint") == 0) {
+		} else if (str_eq(buf, "GL_OES_element_index_uint")) {
 			mExts.idxUInt = true;
-		} else if (strcmp(buf, "GL_OES_get_program_binary") == 0) {
+		} else if (str_eq(buf, "GL_OES_get_program_binary")) {
 			mExts.progBin = true;
-		} else if (strcmp(buf, "GL_EXT_discard_framebuffer") == 0) {
+		} else if (str_eq(buf, "GL_EXT_discard_framebuffer")) {
 			mExts.discardFB = true;
 		}
 	}
@@ -1515,15 +1532,31 @@ void OGLSysParamsBuf::bind() {
 #endif
 }
 
+static void create_const_tex(GLuint* pHandle, uint32_t rgba) {
+	if (!pHandle) return;
+	if (*pHandle) return;
+	glGenTextures(1, pHandle);
+	if (*pHandle) {
+		glBindTexture(GL_TEXTURE_2D, *pHandle);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &rgba);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_POINT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_POINT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+}
+
 namespace OGLSys {
 
 	bool s_initFlg = false;
 
 	void init(const OGLSysCfg& cfg) {
 		if (s_initFlg) return;
-		memset(&GLG, 0, sizeof(GLG));
+		::memset(&GLG, 0, sizeof(GLG));
 #ifdef OGLSYS_WINDOWS
-		GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)wnd_proc, &GLG.mhInstance);
+		::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)wnd_proc, &GLG.mhInstance);
 #endif
 		GLG.mIfc = cfg.ifc;
 		GLG.mWndOrgX = cfg.x;
@@ -2171,6 +2204,21 @@ namespace OGLSys {
 			glDrawElementsBaseVertex(GL_TRIANGLES, ntris * 3, idxType, (const void*)ibOrg, baseVtx);
 		}
 #endif
+	}
+
+
+	GLuint get_black_tex() {
+		if (s_initFlg && !GLG.mWithoutCtx && GLG.valid_ogl()) {
+			create_const_tex(&GLG.mDefTexs.black, 0);
+		}
+		return GLG.mDefTexs.black;
+	}
+
+	GLuint get_white_tex() {
+		if (s_initFlg && !GLG.mWithoutCtx && GLG.valid_ogl()) {
+			create_const_tex(&GLG.mDefTexs.white, 0xFFFFFFFFU);
+		}
+		return GLG.mDefTexs.white;
 	}
 
 
