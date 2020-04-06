@@ -119,7 +119,7 @@ namespace Draw {
 			}
 
 			void reset() {
-				dir.set(0.0f, 0.0f, 1.0f);
+				dir.set(0.0f, 0.0f, -1.0f);
 				clr.fill(1.0f);
 				shadowing = 1.0f;
 				enabled = true;
