@@ -1509,6 +1509,16 @@ cxVec ScnObj::get_world_pos() const {
 	return get_world_mtx().get_translation();
 }
 
+float ScnObj::get_world_deg_x() const {
+	return get_world_mtx().get_rot_degrees().x;
+}
+
+void ScnObj::add_world_deg_x(const float xadd) {
+	cxVec r = get_world_quat().get_rot_degrees();
+	r.x += xadd;
+	set_world_quat(nxQuat::from_degrees(r.x, r.y, r.z));
+}
+
 float ScnObj::get_world_deg_y() const {
 	return get_world_mtx().get_rot_degrees().y;
 }
@@ -1516,6 +1526,16 @@ float ScnObj::get_world_deg_y() const {
 void ScnObj::add_world_deg_y(const float yadd) {
 	cxVec r = get_world_quat().get_rot_degrees();
 	r.y += yadd;
+	set_world_quat(nxQuat::from_degrees(r.x, r.y, r.z));
+}
+
+float ScnObj::get_world_deg_z() const {
+	return get_world_mtx().get_rot_degrees().z;
+}
+
+void ScnObj::add_world_deg_z(const float zadd) {
+	cxVec r = get_world_quat().get_rot_degrees();
+	r.z += zadd;
 	set_world_quat(nxQuat::from_degrees(r.x, r.y, r.z));
 }
 

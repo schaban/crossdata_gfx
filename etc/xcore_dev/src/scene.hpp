@@ -123,8 +123,12 @@ public:
 	void set_world_mtx(const cxMtx& mtx);
 	cxMtx get_world_mtx() const;
 	cxVec get_world_pos() const;
+	float get_world_deg_x() const;
+	void add_world_deg_x(const float xadd);
 	float get_world_deg_y() const;
 	void add_world_deg_y(const float yadd);
+	float get_world_deg_z() const;
+	void add_world_deg_z(const float zadd);
 	cxQuat get_world_quat() const;
 	cxAABB get_world_bbox() const;
 	cxVec get_center_pos() const;
