@@ -1546,7 +1546,7 @@ void ScnObj::xform_world_deg_xyz(const float dx, const float dy, const float dz,
 void ScnObj::xform_world_quat(const cxQuat& q) {
 	cxQuat qold = get_world_quat();
 	cxQuat qnew = q * qold;
-	qnew = nxQuat::slerp(qold, qnew, 1.0f);
+	qnew.normalize();
 	set_world_quat(qnew);
 }
 
