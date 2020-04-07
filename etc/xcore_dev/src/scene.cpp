@@ -1539,6 +1539,17 @@ void ScnObj::add_world_deg_z(const float zadd) {
 	set_world_quat(nxQuat::from_degrees(r.x, r.y, r.z));
 }
 
+void ScnObj::xform_world_deg_xyz(const float dx, const float dy, const float dz, exRotOrd rord) {
+	set_world_mtx(get_world_mtx() * nxMtx::mk_rot_degrees(dx, dy, dz, rord));
+}
+
+void ScnObj::xform_world_quat(const cxQuat& q) {
+	cxQuat qold = get_world_quat();
+	cxQuat qnew = q * qold;
+	qnew = nxQuat::slerp(qold, qnew, 1.0f);
+	set_world_quat(qnew);
+}
+
 cxQuat ScnObj::get_world_quat() const {
 	return get_world_mtx().to_quat();
 }

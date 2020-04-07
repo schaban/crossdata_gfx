@@ -129,6 +129,8 @@ public:
 	void add_world_deg_y(const float yadd);
 	float get_world_deg_z() const;
 	void add_world_deg_z(const float zadd);
+	void xform_world_deg_xyz(const float dx, const float dy, const float dz, exRotOrd rord = exRotOrd::XYZ);
+	void xform_world_quat(const cxQuat& q);
 	cxQuat get_world_quat() const;
 	cxAABB get_world_bbox() const;
 	cxVec get_center_pos() const;
