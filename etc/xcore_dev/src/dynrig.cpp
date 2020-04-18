@@ -264,6 +264,32 @@ void calc_forearm_twist_r(ScnObj* pObj, const float wristInfluence) {
 	calc_forearm_twist(pObj, "j_Wrist_R", "s_Forearm_R", wristInfluence);
 }
 
+void calc_elbow_bend(ScnObj* pObj, const int elbowJntId, const int elbowSupId, const float influence) {
+	if (influence <= 0.0f) return;
+	if (!pObj) return;
+	if (!pObj->ck_skel_id(elbowJntId)) return;
+	if (!pObj->ck_skel_id(elbowSupId)) return;
+	float t = nxCalc::saturate(influence);
+	cxQuat jntQ = pObj->get_skel_local_quat(elbowJntId);
+	cxQuat supQ = pObj->get_skel_local_quat(elbowSupId);
+	supQ = nxQuat::slerp(jntQ.get_closest_y(), supQ, t);
+	pObj->set_skel_local_quat(elbowSupId, supQ);
+}
+
+void calc_elbow_bend(ScnObj* pObj, const char* pElbowJntName, const char* pElbowSupName, const float influence) {
+	if (!pObj) return;
+	if (influence <= 0.0f) return;
+	calc_elbow_bend(pObj, pObj->find_skel_node_id(pElbowJntName), pObj->find_skel_node_id(pElbowSupName), influence);
+}
+
+void calc_elbow_bend_l(ScnObj* pObj, const float influence) {
+	calc_elbow_bend(pObj, "j_Elbow_L", "s_Elbow_L", influence);
+}
+
+void calc_elbow_bend_r(ScnObj* pObj, const float influence) {
+	calc_elbow_bend(pObj, "j_Elbow_R", "s_Elbow_R", influence);
+}
+
 void reset_shoulder_rot(ScnObj* pObj, const int shoulderId) {
 	if (!pObj) return;
 	pObj->reset_skel_local_quat(shoulderId);

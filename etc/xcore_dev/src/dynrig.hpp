@@ -50,6 +50,11 @@ void calc_forearm_twist(ScnObj* pObj, const char* pWristName, const char* pForea
 void calc_forearm_twist_l(ScnObj* pObj, const float wristInfluence = 0.5f);
 void calc_forearm_twist_r(ScnObj* pObj, const float wristInfluence = 0.5f);
 
+void calc_elbow_bend(ScnObj* pObj, const int elbowJntId, const int elbowSupId, const float influence = 0.5f);
+void calc_elbow_bend(ScnObj* pObj, const char* pElbowJntName, const char* pElbowSupName, const float influence = 0.5f);
+void calc_elbow_bend_l(ScnObj* pObj, const float influence = 0.5f);
+void calc_elbow_bend_r(ScnObj* pObj, const float influence = 0.5f);
+
 void reset_shoulder_rot(ScnObj* pObj, const int shoulderId);
 void reset_shoulder_rot(ScnObj* pObj, const char* pName);
 void reset_shoulder_rot_l(ScnObj* pObj);
