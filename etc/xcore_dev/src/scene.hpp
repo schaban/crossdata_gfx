@@ -20,6 +20,13 @@ public:
 	typedef void (*DrawCallbackFunc)(ScnObj*);
 	typedef void (*BatchCallbackFunc)(ScnObj*, const int);
 
+	struct InstInfo {
+		float x, y, z, dx, dy, dz;
+		int variation;
+		cxQuat get_quat() const { return nxQuat::from_degrees(dx, dy, dz); }
+		cxVec get_pos() const { return cxVec(x, y, z); }
+	};
+
 private:
 	ScnObj() {}
 
@@ -267,6 +274,7 @@ void del_obj(ScnObj* pObj);
 void del_all_objs();
 int add_all_pkg_objs(Pkg* pPkg, const char* pNamePrefix = nullptr);
 int add_all_pkg_objs(const char* pPkgName, const char* pNamePrefix = nullptr);
+void add_obj_instances(const char* pPkgName, const ScnObj::InstInfo* pInstInfos, const int num, const char* pName = nullptr);
 int get_num_objs();
 void set_obj_exec_func(const char* pName, ScnObj::ExecFunc exec);
 void set_obj_del_func(const char* pName, ScnObj::DelFunc del);

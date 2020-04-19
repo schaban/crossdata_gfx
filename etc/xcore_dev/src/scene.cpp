@@ -930,6 +930,27 @@ int add_all_pkg_objs(const char* pPkgName, const char* pNamePrefix) {
 	return add_all_pkg_objs(Scene::load_pkg(pPkgName), pNamePrefix);
 }
 
+void add_obj_instances(const char* pPkgName, const ScnObj::InstInfo* pInstInfos, const int num, const char* pName) {
+	if (num <= 0) return;
+	if (!pInstInfos) return;
+	if (!pPkgName) return;
+	Pkg* pPkg = find_pkg(pPkgName);
+	if (!pPkg) {
+		pPkg = load_pkg(pPkgName);
+	}
+	if (!pPkg) return;
+	char objName[128];
+	for (int i = 0; i < num; ++i) {
+		XD_SPRINTF(XD_SPRINTF_BUF(objName, sizeof(objName)), "%s%d", pName ? pName : pPkgName, i);
+		ScnObj* pObj = Scene::add_obj(pPkg, objName);
+		if (pObj) {
+			const ScnObj::InstInfo* pInfo = &pInstInfos[i];
+			pObj->set_world_quat_pos(pInfo->get_quat(), pInfo->get_pos());
+			pObj->set_model_variation(pInfo->variation);
+		}
+	}
+}
+
 int get_num_objs() {
 	return s_pObjList ? s_pObjList->get_count() : 0;
 }
