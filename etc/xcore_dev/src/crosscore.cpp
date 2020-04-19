@@ -11818,6 +11818,11 @@ void cxModelWork::update_bounds() {
 			mBoundsValid = true;
 		}
 	} else if (mpWorldXform) {
+		if (mpData) {
+			mWorldBBox = mpData->mBBox;
+		} else {
+			mWorldBBox.set(cxVec(0.0f));
+		}
 		cxMtx wm = nxMtx::mtx_from_xmtx(*mpWorldXform);
 		mWorldBBox.transform(wm);
 		if (mpBatBBoxes) {
