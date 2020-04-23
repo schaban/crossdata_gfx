@@ -1504,7 +1504,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		float alphaLim = isShadowCast ? pMtl->mShadowAlphaLim : pMtl->mAlphaLim;
 		if (isDiscard) {
 			if (alphaLim <= 0.0f) {
-				alphaLim = 0.5f;
+				alphaLim = pMtl->mShadowAlphaLim;
 			}
 		}
 		xt_float3 alphaCtrl;
