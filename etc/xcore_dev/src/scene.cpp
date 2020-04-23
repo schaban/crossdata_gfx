@@ -1628,12 +1628,17 @@ void ScnObj::draw_semi(const bool discard) {
 	if (!pWk) return;
 	sxModelData* pMdl = pWk->mpData;
 	if (!pMdl) return;
-	for (uint32_t i = 0; i < pMdl->mBatNum; ++i) {
-		bool flg = false;
-		const sxModelData::Material* pMtl = pMdl->get_batch_material(i);
-		if (pMtl) flg = pMtl->is_alpha();
-		if (flg) {
-			obj_bat_draw(this, i, discard ? Draw::DRWMODE_DISCARD : Draw::DRWMODE_STD);
+	for (int pass = 0; pass < 2; ++pass) {
+		for (uint32_t i = 0; i < pMdl->mBatNum; ++i) {
+			bool flg = false;
+			const sxModelData::Material* pMtl = pMdl->get_batch_material(i);
+			if (pMtl) flg = pMtl->is_alpha();
+			if (flg) {
+				flg &= bool(pMtl->mFlags.forceBlend) ^ (pass == 0);
+			}
+			if (flg) {
+				obj_bat_draw(this, i, discard ? Draw::DRWMODE_DISCARD : Draw::DRWMODE_STD);
+			}
 		}
 	}
 }
