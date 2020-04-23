@@ -83,6 +83,11 @@ class MdlMaterial:
 					if prm:
 						self.alphaLim = prm.evalAsFloat()
 						break
+				for prmName in ["dmd_sdwalphalim"]:
+					prm = self.node.parm(prmName)
+					if prm:
+						self.shadowAlphaLim = prm.evalAsFloat()
+						break
 				for prmName in ["dmd_bmsalpha"]:
 					prm = self.node.parm(prmName)
 					if prm:
