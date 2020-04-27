@@ -298,6 +298,7 @@ static struct OGLSysGlb {
 		BOOL (APIENTRY *wglDeleteContext)(HGLRC);
 		BOOL (APIENTRY *wglMakeCurrent)(HDC, HGLRC);
 		HGLRC (WINAPI *wglCreateContextAttribsARB)(HDC, HGLRC, const int*);
+		BOOL (WINAPI *wglChoosePixelFormatARB)(HDC, const int*, const FLOAT*, UINT, int*, UINT*);
 		const char* (APIENTRY *wglGetExtensionsStringEXT)();
 		BOOL (APIENTRY *wglSwapIntervalEXT)(int);
 		int (APIENTRY *wglGetSwapIntervalEXT)();
@@ -377,6 +378,32 @@ static struct OGLSysGlb {
 		}
 
 		bool valid_ctx() const { return (!!hCtx); }
+
+		int get_msaa_pixfmt(const HDC hDC, const int nsmp) {
+			int ifmt = 0;
+			UINT nfmt = 0;
+			if (hDC && wglChoosePixelFormatARB) {
+				int attrs[] = {
+					WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+					WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+					WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+					WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+					WGL_COLOR_BITS_ARB, 32,
+					WGL_DEPTH_BITS_ARB, 24,
+					WGL_STENCIL_BITS_ARB, 8,
+					WGL_SAMPLE_BUFFERS_ARB, 1,
+					WGL_SAMPLES_ARB, nsmp,
+					0
+				};
+				int ifmt = 0;
+				UINT nfmt = 0;
+				BOOL fmtRes = wglChoosePixelFormatARB(hDC, attrs, NULL, 1, &ifmt, &nfmt);
+				if (!fmtRes) {
+					ifmt = 0;
+				}
+			}
+			return ifmt;
+		}
 
 		void set_swap_interval(int i) {
 			if (wglSwapIntervalEXT) {
@@ -1038,6 +1065,7 @@ void OGLSysGlb::init_ogl() {
 	if (!mWGL.valid_ctx()) return;
 
 	GET_WGL_FN(wglCreateContextAttribsARB);
+	GET_WGL_FN(wglChoosePixelFormatARB);
 
 	GET_WGL_FN(wglGetExtensionsStringEXT);
 	GET_WGL_FN(wglSwapIntervalEXT);
