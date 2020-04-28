@@ -2099,11 +2099,13 @@ namespace OGLSys {
 
 	void enable_msaa(const bool flg) {
 		if (!GLG.valid_ogl()) return;
+#if !OGLSYS_ES
 		if (flg) {
 			glEnable(GL_MULTISAMPLE);
 		} else {
 			glDisable(GL_MULTISAMPLE);
 		}
+#endif
 	}
 
 	GLuint create_timestamp() {
