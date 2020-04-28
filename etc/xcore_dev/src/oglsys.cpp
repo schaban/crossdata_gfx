@@ -146,6 +146,7 @@ static struct OGLSysGlb {
 	int mWndH;
 	int mWidth;
 	int mHeight;
+	int mNumMSAASamples;
 
 	bool mReduceRes;
 	bool mHideSysIcons;
@@ -306,7 +307,7 @@ static struct OGLSysGlb {
 		HGLRC hExtCtx;
 		bool ok;
 
-		void init_ctx(HDC hDC) {
+		void init_ctx(const HDC hDC, const int pixFmt = 0) {
 			if (hDC && wglCreateContext && wglDeleteContext && wglMakeCurrent) {
 				PIXELFORMATDESCRIPTOR fmt;
 				ZeroMemory(&fmt, sizeof(fmt));
@@ -317,9 +318,12 @@ static struct OGLSysGlb {
 				fmt.cColorBits = 32;
 				fmt.cDepthBits = 24;
 				fmt.cStencilBits = 8;
-				int ifmt = ChoosePixelFormat(hDC, &fmt);
+				int ifmt = pixFmt ? pixFmt : ChoosePixelFormat(hDC, &fmt);
 				if (0 == ifmt) {
 					return;
+				}
+				if (pixFmt) {
+					DescribePixelFormat(hDC, ifmt, sizeof(fmt), &fmt);
 				}
 				if (!SetPixelFormat(hDC, ifmt, &fmt)) {
 					return;
@@ -395,8 +399,6 @@ static struct OGLSysGlb {
 					WGL_SAMPLES_ARB, nsmp,
 					0
 				};
-				int ifmt = 0;
-				UINT nfmt = 0;
 				BOOL fmtRes = wglChoosePixelFormatARB(hDC, attrs, NULL, 1, &ifmt, &nfmt);
 				if (!fmtRes) {
 					ifmt = 0;
@@ -735,6 +737,8 @@ static bool wnd_kbd_msg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	return res;
 }
 
+static bool s_wndQuitOnDestroy = true;
+
 static LRESULT CALLBACK wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	LRESULT res = 0;
 	bool mouseFlg = wnd_mouse_msg(hWnd, msg, wParam, lParam);
@@ -742,7 +746,11 @@ static LRESULT CALLBACK wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 	if (!mouseFlg && !kbdFlg) {
 		switch (msg) {
 			case WM_DESTROY:
-				PostQuitMessage(0);
+				if (s_wndQuitOnDestroy) {
+					PostQuitMessage(0);
+				} else {
+					res = DefWindowProc(hWnd, msg, wParam, lParam);
+				}
 				break;
 			case WM_SYSCOMMAND:
 				if (!(wParam == SC_SCREENSAVE || wParam == SC_MONITORPOWER)) {
@@ -931,6 +939,10 @@ void OGLSysGlb::reset_wnd() {
 		ReleaseDC(mhWnd, mhDC);
 		mhDC = NULL;
 	}
+	if (mhWnd) {
+		DestroyWindow(mhWnd);
+		mhWnd = NULL;
+	}
 	UnregisterClass(s_oglClassName, mhInstance);
 #elif defined(OGLSYS_X11)
 	if (mpXDisplay) {
@@ -1070,6 +1082,20 @@ void OGLSysGlb::init_ogl() {
 	GET_WGL_FN(wglGetExtensionsStringEXT);
 	GET_WGL_FN(wglSwapIntervalEXT);
 	GET_WGL_FN(wglGetSwapIntervalEXT);
+
+	if (mNumMSAASamples > 0) {
+		int msaaFmt = mWGL.get_msaa_pixfmt(mhDC, mNumMSAASamples);
+		if (msaaFmt) {
+			mWGL.wglMakeCurrent(mhDC, nullptr);
+			mWGL.reset_ctx();
+			s_wndQuitOnDestroy = false;
+			reset_wnd();
+			s_wndQuitOnDestroy = true;
+			init_wnd();
+			mWGL.init_ctx(mhDC, msaaFmt);
+			if (!mWGL.valid_ctx()) return;
+		}
+	}
 
 	mWGL.init_ext_ctx(mhDC);
 
@@ -1227,6 +1253,10 @@ void OGLSysGlb::init_ogl() {
 		glViewport(0, 0, mWidth, mHeight);
 		glScissor(0, 0, mWidth, mHeight);
 	}
+#endif
+
+#if !OGLSYS_ES
+	glDisable(GL_MULTISAMPLE);
 #endif
 }
 
@@ -1591,6 +1621,7 @@ namespace OGLSys {
 		GLG.mWndOrgY = cfg.y;
 		GLG.mWidth = cfg.width;
 		GLG.mHeight = cfg.height;
+		GLG.mNumMSAASamples = cfg.msaa;
 		GLG.mReduceRes = cfg.reduceRes;
 		GLG.mHideSysIcons = cfg.hideSysIcons;
 		GLG.mWithoutCtx = cfg.withoutCtx;
@@ -1624,7 +1655,7 @@ namespace OGLSys {
 #endif
 	}
 
-	void loop(void(*pLoop)()) {
+	void loop(void (*pLoop)()) {
 #if defined(OGLSYS_WINDOWS)
 		MSG msg;
 		bool done = false;
@@ -2063,6 +2094,15 @@ namespace OGLSys {
 	void free_prog_bin(void* pBin) {
 		if (pBin) {
 			GLG.mem_free(pBin);
+		}
+	}
+
+	void enable_msaa(const bool flg) {
+		if (!GLG.valid_ogl()) return;
+		if (flg) {
+			glEnable(GL_MULTISAMPLE);
+		} else {
+			glDisable(GL_MULTISAMPLE);
 		}
 	}
 

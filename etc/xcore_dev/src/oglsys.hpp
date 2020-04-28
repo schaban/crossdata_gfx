@@ -125,6 +125,7 @@ struct OGLSysCfg {
 	int y;
 	int width;
 	int height;
+	int msaa;
 	OGLSysIfc ifc;
 	bool reduceRes;
 	bool hideSysIcons;
@@ -218,7 +219,7 @@ namespace OGLSys {
 	void reset();
 	void stop();
 	void swap();
-	void loop(void(*pLoop)());
+	void loop(void (*pLoop)());
 	bool valid();
 
 	void* get_window();
@@ -239,6 +240,8 @@ namespace OGLSys {
 	GLuint link_draw_prog(GLuint sidVert, GLuint sidFrag);
 	void* get_prog_bin(GLuint pid, size_t* pSize, GLenum* pFmt);
 	void free_prog_bin(void* pBin);
+
+	void enable_msaa(const bool flg);
 
 	GLuint create_timestamp();
 	void delete_timestamp(GLuint handle);

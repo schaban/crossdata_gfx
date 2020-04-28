@@ -1363,8 +1363,10 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 
 	if (isShadowCast) {
 		set_shadow_framebuf();
+		OGLSys::enable_msaa(false);
 	} else {
 		set_def_framebuf();
+		OGLSys::enable_msaa(true);
 	}
 
 	prepare_model(pMdl);
