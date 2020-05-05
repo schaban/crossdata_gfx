@@ -4840,6 +4840,7 @@ public:
 	float mFrame;
 	float mBlendDuration;
 	float mBlendCount;
+	float mUniformScale;
 	int mRootId;
 	int mMoveId;
 	int mCenterId;

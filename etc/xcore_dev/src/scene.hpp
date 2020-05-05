@@ -96,6 +96,7 @@ public:
 	void exec_motion(const sxMotionData* pMot, const float frameAdd);
 	void init_motion_blend(const int duration);
 	void exec_motion_blend();
+	void set_motion_uniform_scl(const float scl);
 	void update_world();
 	void update_skin();
 	void update_bounds();

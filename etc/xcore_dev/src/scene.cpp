@@ -1228,6 +1228,12 @@ void ScnObj::exec_motion_blend() {
 	}
 }
 
+void ScnObj::set_motion_uniform_scl(const float scl) {
+	if (mpMotWk) {
+		mpMotWk->mUniformScale = scl;
+	}
+}
+
 void ScnObj::update_world() {
 	if (mpMotWk) {
 		mpMotWk->calc_world();

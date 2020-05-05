@@ -11558,6 +11558,11 @@ void cxMotionWork::calc_world() {
 			mpXformsW[i] = nxMtx::xmtx_concat(mpXformsL[i], mpXformsW[iparent]);
 		} else {
 			mpXformsW[i] = mpXformsL[i];
+			if (mUniformScale != 1.0f) {
+				cxMtx sm;
+				sm.mk_scl(mUniformScale);
+				mpXformsW[i] = nxMtx::xmtx_from_mtx(nxMtx::mtx_from_xmtx(mpXformsW[i]) * sm);
+			}
 		}
 	}
 }
@@ -11716,6 +11721,7 @@ cxMotionWork* cxMotionWork::create(sxModelData* pMdlData) {
 			for (int i = 0; i < nskel; ++i) {
 				pWk->mpBlendXformsL[i] = pWk->mpXformsL[i];
 			}
+			pWk->mUniformScale = 1.0f;
 			pWk->mMoveRelPos.zero();
 			pWk->mMoveRelQuat.identity();
 			pWk->calc_world();
