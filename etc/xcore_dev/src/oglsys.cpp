@@ -56,6 +56,8 @@
 #		define GLX_RGBA 4
 #		define GLX_DOUBLEBUFFER	5
 #		define GLX_DEPTH_SIZE 12
+#		define GLX_SAMPLE_BUFFERS 0x186a0
+#		define GLX_SAMPLES 0x186a1
 #		define GET_GL_FN(_name) *(void**)&_name = mGLX.get_func_ptr(#_name)
 #		define OGL_FN(_type, _name) PFNGL##_type##PROC gl##_name;
 #		undef OGL_FN_CORE
@@ -1136,7 +1138,9 @@ void OGLSysGlb::init_ogl() {
 #elif defined(OGLSYS_X11)
 	if (mpXDisplay) {
 		mGLX.init();
-		GLint viAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
+		GLint viAttrs[] = {
+			GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None
+		};
 		XVisualInfo* pVI = mGLX.mpfnGLXChooseVisual(mpXDisplay, 0, viAttrs);
 		mGLX.mCtx = mGLX.mpfnGLXCreateContext(mpXDisplay, pVI, NULL, GL_TRUE);
 		if (mGLX.mCtx) {
