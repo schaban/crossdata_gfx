@@ -985,6 +985,21 @@ cxVec get_obj_center_pos(const char* pName) {
 	return cxVec(0.0f);
 }
 
+float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop, const float offsBtm) {
+	float h = pos.y;
+	if (pCol) {
+		cxVec posTop = pos;
+		cxVec posBtm = pos;
+		posTop.y += offsTop;
+		posBtm.y -= offsBtm;
+		sxCollisionData::NearestHit gndHit = pCol->nearest_hit(cxLineSeg(posTop, posBtm));
+		if (gndHit.count > 0) {
+			h = gndHit.pos.y;
+		}
+	}
+	return h;
+}
+
 static void job_queue_alloc(int njob) {
 	if (s_pJobQue) {
 		if (njob > nxTask::queue_get_max_job_num(s_pJobQue)) {
@@ -1143,6 +1158,10 @@ void ScnObj::set_base_color_scl(const float r, const float g, const float b) {
 	if (pParam) {
 		pParam->baseColorScl.set(r, g, b);
 	}
+}
+
+void ScnObj::set_base_color_scl(const float s) {
+	set_base_color_scl(s, s, s);
 }
 
 void ScnObj::set_shadow_offs_bias(const float bias) {

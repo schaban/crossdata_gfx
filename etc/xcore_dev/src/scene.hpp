@@ -65,6 +65,7 @@ public:
 	const char* get_batch_mtl_name(const int ibat) const;
 
 	void set_base_color_scl(const float r, const float g, const float b);
+	void set_base_color_scl(const float s);
 	void set_shadow_offs_bias(const float bias);
 	void set_shadow_weight_bias(const float bias);
 
@@ -281,6 +282,8 @@ void set_obj_exec_func(const char* pName, ScnObj::ExecFunc exec);
 void set_obj_del_func(const char* pName, ScnObj::DelFunc del);
 cxVec get_obj_world_pos(const char* pName);
 cxVec get_obj_center_pos(const char* pName);
+
+float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop = 1.8f, const float offsBtm = 0.5f);
 
 void exec();
 void visibility();
