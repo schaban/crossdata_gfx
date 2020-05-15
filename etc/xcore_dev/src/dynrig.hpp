@@ -65,6 +65,16 @@ void calc_shoulder_axis_rot(ScnObj* pObj, const char* pShoulderJntName, const ch
 void calc_shoulder_axis_rot_l(ScnObj* pObj, const float shoulderJntInfluence, const int axisIdx);
 void calc_shoulder_axis_rot_r(ScnObj* pObj, const float shoulderJntInfluence, const int axisIdx);
 
+void calc_hip_adj(ScnObj* pObj, const int hipJntId, const int hipAdjId, const float influence);
+void calc_hip_adj(ScnObj* pObj, const char* pHipJntName, const char* pHipAdjName, const float influence);
+void calc_hip_adj_l(ScnObj* pObj, const float influence);
+void calc_hip_adj_r(ScnObj* pObj, const float influence);
+
+void calc_knee_adj(ScnObj* pObj, const int kneeJntId, const int kneeAdjId, const float influence);
+void calc_knee_adj(ScnObj* pObj, const char* pKneeJntName, const char* pKneeAdjName, const float influence);
+void calc_knee_adj_l(ScnObj* pObj, const float influence);
+void calc_knee_adj_r(ScnObj* pObj, const float influence);
+
 void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, const float t, const float p1 = 0.65f, const float p2 = 0.95f);
 
 void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg);
