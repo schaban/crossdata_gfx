@@ -11013,6 +11013,17 @@ void sxMotionData::dump_clip(const char* pOutPath, const float fstep) const {
 }
 
 
+cxVec sxCollisionData::get_pnt(const int ipnt) const {
+	cxVec pnt;
+	if (ck_pnt_id(ipnt) && mPntOffs) {
+		const cxVec* pPnts = reinterpret_cast<const cxVec*>(XD_INCR_PTR(this, mPntOffs));
+		pnt = pPnts[ipnt];
+	} else {
+		pnt.zero();
+	}
+	return pnt;
+}
+
 cxAABB sxCollisionData::get_pol_bbox(const int ipol) const {
 	cxAABB bbox;
 	if (ck_pol_id(ipol) && mPolBBoxOffs) {

@@ -4778,6 +4778,8 @@ struct sxCollisionData : public sxData {
 	bool all_pols_same_size() const { return bool(mFlags & 1); }
 	bool all_tris() const { return all_pols_same_size() && mMaxVtxPerPol == 3; }
 
+	cxVec get_pnt(const int ipnt) const;
+
 	cxAABB get_pol_bbox(const int ipol) const;
 	cxVec get_pol_normal(const int ipol) const;
 	int get_pol_grp_id(const int ipol) const;
