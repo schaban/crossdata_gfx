@@ -1000,6 +1000,245 @@ float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offs
 	return h;
 }
 
+struct WallAdjTriInfo {
+	int32_t ipol;
+	int32_t itri;
+};
+
+struct WallAdjWk {
+	uint32_t* pStamps;
+	WallAdjTriInfo* pTris;
+	int triCount;
+	float slopeLim;
+};
+
+static bool wall_adj_tri_func(const sxCollisionData& col, const sxCollisionData::Tri& tri, void* pWkMem) {
+	if (!pWkMem) return false;
+	WallAdjWk* pWk = (WallAdjWk*)pWkMem;
+	bool flg = true;
+	if (pWk->slopeLim > 0.0f) {
+		flg = ::fabsf(tri.nrm.y) < pWk->slopeLim;
+	}
+	if (flg) {
+		WallAdjTriInfo* pTriInfo = &pWk->pTris[pWk->triCount];
+		pTriInfo->ipol = tri.ipol;
+		pTriInfo->itri = tri.itri;
+		++pWk->triCount;
+	}
+	return true;
+}
+
+static bool wall_adj_seg_pln_isect(const cxPlane& pln, const cxVec& p0, const cxVec& p1, cxVec* pIsect) {
+	float t = 0.0f;
+	bool res = pln.seg_intersect(p0, p1, &t);
+	if (res) {
+		if (pIsect) {
+			*pIsect = cxLineSeg(p0, p1).get_inner_pos(t);
+		}
+	}
+	return res;
+}
+
+static bool wall_adj_pnt_in_tri(const cxVec& pnt, const cxVec vtx[3], const cxVec nrm) {
+	for (int i = 0; i < 3; ++i) {
+		cxVec ev = vtx[(i + 1) % 3] - vtx[i];
+		cxVec vv = pnt - vtx[i];
+		cxVec t = nxVec::cross(ev, vv);
+		if (t.dot(nrm) < 0.0f) return false;
+	}
+	return true;
+}
+
+bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, float radius, cxVec* pAdjPos, float wallSlopeLim) {
+	if (!pCol) return false;
+	cxHeap* pHeap = get_job_local_heap(pJobCtx);
+	if (!pHeap) return false;
+	bool res = false;
+	int ntri = pCol->mTriNum;
+	size_t numStampBytes = XD_BIT_ARY_SIZE(uint32_t, ntri) * sizeof(uint32_t);
+	uint32_t* pStamps = (uint32_t*)pHeap->alloc(numStampBytes, XD_FOURCC('W', 'F', 'l', 'g'));
+	size_t numTriBytes = ntri * sizeof(WallAdjTriInfo);
+	WallAdjTriInfo* pTris = (WallAdjTriInfo*)pHeap->alloc(numTriBytes, XD_FOURCC('W', 'T', 'r', 'i'));
+	if (pStamps && pTris) {
+		WallAdjWk wk;
+		::memset(pStamps, 0, numStampBytes);
+		wk.pStamps = pStamps;
+		wk.pTris = pTris;
+		wk.triCount = 0;
+		wk.slopeLim = wallSlopeLim;
+		int adjCount = 0;
+		float maxRange = radius + nxVec::dist(oldPos, newPos)*2.0f;
+		cxAABB range;
+		range.from_sph(cxSphere(newPos, maxRange));
+		pCol->for_tris_in_range(wall_adj_tri_func, range, &wk);
+		int n = wk.triCount;
+		if (n > 0) {
+			cxVec triVtx[3];
+			cxAABB triBBox;
+			cxVec triNrm;
+			const int itrMax = 15;
+			int itrCnt = -1;
+			int state = 0;
+			int prevState = 0;
+			int adjTriIdx = -1;
+			cxVec opos = oldPos;
+			cxVec npos = newPos;
+			cxVec apos = newPos;
+			float sqDist = FLT_MAX;
+			do {
+				++itrCnt;
+				for (int i = 0; i < n; ++i) {
+					if (adjTriIdx != i) {
+						WallAdjTriInfo triInfo = wk.pTris[i];
+						for (int j = 0; j < 3; ++j) {
+							int vtxPntIdx = pCol->get_pol_tri_pnt_idx(triInfo.ipol, triInfo.itri, j);
+							triVtx[2 - j] = pCol->get_pnt(vtxPntIdx); /* CW -> CCW */
+						}
+						triBBox.set(triVtx[0]);
+						triBBox.add_pnt(triVtx[1]);
+						triBBox.add_pnt(triVtx[2]);
+						bool calcFlg = true;
+						if (itrCnt > 0) {
+							calcFlg = !XD_BIT_ARY_CK(uint32_t, wk.pStamps, i);
+						} else {
+							float ymin = triBBox.get_min_pos().y;
+							float ymax = triBBox.get_max_pos().y;
+							float ny = newPos.y;
+							if (!(ny >= ymin && ny <= ymax)) {
+								XD_BIT_ARY_ST(uint32_t, wk.pStamps, i);
+								calcFlg = false;
+							}
+						}
+						if (calcFlg) {
+							cxPlane triPlane;
+							triNrm = nxGeom::tri_normal_ccw(triVtx[0], triVtx[1], triVtx[2]);
+							triPlane.calc(triVtx[0], triNrm);
+							float sdist = triPlane.signed_dist(npos);
+							float adist = ::fabsf(sdist);
+							if (sdist > 0.0f && adist > radius) {
+								if (adist > maxRange) {
+									XD_BIT_ARY_ST(uint32_t, wk.pStamps, i);
+									calcFlg = false;
+								}
+							}
+							if (calcFlg) {
+								cxVec isect;
+								if (adist > radius) {
+									if (adist > maxRange) {
+										XD_BIT_ARY_ST(uint32_t, wk.pStamps, i);
+									}
+									if (!wall_adj_seg_pln_isect(triPlane, npos, opos, &isect)) {
+										calcFlg = false;
+									}
+								} else {
+									isect = npos + (sdist > 0.0f ? triNrm.neg_val() : triNrm) * adist;
+								}
+								if (calcFlg) {
+									float dist2;
+									float r = radius;
+									cxVec adj;
+									const float eps = 1e-6f;
+									float margin = 0.005f;
+									if (wall_adj_pnt_in_tri(isect, triVtx, triNrm)) {
+										state = 1;
+										adist = (r - adist) + margin;
+										adj = triNrm;
+										if (sdist <= 0.0f) {
+											adj.neg();
+										}
+										adj.scl(adist);
+									} else {
+										if (state != 1) {
+											cxVec vec(0.0f);
+											float mov = 0.0f;
+											float rr = nxCalc::sq(r);
+											adist = FLT_MAX;
+											bool flg = false;
+											for (int j = 0; j < 3; ++j) {
+												cxVec vtx = triVtx[i];
+												cxVec vv = npos - vtx;
+												dist2 = vv.mag2();
+												if (dist2 <= rr && dist2 < adist) {
+													vec = vv.get_normalized();
+													mov = ::sqrtf(dist2);
+													if (vec.dot(opos - vtx) < 0.0f) {
+														vec.neg();
+													} else {
+														mov = -mov;
+													}
+													flg = true;
+												}
+												cxVec ev = triVtx[(j + 1) % 3] - vtx;
+												dist2 = ev.mag2();
+												if (dist2 > eps) {
+													float nd = vv.dot(ev);
+													if (nd >= eps && dist2 >= nd) {
+														isect = vtx + vv*(nd / dist2);
+														cxVec av = npos - isect;
+														dist2 = av.mag2();
+														if (dist2 <= rr && dist2 < adist) {
+															mov = ::sqrtf(dist2);
+															vec = av.get_normalized();
+															if (vec.dot(opos - isect) < 0.0f) {
+																vec.neg();
+															} else {
+																mov = -mov;
+															}
+															adist = dist2;
+															flg = true;
+														}
+													}
+												}
+											}
+											if (flg) {
+												state = 2;
+												adj = vec * (r + mov + margin);
+											} else {
+												calcFlg = false;
+											}
+										}
+									}
+									if (calcFlg) {
+										adj.add(npos);
+										dist2 = nxVec::dist2(adj, opos);
+										if (dist2 > sqDist) {
+											if (prevState == 1) {
+												calcFlg = false;
+											}
+											if (state != 1) {
+												calcFlg = false;
+											}
+										}
+										if (calcFlg) {
+											prevState = state;
+											sqDist = dist2;
+											apos = adj;
+											adjTriIdx = i;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				if (state) {
+					npos = apos;
+					++adjCount;
+				}
+			} while (state && itrCnt < itrMax);
+			res = adjCount > 0;
+			if (res) {
+				if (pAdjPos) {
+					*pAdjPos = npos;
+				}
+			}
+		}
+	}
+	pHeap->free(pTris);
+	pHeap->free(pStamps);
+	return res;
+}
+
 static void job_queue_alloc(int njob) {
 	if (s_pJobQue) {
 		if (njob > nxTask::queue_get_max_job_num(s_pJobQue)) {
@@ -1433,6 +1672,16 @@ cxMtx ScnObj::get_skel_prev_world_mtx(const int iskl) const {
 	return nxMtx::mtx_from_xmtx(owm);
 }
 
+cxMtx ScnObj::get_skel_root_prev_world_mtx() const {
+	xt_xmtx xm;
+	if (mpMotWk) {
+		xm = mpMotWk->get_node_prev_world_xform(mpMotWk->mRootId);
+	} else {
+		xm.identity();
+	}
+	return nxMtx::mtx_from_xmtx(xm);
+}
+
 cxMtx ScnObj::calc_skel_world_mtx(const int iskl, cxMtx* pNodeParentMtx) const {
 	xt_xmtx wm;
 	xt_xmtx wmp;
@@ -1506,6 +1755,30 @@ void ScnObj::set_skel_local_ty(const int iskl, const float y) {
 	if (mpMotWk) {
 		mpMotWk->set_node_local_ty(iskl, y);
 	}
+}
+
+void ScnObj::set_skel_root_local_tx(const float x) {
+	if (mpMotWk) {
+		mpMotWk->set_root_local_tx(x);
+	}
+}
+
+void ScnObj::set_skel_root_local_ty(const float y) {
+	if (mpMotWk) {
+		mpMotWk->set_root_local_ty(y);
+	}
+}
+
+void ScnObj::set_skel_root_local_tz(const float z) {
+	if (mpMotWk) {
+		mpMotWk->set_root_local_tz(z);
+	}
+}
+
+void ScnObj::set_skel_root_local_pos(const float x, const float y, const float z) {
+	set_skel_root_local_tx(x);
+	set_skel_root_local_ty(y);
+	set_skel_root_local_tz(z);
 }
 
 void ScnObj::set_world_quat(const cxQuat& quat) {

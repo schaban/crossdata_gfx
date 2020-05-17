@@ -111,6 +111,7 @@ public:
 	cxMtx get_skel_local_mtx(const int iskl) const;
 	cxMtx get_skel_local_rest_mtx(const int iskl) const;
 	cxMtx get_skel_prev_world_mtx(const int iskl) const;
+	cxMtx get_skel_root_prev_world_mtx() const;
 	cxMtx calc_skel_world_mtx(const int iskl, cxMtx* pNodeParentMtx = nullptr) const;
 	cxMtx calc_skel_world_rest_mtx(const int iskl) const { return mpMdlWk ? mpMdlWk->calc_skel_world_rest_mtx(iskl) : nxMtx::identity(); }
 
@@ -126,6 +127,11 @@ public:
 	void set_skel_local_quat(const int iskl, const cxQuat& quat);
 	void set_skel_local_quat_pos(const int iskl, const cxQuat& quat, const cxVec& pos);
 	void set_skel_local_ty(const int iskl, const float y);
+
+	void set_skel_root_local_tx(const float x);
+	void set_skel_root_local_ty(const float y);
+	void set_skel_root_local_tz(const float z);
+	void set_skel_root_local_pos(const float x, const float y, const float z);
 
 	void set_world_quat(const cxQuat& quat);
 	void set_world_quat_pos(const cxQuat& quat, const cxVec& pos);
@@ -284,6 +290,7 @@ cxVec get_obj_world_pos(const char* pName);
 cxVec get_obj_center_pos(const char* pName);
 
 float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop = 1.8f, const float offsBtm = 0.5f);
+bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, float radius, cxVec* pAdjPos, float wallSlopeLim = 0.7f);
 
 void exec();
 void visibility();
