@@ -11572,7 +11572,7 @@ void cxMotionWork::calc_world() {
 			if (mUniformScale != 1.0f) {
 				cxMtx sm;
 				sm.mk_scl(mUniformScale);
-				mpXformsW[i] = nxMtx::xmtx_from_mtx(nxMtx::mtx_from_xmtx(mpXformsW[i]) * sm);
+				mpXformsW[i] = nxMtx::xmtx_from_mtx(sm * nxMtx::mtx_from_xmtx(mpXformsW[i]));
 			}
 		}
 	}
