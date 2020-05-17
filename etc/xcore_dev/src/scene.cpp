@@ -1155,7 +1155,7 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 											adist = FLT_MAX;
 											bool flg = false;
 											for (int j = 0; j < 3; ++j) {
-												cxVec vtx = triVtx[i];
+												cxVec vtx = triVtx[j];
 												cxVec vv = npos - vtx;
 												dist2 = vv.mag2();
 												if (dist2 <= rr && dist2 < adist) {
