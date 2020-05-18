@@ -11482,7 +11482,7 @@ void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameA
 					} else {
 						vmove.scl(frameAdd);
 					}
-					mMoveRelPos = vmove;
+					mMoveRelPos = vmove * mUniformScale;
 				} else {
 					mMoveRelPos.zero();
 				}
