@@ -4855,6 +4855,7 @@ public:
 
 	void adjust_leg(const cxVec& effPos, const int inodeTop, const int inodeRot, const int inodeEnd, const int inodeExt);
 
+	void copy_prev_world();
 	void calc_world();
 
 	xt_xmtx get_node_local_xform(const int inode) const;

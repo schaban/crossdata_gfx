@@ -11559,9 +11559,14 @@ void cxMotionWork::adjust_leg(const cxVec& effPos, const int inodeTop, const int
 	}
 }
 
+void cxMotionWork::copy_prev_world() {
+	if (!mpMdlData) return;
+	::memcpy(mpPrevXformsW, mpXformsW, mpMdlData->mSklNum * sizeof(xt_xmtx));
+}
+
 void cxMotionWork::calc_world() {
+	if (!mpMdlData) return;
 	int nskel = mpMdlData->mSklNum;
-	::memcpy(mpPrevXformsW, mpXformsW, nskel * sizeof(xt_xmtx));
 	const int32_t* pParents = mpMdlData->get_skel_parents_ptr();
 	for (int i = 0; i < nskel; ++i) {
 		int iparent = pParents[i];
@@ -11736,7 +11741,7 @@ cxMotionWork* cxMotionWork::create(sxModelData* pMdlData) {
 			pWk->mMoveRelPos.zero();
 			pWk->mMoveRelQuat.identity();
 			pWk->calc_world();
-			::memcpy(pWk->mpPrevXformsW, pWk->mpXformsW, nskel * sizeof(xt_xmtx));
+			pWk->copy_prev_world();
 			pWk->mFrame = 0.0f;
 			pWk->mPlayLastFrame = true;
 		}

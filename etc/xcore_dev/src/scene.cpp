@@ -1255,6 +1255,12 @@ void exec() {
 	int nobj = get_num_objs();
 	int njob = nobj;
 	if (njob < 1) return;
+	for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+		ScnObj* pObj = itr.item();
+		if (pObj && pObj->mpMotWk) {
+			pObj->mpMotWk->copy_prev_world();
+		}
+	}
 	job_queue_alloc(njob);
 	if (s_pJobQue) {
 		nxTask::queue_purge(s_pJobQue);
