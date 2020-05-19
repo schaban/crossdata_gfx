@@ -47,6 +47,8 @@ public:
 	sxJob* mpBatJobs;
 	bool mDisableDraw;
 	bool mDisableShadowCast;
+	float mObjAdjYOffs;
+	float mObjAdjRadius;
 	int mRoutine[4];
 	int mCounter[4];
 	int32_t mIntWk[16];
@@ -284,6 +286,7 @@ int add_all_pkg_objs(Pkg* pPkg, const char* pNamePrefix = nullptr);
 int add_all_pkg_objs(const char* pPkgName, const char* pNamePrefix = nullptr);
 void add_obj_instances(const char* pPkgName, const ScnObj::InstInfo* pInstInfos, const int num, const char* pName = nullptr);
 int get_num_objs();
+void for_each_obj(bool (*func)(ScnObj*, void*), void* pWkMem);
 void set_obj_exec_func(const char* pName, ScnObj::ExecFunc exec);
 void set_obj_del_func(const char* pName, ScnObj::DelFunc del);
 cxVec get_obj_world_pos(const char* pName);
@@ -291,6 +294,9 @@ cxVec get_obj_center_pos(const char* pName);
 
 float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop = 1.8f, const float offsBtm = 0.5f);
 bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, float radius, cxVec* pAdjPos, float wallSlopeLim = 0.7f);
+
+bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, float staticRadius, cxVec* pAdjPos, float reflectFactor = 0.5f, float margin = 1e-2f);
+bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, float staticRadius, cxVec* pAdjPos, float reflectFactor = 0.5f, float margin = 1e-2f);
 
 void exec();
 void visibility();

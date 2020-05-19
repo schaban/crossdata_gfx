@@ -955,6 +955,18 @@ int get_num_objs() {
 	return s_pObjList ? s_pObjList->get_count() : 0;
 }
 
+void for_each_obj(bool (*func)(ScnObj*, void*), void* pWkMem) {
+	if (!s_pObjList) return;
+	if (!func) return;
+	for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+		ScnObj* pObj = itr.item();
+		if (pObj) {
+			bool cont = func(pObj, pWkMem);
+			if (!cont) break;
+		}
+	}
+}
+
 void set_obj_exec_func(const char* pName, ScnObj::ExecFunc exec) {
 	ScnObj* pObj = find_obj(pName);
 	if (pObj) {
@@ -1238,6 +1250,98 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 	pHeap->free(pStamps);
 	return res;
 }
+
+static bool sph_sph_sub(const cxSphere& movSph, const cxVec& vel, const cxSphere& staticSph, cxVec* pSepVec, float margin) {
+	cxVec sepVec(0.0f);
+	bool flg = movSph.overlaps(staticSph);
+	if (flg) {
+		float sepDist = movSph.get_radius() + staticSph.get_radius() + margin;
+		cxVec sepDir = vel.neg_val();
+		cxVec dv = movSph.get_center() - staticSph.get_center();
+		cxVec vec = dv + sepDir*dv.mag();
+		float len = vec.mag();
+		if (len < 1e-5f) {
+			vec = sepDir.get_normalized();
+		} else {
+			sepDist /= len;
+		}
+		sepVec = vec*sepDist - dv;
+	}
+	if (pSepVec) {
+		*pSepVec = sepVec;
+	}
+	return flg;
+}
+
+bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, float staticRadius, cxVec* pAdjPos, float reflectFactor, float margin) {
+	cxVec sepVec;
+	cxVec tstPos = newPos;
+	cxVec adjPos = tstPos;
+	cxVec vel = newPos - oldPos;
+	cxSphere stSph(staticPos, staticRadius);
+	bool flg = sph_sph_sub(cxSphere(newPos, radius), vel, stSph, &sepVec, margin);
+	if (flg) {
+		cxVec nv = (tstPos + sepVec - staticPos).get_normalized();
+		cxVec rv = nxVec::reflect(vel, nv) * reflectFactor;
+		adjPos += rv;
+		if (cxSphere(adjPos, radius).overlaps(stSph)) {
+			adjPos = tstPos + sepVec;
+		}
+	}
+	if (pAdjPos) {
+		*pAdjPos = adjPos;
+	}
+	return flg;
+}
+
+static bool sph_cap_sub(const cxSphere& movSph, const cxVec& vel, const cxCapsule& staticCap, cxVec* pSepVec, cxVec* pAxisPnt, float margin) {
+	cxVec sepVec(0.0f);
+	cxVec axisPnt(0.0f);
+	bool flg = movSph.overlaps(staticCap, &axisPnt);
+	if (flg) {
+		float sepDist = movSph.get_radius() + staticCap.get_radius() + margin;
+		cxVec sepDir = vel.neg_val();
+		cxVec dv = movSph.get_center() - axisPnt;
+		cxVec vec = dv + sepDir*dv.mag();
+		float len = vec.mag();
+		if (len < 1e-5f) {
+			vec = sepDir.get_normalized();
+		} else {
+			sepDist /= len;
+		}
+		sepVec = vec*sepDist - dv;
+	}
+	if (pSepVec) {
+		*pSepVec = sepVec;
+	}
+	if (pAxisPnt) {
+		*pAxisPnt = axisPnt;
+	}
+	return flg;
+}
+
+bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, float staticRadius, cxVec* pAdjPos, float reflectFactor, float margin) {
+	cxVec sepVec;
+	cxVec axisPnt;
+	cxVec tstPos = newPos;
+	cxVec adjPos = tstPos;
+	cxVec vel = newPos - oldPos;
+	cxCapsule stCap(staticPos0, staticPos1, staticRadius);
+	bool flg = sph_cap_sub(cxSphere(newPos, radius), vel, stCap, &sepVec, &axisPnt, margin);
+	if (flg) {
+		cxVec nv = (tstPos + sepVec - axisPnt).get_normalized();
+		cxVec rv = nxVec::reflect(vel, nv) * reflectFactor;
+		adjPos += rv;
+		if (cxSphere(adjPos, radius).overlaps(stCap)) {
+			adjPos = tstPos + sepVec;
+		}
+	}
+	if (pAdjPos) {
+		*pAdjPos = adjPos;
+	}
+	return flg;
+}
+
 
 static void job_queue_alloc(int njob) {
 	if (s_pJobQue) {
