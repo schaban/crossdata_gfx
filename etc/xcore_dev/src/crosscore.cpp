@@ -11756,6 +11756,22 @@ void cxMotionWork::destroy(cxMotionWork* pWk) {
 }
 
 
+void cxModelWork::copy_prev_world_xform() {
+	if (mpWorldXform) {
+		mpWorldXform[1] = mpWorldXform[0];
+	}
+}
+
+cxMtx cxModelWork::get_prev_world_xform() const {
+	cxMtx wprev;
+	if (mpWorldXform) {
+		wprev = nxMtx::mtx_from_xmtx(mpWorldXform[1]);
+	} else {
+		wprev.identity();
+	}
+	return wprev;
+}
+
 void cxModelWork::set_pose(const cxMotionWork* pMot) {
 	if (!pMot) return;
 	if (!pMot->mpXformsW) return;
@@ -11912,7 +11928,7 @@ cxModelWork* cxModelWork::create(sxModelData* pMdl, const size_t paramMemSize, c
 	} else {
 		if (!pMdl->is_static()) {
 			offsWM = size;
-			size += sizeof(xt_xmtx);
+			size += sizeof(xt_xmtx) * 2; /* { current, previous } */
 		}
 	}
 	size_t offsBatBBs = pMdl->is_static() ? 0 : size;
@@ -11940,6 +11956,7 @@ cxModelWork* cxModelWork::create(sxModelData* pMdl, const size_t paramMemSize, c
 		pWk->mpWorldXform = offsWM ? (xt_xmtx*)XD_INCR_PTR(pWk, offsWM) : nullptr;
 		if (pWk->mpWorldXform) {
 			pWk->mpWorldXform->identity();
+			pWk->copy_prev_world_xform();
 		}
 		pWk->mpSkinXforms = offsJM ? (xt_xmtx*)XD_INCR_PTR(pWk, offsJM) : nullptr;
 		if (pWk->mpSkinXforms) {
@@ -11948,6 +11965,7 @@ cxModelWork* cxModelWork::create(sxModelData* pMdl, const size_t paramMemSize, c
 			}
 		}
 		pWk->mWorldBBox = pMdl->mBBox;
+		pWk->copy_prev_world_bbox();
 		if (offsBatBBs) {
 			pWk->mpBatBBoxes = (cxAABB*)XD_INCR_PTR(pWk, offsBatBBs);
 			for (int i = 0; i < nbat; ++i) {

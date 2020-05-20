@@ -151,6 +151,8 @@ public:
 	cxQuat get_world_quat() const;
 	cxAABB get_world_bbox() const;
 	cxVec get_center_pos() const;
+	cxMtx get_prev_world_mtx() const;
+	cxVec get_prev_world_pos() const;
 
 	void set_model_variation(const int id) {
 		if (mpMdlWk) mpMdlWk->mVariation = id;

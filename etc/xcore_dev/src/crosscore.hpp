@@ -4888,6 +4888,7 @@ private:
 
 public:
 	cxAABB mWorldBBox;
+	cxAABB mPrevWorldBBox;
 	sxModelData* mpData;
 	xt_xmtx* mpWorldXform;
 	xt_xmtx* mpSkinXforms;
@@ -4917,6 +4918,10 @@ public:
 	void hide_mtl(const char* pMtlName, const bool hide = true) { hide_mtl(find_mtl_id(pMtlName), hide); }
 	bool is_mtl_hidden(const int imtl) const;
 	bool is_bat_mtl_hidden(const int ibat) const;
+
+	void copy_prev_world_bbox() { mPrevWorldBBox = mWorldBBox; }
+	void copy_prev_world_xform();
+	cxMtx get_prev_world_xform() const;
 
 	void set_pose(const cxMotionWork* pMot);
 	void update_bounds();

@@ -1361,8 +1361,17 @@ void exec() {
 	if (njob < 1) return;
 	for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
 		ScnObj* pObj = itr.item();
-		if (pObj && pObj->mpMotWk) {
-			pObj->mpMotWk->copy_prev_world();
+		if (pObj) {
+			if (pObj->mpMdlWk) {
+				pObj->mpMdlWk->copy_prev_world_bbox();
+			}
+			if (pObj->mpMotWk) {
+				pObj->mpMotWk->copy_prev_world();
+			} else {
+				if (pObj->mpMdlWk) {
+					pObj->mpMdlWk->copy_prev_world_xform();
+				}
+			}
 		}
 	}
 	job_queue_alloc(njob);
@@ -1991,6 +2000,22 @@ cxAABB ScnObj::get_world_bbox() const {
 		bbox.set(cxVec(0.0f));
 	}
 	return bbox;
+}
+
+cxMtx ScnObj::get_prev_world_mtx() const {
+	cxMtx m;
+	if (mpMotWk) {
+		m = get_skel_root_prev_world_mtx();
+	} else if (mpMdlWk) {
+		m = mpMdlWk->get_prev_world_xform();
+	} else {
+		m.identity();
+	}
+	return m;
+}
+
+cxVec ScnObj::get_prev_world_pos() const {
+	return get_prev_world_mtx().get_translation();
 }
 
 cxVec ScnObj::get_center_pos() const {
