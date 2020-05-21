@@ -1,3 +1,6 @@
+#define SCN_EXEC_PRIO_BITS 3
+#define SCN_NUM_EXEC_PRIO (1 << (SCN_EXEC_PRIO_BITS))
+
 typedef cxResourceManager::Pkg Pkg;
 
 struct ScnCfg {
@@ -19,6 +22,10 @@ public:
 	typedef void (*DelFunc)(ScnObj*);
 	typedef void (*DrawCallbackFunc)(ScnObj*);
 	typedef void (*BatchCallbackFunc)(ScnObj*, const int);
+
+	struct Priority {
+		uint32_t exec : SCN_EXEC_PRIO_BITS;
+	};
 
 	struct InstInfo {
 		float x, y, z, dx, dy, dz;
@@ -45,6 +52,7 @@ public:
 	BatchCallbackFunc mBatchPreDrawFunc;
 	BatchCallbackFunc mBatchPostDrawFunc;
 	sxJob* mpBatJobs;
+	Priority mPriority;
 	bool mDisableDraw;
 	bool mDisableShadowCast;
 	float mObjAdjYOffs;
@@ -56,6 +64,17 @@ public:
 	void* mPtrWk[4];
 
 	bool ck_name(const char* pName) const { return nxCore::str_eq(mpName, pName); }
+
+	void set_routine(const int r0, const int r1 = 0, const int r2 = 0, const int r3 = 0) {
+		mRoutine[0] = r0;
+		mRoutine[1] = r1;
+		mRoutine[2] = r2;
+		mRoutine[3] = r3;
+	}
+
+	void set_exec_priority(const int prio) {
+		mPriority.exec = nxCalc::clamp(prio, 0, SCN_NUM_EXEC_PRIO - 1);
+	}
 
 	sxModelData* get_model_data() { return mpMdlWk ? mpMdlWk->mpData : nullptr; }
 	const sxModelData* get_model_data() const { return mpMdlWk ? mpMdlWk->mpData : nullptr; }

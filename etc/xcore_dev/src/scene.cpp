@@ -1376,17 +1376,21 @@ void exec() {
 	}
 	job_queue_alloc(njob);
 	if (s_pJobQue) {
-		nxTask::queue_purge(s_pJobQue);
-		if (s_pObjList) {
-			for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
-				ScnObj* pObj = itr.item();
-				if (pObj) {
-					pObj->mJob.mFunc = obj_exec_func;
-					nxTask::queue_add(s_pJobQue, &pObj->mJob);
+		for (int i = 0; i < SCN_NUM_EXEC_PRIO; ++i) {
+			nxTask::queue_purge(s_pJobQue);
+			if (s_pObjList) {
+				for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+					ScnObj* pObj = itr.item();
+					if (pObj) {
+						if (pObj->mPriority.exec == i) {
+							pObj->mJob.mFunc = obj_exec_func;
+							nxTask::queue_add(s_pJobQue, &pObj->mJob);
+						}
+					}
 				}
 			}
+			nxTask::queue_exec(s_pJobQue, s_pBgd);
 		}
-		nxTask::queue_exec(s_pJobQue, s_pBgd);
 	}
 }
 
@@ -1735,21 +1739,19 @@ void ScnObj::update_batch_vilibility(const int ibat) {
 }
 
 void ScnObj::move(const sxMotionData* pMot, const float frameAdd) {
-	if (pMot) {
-		exec_motion(pMot, frameAdd);
-		if (mBeforeBlendFunc) {
-			mBeforeBlendFunc(this);
-		}
-		exec_motion_blend();
-		if (mAfterBlendFunc) {
-			mAfterBlendFunc(this);
-		}
-		update_world();
-		if (mWorldFunc) {
-			mWorldFunc(this);
-		}
-		update_skin();
+	exec_motion(pMot, frameAdd);
+	if (mBeforeBlendFunc) {
+		mBeforeBlendFunc(this);
 	}
+	exec_motion_blend();
+	if (mAfterBlendFunc) {
+		mAfterBlendFunc(this);
+	}
+	update_world();
+	if (mWorldFunc) {
+		mWorldFunc(this);
+	}
+	update_skin();
 	update_bounds();
 }
 
