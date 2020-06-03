@@ -16,7 +16,7 @@ DRW_IMPL_BEGIN
 
 #define FRAME_PRESENT_MAX 3
 
-#define MAX_XFORMS 128
+#define MAX_XFORMS 200
 
 static bool s_useAllocCB = false;
 

@@ -1,7 +1,7 @@
 #version 420
 precision highp float;
 
-#define MAX_XFORMS 128
+#define MAX_XFORMS 200
 
 layout(set = 0, binding = 0) uniform GPXform {
 	mat4 gpViewProj;

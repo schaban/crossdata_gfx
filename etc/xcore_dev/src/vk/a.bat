@@ -1,6 +1,6 @@
 @echo off
 setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
-set GLSL=D:\Tools\Prog\VulkanSDK\1.0.54.0\Bin\glslangValidator.exe
+call ..\..\gpu_paths.bat
 
 set DST_DIR=..\..\bin\data\vk
 if not exist %DST_DIR% mkdir %DST_DIR%

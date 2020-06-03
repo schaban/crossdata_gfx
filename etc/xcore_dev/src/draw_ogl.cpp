@@ -683,6 +683,10 @@ static void prepare_model(sxModelData* pMdl) {
 	if (*pBufVB && (*pBufIB16 || *pBufIB32)) {
 		return;
 	}
+	if (pMdl->mSknNum > MAX_JNT) {
+		const char* pMdlName = pMdl->get_name();
+		nxCore::dbg_msg("Model \"%s\": too many skin nodes (%d).\n", pMdlName, pMdl->mSknNum);
+	}
 	size_t vsize = pMdl->get_vtx_size();
 	if (!(*pBufVB) && vsize > 0) {
 		const void* pPntData = pMdl->get_pnt_data_top();
