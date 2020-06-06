@@ -1501,7 +1501,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	if (HAS_PARAM(BumpParam)) {
 		xt_float4 bprm;
 		float sclT = pMtl->mFlags.flipTangent ? -1.0f : 1.0f;
-		float sclB = pMtl->mFlags.flipBitangent ? -1.0f : 1.0f;
+		float sclB = -(pMtl->mFlags.flipBitangent ? -1.0f : 1.0f);
 		bprm.set(pMtl->mBumpScale, sclT, sclB, 0.0f);
 		pProg->set_bump_param(bprm);
 	}
