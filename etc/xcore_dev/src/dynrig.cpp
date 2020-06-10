@@ -454,10 +454,10 @@ void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, co
 	pObj->set_skel_local_ty(eyelidR, y);
 }
 
-void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
+void adjust_leg(ScnObj* pObj, sxCollisionData::NearestHit (*gndHitFunc)(const cxLineSeg& seg, void* pData), void* pFuncData, LegInfo* pLeg) {
 	if (!pObj) return;
-	if (!pCol) return;
 	if (!pLeg) return;
+	if (!gndHitFunc) return;
 	cxMotionWork* pMotWk = pObj->mpMotWk;
 	if (!pMotWk) return;
 	cxMtx effW = pMotWk->calc_node_world_mtx(pLeg->inodeEff);
@@ -468,7 +468,7 @@ void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
 	legUp.y += 0.1f;
 	legDn.y -= 0.5f;
 	cxLineSeg seg(legUp, legDn);
-	sxCollisionData::NearestHit hit = pCol->nearest_hit(seg);
+	sxCollisionData::NearestHit hit = gndHitFunc(seg, pFuncData);
 	if (hit.count > 0) {
 		float hy = hit.pos.y + pLeg->effY;
 		float ay = legPos.y;
@@ -478,6 +478,26 @@ void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
 		cxVec effPos(legPos.x, ay, legPos.z);
 		pMotWk->adjust_leg(effPos, pLeg->inodeTop, pLeg->inodeRot, pLeg->inodeEnd, pLeg->inodeExt);
 	}
+}
+
+static sxCollisionData::NearestHit adj_leg_col_func(const cxLineSeg& seg, void* pData) {
+	sxCollisionData::NearestHit hit;
+	hit.count = 0;
+	hit.dist = 0.0f;
+	hit.pos = seg.get_pos0();
+	hit.pos.y = 0.0f;
+	sxCollisionData* pCol = (sxCollisionData*)pData;
+	if (pCol) {
+		hit = pCol->nearest_hit(seg);
+	}
+	return hit;
+}
+
+void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
+	if (!pObj) return;
+	if (!pCol) return;
+	if (!pLeg) return;
+	adjust_leg(pObj, adj_leg_col_func, pCol, pLeg);
 }
 
 void calc_sup_jnts(ScnObj* pObj, const SupportJntInfo* pInfo) {

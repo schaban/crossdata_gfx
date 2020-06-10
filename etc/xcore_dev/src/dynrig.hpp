@@ -109,6 +109,7 @@ void calc_knee_adj_r(ScnObj* pObj, const float influence);
 
 void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, const float t, const float p1 = 0.65f, const float p2 = 0.95f);
 
+void adjust_leg(ScnObj* pObj, sxCollisionData::NearestHit(*gndHitFunc)(const cxLineSeg& seg, void* pData), void* pFuncData, LegInfo* pLeg);
 void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg);
 
 void calc_sup_jnts(ScnObj* pObj, const SupportJntInfo* pInfo);
