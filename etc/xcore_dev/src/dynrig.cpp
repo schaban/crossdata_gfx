@@ -238,6 +238,36 @@ void LegInfo::init(const ScnObj* pObj, const char side, const bool ext) {
 	}
 }
 
+void SupportJntInfo::init(const ScnObj* pObj, Params* pParams) {
+	if (pParams) {
+		params = *pParams;
+	} else {
+		params.elbowInfl = 0.5f;
+		params.wristInfl = 0.5f;
+		params.hipInfl = 0.7f;
+		params.kneeInfl = 0.3f;
+	}
+	if (pObj) {
+		jnts.elbowJntL = pObj->find_skel_node_id("j_Elbow_L");
+		jnts.elbowSupL = pObj->find_skel_node_id("s_Elbow_L");
+		jnts.elbowJntR = pObj->find_skel_node_id("j_Elbow_R");
+		jnts.elbowSupR = pObj->find_skel_node_id("s_Elbow_R");
+		jnts.wristL = pObj->find_skel_node_id("j_Wrist_L");
+		jnts.forearmL = pObj->find_skel_node_id("s_Forearm_L");
+		jnts.wristR = pObj->find_skel_node_id("j_Wrist_R");
+		jnts.forearmR = pObj->find_skel_node_id("s_Forearm_R");
+		jnts.hipJntL = pObj->find_skel_node_id("j_Hip_L");
+		jnts.hipSupL = pObj->find_skel_node_id("s_Hip_L");
+		jnts.hipJntR = pObj->find_skel_node_id("j_Hip_R");
+		jnts.hipSupR = pObj->find_skel_node_id("s_Hip_R");
+		jnts.kneeJntL = pObj->find_skel_node_id("j_Knee_L");
+		jnts.kneeSupL = pObj->find_skel_node_id("s_Knee_L");
+		jnts.kneeJntR = pObj->find_skel_node_id("j_Knee_R");
+		jnts.kneeSupR = pObj->find_skel_node_id("s_Knee_R");
+	} else {
+		::memset(&jnts, 0xFF, sizeof(jnts));
+	}
+}
 
 namespace DynRig {
 
@@ -362,20 +392,20 @@ void calc_shoulder_axis_rot_r(ScnObj* pObj, const float shoulderJntInfluence, co
 	calc_shoulder_axis_rot(pObj, "j_Shoulder_R", "s_Shoulder_R", shoulderJntInfluence, axisIdx);
 }
 
-void calc_hip_adj(ScnObj* pObj, const int hipJntId, const int hipAdjId, const float influence) {
+void calc_hip_adj(ScnObj* pObj, const int hipJntId, const int hipSupId, const float influence) {
 	if (influence <= 0.0f) return;
 	if (!pObj) return;
 	if (!pObj->ck_skel_id(hipJntId)) return;
-	if (!pObj->ck_skel_id(hipAdjId)) return;
+	if (!pObj->ck_skel_id(hipSupId)) return;
 	cxQuat jntQ = pObj->get_skel_local_quat(hipJntId);
-	cxQuat adjQ = pObj->get_skel_local_rest_quat(hipAdjId);
-	adjQ = nxQuat::slerp(adjQ, jntQ, influence);
-	pObj->set_skel_local_quat(hipAdjId, adjQ);
+	cxQuat supQ = pObj->get_skel_local_rest_quat(hipSupId);
+	supQ = nxQuat::slerp(supQ, jntQ, influence);
+	pObj->set_skel_local_quat(hipSupId, supQ);
 }
 
-void calc_hip_adj(ScnObj* pObj, const char* pHipJntName, const char* pHipAdjName, const float influence) {
+void calc_hip_adj(ScnObj* pObj, const char* pHipJntName, const char* pHipSupName, const float influence) {
 	if (!pObj) return;
-	calc_hip_adj(pObj, pObj->find_skel_node_id(pHipJntName), pObj->find_skel_node_id(pHipAdjName), influence);
+	calc_hip_adj(pObj, pObj->find_skel_node_id(pHipJntName), pObj->find_skel_node_id(pHipSupName), influence);
 }
 
 void calc_hip_adj_l(ScnObj* pObj, const float influence) {
@@ -386,20 +416,20 @@ void calc_hip_adj_r(ScnObj* pObj, const float influence) {
 	calc_hip_adj(pObj, "j_Hip_R", "s_Hip_R", influence);
 }
 
-void calc_knee_adj(ScnObj* pObj, const int kneeJntId, const int kneeAdjId, const float influence) {
+void calc_knee_adj(ScnObj* pObj, const int kneeJntId, const int kneeSupId, const float influence) {
 	if (influence <= 0.0f) return;
 	if (!pObj) return;
 	if (!pObj->ck_skel_id(kneeJntId)) return;
-	if (!pObj->ck_skel_id(kneeAdjId)) return;
+	if (!pObj->ck_skel_id(kneeSupId)) return;
 	cxQuat jntQ = pObj->get_skel_local_quat(kneeJntId);
-	cxQuat adjQ = pObj->get_skel_local_rest_quat(kneeAdjId);
-	adjQ = nxQuat::slerp(adjQ, jntQ.get_closest_x(), influence);
-	pObj->set_skel_local_quat(kneeAdjId, adjQ);
+	cxQuat supQ = pObj->get_skel_local_rest_quat(kneeSupId);
+	supQ = nxQuat::slerp(supQ, jntQ.get_closest_x(), influence);
+	pObj->set_skel_local_quat(kneeSupId, supQ);
 }
 
-void calc_knee_adj(ScnObj* pObj, const char* pKneeJntName, const char* pKneeAdjName, const float influence) {
+void calc_knee_adj(ScnObj* pObj, const char* pKneeJntName, const char* pKneeSupName, const float influence) {
 	if (!pObj) return;
-	calc_knee_adj(pObj, pObj->find_skel_node_id(pKneeJntName), pObj->find_skel_node_id(pKneeAdjName), influence);
+	calc_knee_adj(pObj, pObj->find_skel_node_id(pKneeJntName), pObj->find_skel_node_id(pKneeSupName), influence);
 }
 
 void calc_knee_adj_l(ScnObj* pObj, const float influence) {
@@ -448,6 +478,24 @@ void adjust_leg(ScnObj* pObj, sxCollisionData* pCol, LegInfo* pLeg) {
 		cxVec effPos(legPos.x, ay, legPos.z);
 		pMotWk->adjust_leg(effPos, pLeg->inodeTop, pLeg->inodeRot, pLeg->inodeEnd, pLeg->inodeExt);
 	}
+}
+
+void calc_sup_jnts(ScnObj* pObj, const SupportJntInfo* pInfo) {
+	if (!pObj) return;
+	SupportJntInfo info;
+	if (pInfo) {
+		info = *pInfo;
+	} else {
+		info.init(pObj);
+	}
+	calc_elbow_bend(pObj, info.jnts.elbowJntL, info.jnts.elbowSupL, info.params.elbowInfl);
+	calc_elbow_bend(pObj, info.jnts.elbowJntR, info.jnts.elbowSupR, info.params.elbowInfl);
+	calc_forearm_twist(pObj, info.jnts.wristL, info.jnts.forearmL, info.params.wristInfl);
+	calc_forearm_twist(pObj, info.jnts.wristR, info.jnts.forearmR, info.params.wristInfl);
+	calc_hip_adj(pObj, info.jnts.hipJntL, info.jnts.hipSupL, info.params.hipInfl);
+	calc_hip_adj(pObj, info.jnts.hipJntR, info.jnts.hipSupR, info.params.hipInfl);
+	calc_knee_adj(pObj, info.jnts.kneeJntL, info.jnts.kneeSupL, info.params.kneeInfl);
+	calc_knee_adj(pObj, info.jnts.kneeJntR, info.jnts.kneeSupR, info.params.kneeInfl);
 }
 
 } // DynRig
