@@ -930,6 +930,18 @@ int add_all_pkg_objs(const char* pPkgName, const char* pNamePrefix) {
 	return add_all_pkg_objs(Scene::load_pkg(pPkgName), pNamePrefix);
 }
 
+void for_all_pkg_models(Pkg* pPkg, void (*func)(sxModelData*, void*), void* pFuncData) {
+	if (func && s_pRsrcMgr && s_pRsrcMgr->contains_pkg(pPkg) && pPkg->mMdlNum > 0) {
+		for (Pkg::EntryList::Itr itr = pPkg->get_iterator(); !itr.end(); itr.next()) {
+			Pkg::Entry* pEnt = itr.item();
+			if (pEnt->mpData && pEnt->mpData->is<sxModelData>()) {
+				sxModelData* pMdl = pEnt->mpData->as<sxModelData>();
+				func(pMdl, pFuncData);
+			}
+		}
+	}
+}
+
 void add_obj_instances(const char* pPkgName, const ScnObj::InstInfo* pInstInfos, const int num, const char* pName) {
 	if (num <= 0) return;
 	if (!pInstInfos) return;

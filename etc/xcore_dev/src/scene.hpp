@@ -53,6 +53,7 @@ public:
 	BatchCallbackFunc mBatchPostDrawFunc;
 	sxJob* mpBatJobs;
 	Priority mPriority;
+	uint32_t mTag;
 	bool mDisableDraw;
 	bool mDisableShadowCast;
 	float mObjAdjYOffs;
@@ -305,6 +306,7 @@ void del_obj(ScnObj* pObj);
 void del_all_objs();
 int add_all_pkg_objs(Pkg* pPkg, const char* pNamePrefix = nullptr);
 int add_all_pkg_objs(const char* pPkgName, const char* pNamePrefix = nullptr);
+void for_all_pkg_models(Pkg* pPkg, void (*func)(sxModelData*, void*), void* pFuncData);
 void add_obj_instances(const char* pPkgName, const ScnObj::InstInfo* pInstInfos, const int num, const char* pName = nullptr);
 int get_num_objs();
 void for_each_obj(bool (*func)(ScnObj*, void*), void* pWkMem);
