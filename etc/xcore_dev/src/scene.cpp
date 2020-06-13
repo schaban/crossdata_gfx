@@ -1552,6 +1552,13 @@ void ScnObj::set_shadow_weight_bias(const float bias) {
 	}
 }
 
+void ScnObj::set_shadow_density_scl(const float scl) {
+	Draw::MdlParam* pParam = get_obj_mdl_params(*this);
+	if (pParam) {
+		pParam->shadowDensScl = scl;
+	}
+}
+
 void ScnObj::clear_int_wk() {
 	int n = XD_ARY_LEN(mIntWk);
 	for (int i = 0; i < n; ++i) {

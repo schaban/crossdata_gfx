@@ -1470,7 +1470,12 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 			soffs += pParam->shadowOffsBias;
 		}
 
-		shadowCtrl.set(soffs, swght, pMtl->mShadowDensity * pCtx->shadow.get_density(), 0.0f);
+		float sdens = pMtl->mShadowDensity * pCtx->shadow.get_density();
+		if (pParam) {
+			sdens *= nxCalc::saturate(pParam->shadowDensScl);
+		}
+
+		shadowCtrl.set(soffs, swght, sdens, 0.0f);
 		pProg->set_shadow_ctrl(shadowCtrl);
 	}
 

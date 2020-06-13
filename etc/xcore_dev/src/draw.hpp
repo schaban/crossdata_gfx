@@ -29,11 +29,13 @@ namespace Draw {
 		xt_float3 baseColorScl;
 		float shadowOffsBias;
 		float shadowWeightBias;
+		float shadowDensScl;
 
 		void reset() {
 			baseColorScl.fill(1.0f);
 			shadowOffsBias = 0.0f;
 			shadowWeightBias = 0.0f;
+			shadowDensScl = 1.0f;
 		}
 	};
 

@@ -90,6 +90,7 @@ public:
 	void set_base_color_scl(const float s);
 	void set_shadow_offs_bias(const float bias);
 	void set_shadow_weight_bias(const float bias);
+	void set_shadow_density_scl(const float scl);
 
 	void clear_int_wk();
 	void clear_flt_wk();
