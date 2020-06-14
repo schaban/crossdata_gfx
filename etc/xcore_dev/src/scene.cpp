@@ -15,6 +15,8 @@ static bool s_visTaskPerBat = true;
 static sxLock* s_pGlbRNGLock = nullptr;
 static sxRNG s_glbRNG;
 
+static sxLock* s_pGlbMemLock = nullptr;
+
 typedef cxStrMap<ScnObj*> ObjMap;
 typedef cxPlexList<ScnObj> ObjList;
 
@@ -121,6 +123,7 @@ void init(const ScnCfg& cfg) {
 	if (cfg.numWorkers > 0) {
 		s_pBgd = cxBrigade::create(cfg.numWorkers);
 		s_pGlbRNGLock = nxSys::lock_create();
+		s_pGlbMemLock = nxSys::lock_create();
 	}
 
 	nxCore::rng_seed(&s_glbRNG, 1);
@@ -160,6 +163,10 @@ void reset() {
 	if (s_pGlbRNGLock) {
 		nxSys::lock_destroy(s_pGlbRNGLock);
 		s_pGlbRNGLock = nullptr;
+	}
+	if (s_pGlbMemLock) {
+		nxSys::lock_destroy(s_pGlbMemLock);
+		s_pGlbMemLock = nullptr;
 	}
 
 	free_local_heaps();
@@ -379,6 +386,28 @@ uint64_t glb_rng_next() {
 		nxSys::lock_release(s_pGlbRNGLock);
 	}
 	return r;
+}
+
+
+void* glb_mem_alloc(const size_t size, const char* pTag) {
+	if (s_pGlbMemLock) {
+		nxSys::lock_acquire(s_pGlbMemLock);
+	}
+	void* pMem = nxCore::mem_alloc(size, pTag);
+	if (s_pGlbMemLock) {
+		nxSys::lock_release(s_pGlbMemLock);
+	}
+	return pMem;
+}
+
+void glb_mem_free(void* pMem) {
+	if (s_pGlbMemLock) {
+		nxSys::lock_acquire(s_pGlbMemLock);
+	}
+	nxCore::mem_free(pMem);
+	if (s_pGlbMemLock) {
+		nxSys::lock_release(s_pGlbMemLock);
+	}
 }
 
 
@@ -1075,14 +1104,20 @@ static bool wall_adj_pnt_in_tri(const cxVec& pnt, const cxVec vtx[3], const cxVe
 
 bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, float radius, cxVec* pAdjPos, float wallSlopeLim) {
 	if (!pCol) return false;
-	cxHeap* pHeap = get_job_local_heap(pJobCtx);
-	if (!pHeap) return false;
 	bool res = false;
 	int ntri = pCol->mTriNum;
 	size_t numStampBytes = XD_BIT_ARY_SIZE(uint32_t, ntri) * sizeof(uint32_t);
-	uint32_t* pStamps = (uint32_t*)pHeap->alloc(numStampBytes, XD_FOURCC('W', 'F', 'l', 'g'));
 	size_t numTriBytes = ntri * sizeof(WallAdjTriInfo);
-	WallAdjTriInfo* pTris = (WallAdjTriInfo*)pHeap->alloc(numTriBytes, XD_FOURCC('W', 'T', 'r', 'i'));
+	uint32_t* pStamps = nullptr;
+	WallAdjTriInfo* pTris = nullptr;
+	cxHeap* pHeap = get_job_local_heap(pJobCtx);
+	if (pHeap) {
+		pStamps = (uint32_t*)pHeap->alloc(numStampBytes, XD_FOURCC('W', 'F', 'l', 'g'));
+		pTris = (WallAdjTriInfo*)pHeap->alloc(numTriBytes, XD_FOURCC('W', 'T', 'r', 'i'));
+	} else {
+		pStamps = (uint32_t*)glb_mem_alloc(numStampBytes, "Scn:WallStamps");
+		pTris = (WallAdjTriInfo*)glb_mem_alloc(numTriBytes, "Scn:WallTris");
+	}
 	if (pStamps && pTris) {
 		WallAdjWk wk;
 		::memset(pStamps, 0, numStampBytes);
@@ -1258,8 +1293,13 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 			}
 		}
 	}
-	pHeap->free(pTris);
-	pHeap->free(pStamps);
+	if (pHeap) {
+		pHeap->free(pTris);
+		pHeap->free(pStamps);
+	} else {
+		glb_mem_free(pTris);
+		glb_mem_free(pStamps);
+	}
 	return res;
 }
 
