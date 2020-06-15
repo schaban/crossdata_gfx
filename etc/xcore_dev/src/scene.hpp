@@ -232,10 +232,14 @@ void purge_local_heaps();
 cxHeap* get_local_heap(const int id);
 cxHeap* get_job_local_heap(const sxJobContext* pJobCtx);
 
-uint64_t glb_rng_next();
-
-void* glb_mem_alloc(const size_t size, const char* pTag);
+void alloc_global_heap(const size_t globalHeapSize);
+void free_global_heap();
+void purge_global_heap();
+cxHeap* get_global_heap();
+void* glb_mem_alloc(const size_t size, const uint32_t tag);
 void glb_mem_free(void* pMem);
+
+uint64_t glb_rng_next();
 
 void set_view(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f));
 void set_view_range(const float znear, const float zfar);
