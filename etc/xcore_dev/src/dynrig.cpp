@@ -465,7 +465,7 @@ void adjust_leg(ScnObj* pObj, sxCollisionData::NearestHit (*gndHitFunc)(const cx
 	cxVec ckOffs = effW.calc_vec(cxVec(-pLeg->effOffsX, 0.0f, -pLeg->effOffsZ));
 	cxVec legUp = legPos + ckOffs;
 	cxVec legDn = legUp;
-	legUp.y += 0.1f;
+	legUp.y += 0.5f;
 	legDn.y -= 0.5f;
 	cxLineSeg seg(legUp, legDn);
 	sxCollisionData::NearestHit hit = gndHitFunc(seg, pFuncData);
