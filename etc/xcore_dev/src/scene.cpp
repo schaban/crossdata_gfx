@@ -11,7 +11,6 @@ static sxJobQueue* s_pJobQue = nullptr;
 static cxHeap* s_pGlobalHeap = nullptr;
 static cxHeap** s_ppLocalHeaps = nullptr;
 static int s_numLocalHeaps = 0;
-static bool s_visTaskPerBat = true;
 
 static sxLock* s_pGlbRNGLock = nullptr;
 static sxRNG s_glbRNG;
@@ -81,16 +80,6 @@ static void obj_visibility_job_func(const sxJobContext* pCtx) {
 	ScnObj* pObj = (ScnObj*)pJob->mpData;
 	if (!pObj) return;
 	pObj->update_visibility();
-}
-
-static void bat_visibility_job_func(const sxJobContext* pCtx) {
-	if (!pCtx) return;
-	sxJob* pJob = pCtx->mpJob;
-	if (!pJob) return;
-	ScnObj* pObj = (ScnObj*)pJob->mpData;
-	if (!pObj) return;
-	int ibat = pJob->mParam;
-	pObj->update_batch_vilibility(ibat);
 }
 
 static void obj_ctor(ScnObj* pObj) {
@@ -1518,42 +1507,17 @@ void visibility() {
 	if (!s_pObjList) return;
 	int nobj = get_num_objs();
 	if (nobj < 1) return;
-	int njob = 0;
-	if (s_visTaskPerBat) {
-		int nbat = 0;
-		for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
-			ScnObj* pObj = itr.item();
-			if (pObj) {
-				nbat += pObj->get_batches_num();
-			}
-		}
-		njob = nbat;
-	} else {
-		njob = nobj;
-	}
+	int njob = nobj;
 	update_view();
 	update_shadow();
 	job_queue_alloc(njob);
 	if (s_pJobQue) {
 		nxTask::queue_purge(s_pJobQue);
-		if (s_visTaskPerBat) {
-			for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
-				ScnObj* pObj = itr.item();
-				if (pObj) {
-					int n = pObj->get_batches_num();
-					for (int i = 0; i < n; ++i) {
-						pObj->mpBatJobs[i].mFunc = bat_visibility_job_func;
-						nxTask::queue_add(s_pJobQue, &pObj->mpBatJobs[i]);
-					}
-				}
-			}
-		} else {
-			for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
-				ScnObj* pObj = itr.item();
-				if (pObj) {
-					pObj->mJob.mFunc = obj_visibility_job_func;
-					nxTask::queue_add(s_pJobQue, &pObj->mJob);
-				}
+		for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+			ScnObj* pObj = itr.item();
+			if (pObj) {
+				pObj->mJob.mFunc = obj_visibility_job_func;
+				nxTask::queue_add(s_pJobQue, &pObj->mJob);
 			}
 		}
 		nxTask::queue_exec(s_pJobQue, s_pBgd);
