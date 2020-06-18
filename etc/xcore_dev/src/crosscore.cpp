@@ -11316,10 +11316,12 @@ static bool xcol_nearest_hit_func(const sxCollisionData& col, const sxCollisionD
 	if (pHit->count > 0) {
 		if (dist < pHit->dist) {
 			pHit->pos = pos;
+			pHit->nrm = tri.nrm;
 			pHit->dist = dist;
 		}
 	} else {
 		pHit->pos = pos;
+		pHit->nrm = tri.nrm;
 		pHit->dist = dist;
 	}
 	++pHit->count;

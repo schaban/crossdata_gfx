@@ -4764,6 +4764,7 @@ struct sxCollisionData : public sxData {
 
 	struct NearestHit {
 		cxVec pos;
+		cxVec nrm;
 		float dist;
 		int count;
 	};
