@@ -33,12 +33,22 @@ static int s_batDrwCnt = 0;
 static int s_shadowCastCnt = 0;
 
 
+static void def_tex_lod_bias() {
+#if !OGLSYS_ES
+	static bool flg = false;
+	static int bias = 0;
+	if (!flg) {
+		bias = nxApp::get_int_opt("tlod_bias", -3);
+		flg = true;
+	}
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, bias);
+#endif
+}
+
 static void def_tex_params(const bool mipmapEnabled) {
 	if (s_useMipmaps && mipmapEnabled) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-#if !OGLSYS_ES
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -1);
-#endif
+		def_tex_lod_bias();
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	}
