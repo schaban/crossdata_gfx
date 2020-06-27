@@ -329,6 +329,8 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, float staticRadius, cxVec* pAdjPos, float reflectFactor = 0.5f, float margin = 0.0f);
 bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, float staticRadius, cxVec* pAdjPos, float reflectFactor = 0.5f, float margin = 0.0f);
 
+void copy_prev_world_data();
+
 void exec();
 void visibility();
 void draw(bool discard = true);

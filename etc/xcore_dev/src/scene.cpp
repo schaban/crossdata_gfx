@@ -60,7 +60,7 @@ static Draw::MdlParam* get_obj_mdl_params(ScnObj& obj) {
 	return obj.mpMdlWk ? (Draw::MdlParam*)obj.mpMdlWk->mpParamMem : nullptr;
 }
 
-static void obj_exec_func(const sxJobContext* pCtx) {
+static void obj_exec_job(const sxJobContext* pCtx) {
 	if (!pCtx) return;
 	sxJob* pJob = pCtx->mpJob;
 	if (!pJob) return;
@@ -73,13 +73,32 @@ static void obj_exec_func(const sxJobContext* pCtx) {
 	}
 }
 
-static void obj_visibility_job_func(const sxJobContext* pCtx) {
+static void obj_visibility_job(const sxJobContext* pCtx) {
 	if (!pCtx) return;
 	sxJob* pJob = pCtx->mpJob;
 	if (!pJob) return;
 	ScnObj* pObj = (ScnObj*)pJob->mpData;
 	if (!pObj) return;
 	pObj->update_visibility();
+}
+
+static void obj_copy_prev_job(const sxJobContext* pCtx) {
+	if (!pCtx) return;
+	sxJob* pJob = pCtx->mpJob;
+	if (!pJob) return;
+	ScnObj* pObj = (ScnObj*)pJob->mpData;
+	if (pObj) {
+		if (pObj->mpMdlWk) {
+			pObj->mpMdlWk->copy_prev_world_bbox();
+		}
+		if (pObj->mpMotWk) {
+			pObj->mpMotWk->copy_prev_world();
+		} else {
+			if (pObj->mpMdlWk) {
+				pObj->mpMdlWk->copy_prev_world_xform();
+			}
+		}
+	}
 }
 
 static void obj_ctor(ScnObj* pObj) {
@@ -914,7 +933,7 @@ ScnObj* add_obj(sxModelData* pMdl, const char* pName) {
 				pObj->mpName = nxCore::str_dup(pObjName);
 				pObj->mpMdlWk = cxModelWork::create(pMdl, paramMemSize, extMemSize);
 				pObj->mpMotWk = cxMotionWork::create(pMdl);
-				pObj->mJob.mFunc = obj_exec_func;
+				pObj->mJob.mFunc = obj_exec_job;
 				pObj->mJob.mpData = pObj;
 				Draw::MdlParam* pMdlParam = get_obj_mdl_params(*pObj);
 				if (pMdlParam) {
@@ -1451,7 +1470,6 @@ bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const c
 	return flg;
 }
 
-
 static void job_queue_alloc(int njob) {
 	if (s_pJobQue) {
 		if (njob > nxTask::queue_get_max_job_num(s_pJobQue)) {
@@ -1464,10 +1482,10 @@ static void job_queue_alloc(int njob) {
 	}
 }
 
-void exec() {
+void copy_prev_world_data() {
 	int nobj = get_num_objs();
-	int njob = nobj;
-	if (njob < 1) return;
+	if (nobj < 1) return;
+#if 0
 	for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
 		ScnObj* pObj = itr.item();
 		if (pObj) {
@@ -1483,6 +1501,28 @@ void exec() {
 			}
 		}
 	}
+#else
+	int njob = nobj;
+	job_queue_alloc(njob);
+	if (s_pJobQue) {
+		nxTask::queue_purge(s_pJobQue);
+		for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+			ScnObj* pObj = itr.item();
+			if (pObj) {
+				pObj->mJob.mFunc = obj_copy_prev_job;
+				nxTask::queue_add(s_pJobQue, &pObj->mJob);
+			}
+		}
+		nxTask::queue_exec(s_pJobQue, s_pBgd);
+	}
+#endif
+}
+
+void exec() {
+	int nobj = get_num_objs();
+	int njob = nobj;
+	if (njob < 1) return;
+	copy_prev_world_data();
 	job_queue_alloc(njob);
 	if (s_pJobQue) {
 		for (int i = 0; i < SCN_NUM_EXEC_PRIO; ++i) {
@@ -1492,7 +1532,7 @@ void exec() {
 					ScnObj* pObj = itr.item();
 					if (pObj) {
 						if (pObj->mPriority.exec == i) {
-							pObj->mJob.mFunc = obj_exec_func;
+							pObj->mJob.mFunc = obj_exec_job;
 							nxTask::queue_add(s_pJobQue, &pObj->mJob);
 						}
 					}
@@ -1516,7 +1556,7 @@ void visibility() {
 		for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
 			ScnObj* pObj = itr.item();
 			if (pObj) {
-				pObj->mJob.mFunc = obj_visibility_job_func;
+				pObj->mJob.mFunc = obj_visibility_job;
 				nxTask::queue_add(s_pJobQue, &pObj->mJob);
 			}
 		}
