@@ -11,4 +11,4 @@ uniform mat4 gpViewProj;
 
 uniform vec3 gpScrXform[2];
 
-
+uniform vec4 gpSprColor;
