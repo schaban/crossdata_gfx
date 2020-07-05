@@ -9,6 +9,7 @@ uniform vec4 gpWorld[3];
 
 uniform mat4 gpViewProj;
 
-uniform vec3 gpScrXform[2];
+uniform vec4 gpSprVtxPos[2];
+uniform vec4 gpSprVtxTex[2];
+uniform vec4 gpSprVtxClr[4];
 
-uniform vec4 gpSprColor;

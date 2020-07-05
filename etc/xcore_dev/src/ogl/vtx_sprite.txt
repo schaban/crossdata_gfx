@@ -1,3 +1,2 @@
-vec2 vtxPos
-vec4 vtxClr
-vec2 vtxTex
+float vtxId
+

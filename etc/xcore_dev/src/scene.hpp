@@ -323,6 +323,11 @@ void set_obj_del_func(const char* pName, ScnObj::DelFunc del);
 cxVec get_obj_world_pos(const char* pName);
 cxVec get_obj_center_pos(const char* pName);
 
+void set_ref_scr_size(const float w, const float h);
+void set_spr_gamma(const float gval);
+void set_spr_gamma_rgb(const float r, const float g, const float b);
+void sprite(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex = nullptr, cxColor* pClrs = nullptr);
+
 float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop = 1.8f, const float offsBtm = 0.5f);
 bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, float radius, cxVec* pAdjPos, float wallSlopeLim = 0.7f);
 

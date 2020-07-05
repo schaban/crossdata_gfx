@@ -293,6 +293,25 @@ namespace Draw {
 
 	};
 
+	struct Sprite {
+		xt_float2 pos[4];
+		xt_float2 tex[4];
+		cxColor color;
+		xt_float3 gamma;
+		float refWidth;
+		float refHeight;
+		sxTextureData* pTex;
+		cxColor* pClrs;
+
+		void set_gamma(const float gval) {
+			gamma.fill(clip_gamma(gval));
+		}
+
+		void set_gamma_rgb(const float r, const float g, const float b) {
+			gamma.set(clip_gamma(r), clip_gamma(g), clip_gamma(b));
+		}
+	};
+
 	struct Ifc {
 		struct Info {
 			const char* pName;
@@ -311,6 +330,8 @@ namespace Draw {
 		void (*end)();
 
 		void (*batch)(cxModelWork* pWk, const int ibat, const Mode mode, const Context* pCtx);
+
+		void (*sprite)(Sprite* pSpr);
 	};
 
 	int32_t register_ifc_impl(Ifc* pIfc);

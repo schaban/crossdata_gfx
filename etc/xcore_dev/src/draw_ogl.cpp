@@ -28,10 +28,12 @@ static GLuint s_shadowTex = 0;
 static GLuint s_shadowDepthBuf = 0;
 static bool s_shadowCastDepthTest = true;
 
-static int s_frameBufMode = 0; // 0: def, 1: shadow
+static int s_frameBufMode = 0; // 0: def, 1: shadow, 2: sprites
 static int s_batDrwCnt = 0;
 static int s_shadowCastCnt = 0;
 
+static GLuint s_sprVBO = 0;
+static GLuint s_sprIBO = 0;
 
 static void def_tex_lod_bias() {
 #if !OGLSYS_ES
@@ -83,6 +85,7 @@ struct VtxLink {
 	GLint Tex;
 	GLint Wgt;
 	GLint Jnt;
+	GLint Id;
 
 	static int num_attrs() {
 		return int(sizeof(VtxLink) / sizeof(GLint));
@@ -144,6 +147,9 @@ struct ParamLink {
 	GLint LClrBias;
 	GLint Exposure;
 	GLint InvGamma;
+	GLint SprVtxPos;
+	GLint SprVtxTex;
+	GLint SprVtxClr;
 
 	void reset() { ::memset(this, 0xFF, sizeof(*this)); }
 };
@@ -317,6 +323,7 @@ struct GPUProg {
 			VTX_LINK(Tex);
 			VTX_LINK(Wgt);
 			VTX_LINK(Jnt);
+			VTX_LINK(Id);
 
 			PARAM_LINK(PosBase);
 			PARAM_LINK(PosScale);
@@ -348,6 +355,9 @@ struct GPUProg {
 			PARAM_LINK(LClrBias);
 			PARAM_LINK(Exposure);
 			PARAM_LINK(InvGamma);
+			PARAM_LINK(SprVtxPos);
+			PARAM_LINK(SprVtxTex);
+			PARAM_LINK(SprVtxClr);
 
 			SMP_LINK(Base);
 			SMP_LINK(Bump);
@@ -525,6 +535,7 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			case VtxFmt_skin1: stride = sizeof(sxModelData::VtxSkinShort); break;
 			case VtxFmt_rigid0: stride = sizeof(sxModelData::VtxRigidHalf); break;
 			case VtxFmt_rigid1: stride = sizeof(sxModelData::VtxRigidShort); break;
+			case VtxFmt_sprite: stride = sizeof(float); break;
 			default: break;
 		}
 	}
@@ -623,6 +634,13 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			if (mVtxLink.Tex >= 0) {
 				glEnableVertexAttribArray(mVtxLink.Tex);
 				glVertexAttribPointer(mVtxLink.Tex, 2, GL_FLOAT, GL_FALSE, stride, (const void*)(top + offsetof(sxModelData::VtxRigidShort, tex)));
+			}
+			break;
+
+		case VtxFmt_sprite:
+			if (mVtxLink.Id >= 0) {
+				glEnableVertexAttribArray(mVtxLink.Id);
+				glVertexAttribPointer(mVtxLink.Id, 1, GL_FLOAT, GL_FALSE, stride, (const void*)(top));
 			}
 			break;
 
@@ -792,7 +810,7 @@ static void batch_draw_exec(const sxModelData* pMdl, int ibat, int baseVtx = 0) 
 	}
 }
 
-static void set_def_framebuf() {
+static void set_def_framebuf(const bool useDepth = true) {
 	if (s_frameBufMode != 0) {
 		int w = OGLSys::get_width();
 		int h = OGLSys::get_height();
@@ -824,6 +842,20 @@ static void set_shadow_framebuf() {
 			}
 			s_frameBufMode = 1;
 		}
+	}
+}
+
+static void set_spr_framebuf() {
+	if (s_frameBufMode != 2) {
+		int w = OGLSys::get_width();
+		int h = OGLSys::get_height();
+		OGLSys::bind_def_framebuf();
+		glViewport(0, 0, w, h);
+		glScissor(0, 0, w, h);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glDepthMask(GL_FALSE);
+		glDisable(GL_DEPTH_TEST);
+		s_frameBufMode = 2;
 	}
 }
 
@@ -921,6 +953,19 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 
 	nxCore::dbg_msg("GPU progs: %d/%d\n", prgOK, prgCnt);
 
+	glGenBuffers(1, &s_sprVBO);
+	glGenBuffers(1, &s_sprIBO);
+	if (s_sprVBO && s_sprIBO) {
+		static GLfloat sprVBData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
+		static uint16_t sprIBData[] = { 0, 1, 3, 2 };
+		glBindBuffer(GL_ARRAY_BUFFER, s_sprVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(sprVBData), sprVBData, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_sprIBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sprIBData), sprIBData, GL_STATIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	}
+
 	if (shadowSize > 0) {
 		s_shadowSize = shadowSize;
 		glGenFramebuffers(1, &s_shadowFBO);
@@ -990,6 +1035,15 @@ static void reset() {
 	if (s_shadowFBO) {
 		glDeleteFramebuffers(1, &s_shadowFBO);
 		s_shadowFBO = 0;
+	}
+
+	if (s_sprIBO) {
+		glDeleteBuffers(1, &s_sprIBO);
+		s_sprIBO = 0;
+	}
+	if (s_sprVBO) {
+		glDeleteBuffers(1, &s_sprVBO);
+		s_sprVBO = 0;
 	}
 
 #define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.reset();
@@ -1635,6 +1689,88 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	}
 }
 
+void sprite(Draw::Sprite* pSpr) {
+	if (!pSpr) return;
+	if (pSpr->color.a == 0.0f) return;
+	GLuint htex = get_tex_handle(pSpr->pTex);
+	if (!htex) {
+		htex = OGLSys::get_white_tex();
+	}
+	set_spr_framebuf();
+	set_semi();
+	set_face_cull();
+	GPUProg* pProg = &s_prg_sprite_sprite;
+	pProg->use();
+	xt_float4 pos[2];
+	float* pPosSrc = pSpr->pos[0];
+	float* pPosDst = pos[0];
+	for (int i = 0; i < 8; ++i) {
+		pPosDst[i] = pPosSrc[i] + 0.5f;
+	}
+	float scl[2];
+	scl[0] = nxCalc::rcp0(pSpr->refWidth);
+	scl[1] = nxCalc::rcp0(pSpr->refHeight);
+	for (int i = 0; i < 8; ++i) {
+		pPosDst[i] *= scl[i & 1];
+	}
+	for (int i = 0; i < 4; ++i) {
+		int idx = i*2 + 1;
+		pPosDst[idx] = 1.0f - pPosDst[idx];
+	}
+	for (int i = 0; i < 8; ++i) {
+		pPosDst[i] *= 2.0f;
+	}
+	for (int i = 0; i < 8; ++i) {
+		pPosDst[i] -= 1.0f;
+	}
+	cxColor clr[4];
+	float* pClrDst = clr[0].ch;
+	float* pClr = pSpr->color.ch;
+	if (pSpr->pClrs) {
+		float* pClrSrc = pSpr->pClrs[0].ch;
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				*pClrDst++ = pClrSrc[j] * pClr[j];
+			}
+			pClrSrc += 4;
+		}
+	} else {
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				*pClrDst++ = pClr[j];
+			}
+		}
+	}
+	if (HAS_PARAM(SprVtxPos)) {
+		glUniform4fv(pProg->mParamLink.SprVtxPos, 2, pos[0]);
+	}
+	if (HAS_PARAM(SprVtxTex)) {
+		glUniform4fv(pProg->mParamLink.SprVtxTex, 2, pSpr->tex[0]);
+	}
+	if (HAS_PARAM(SprVtxClr)) {
+		glUniform4fv(pProg->mParamLink.SprVtxClr, 4, clr[0].ch);
+	}
+	if (HAS_PARAM(InvGamma)) {
+		xt_float3 invGamma;
+		invGamma.set(nxCalc::rcp0(pSpr->gamma.x), nxCalc::rcp0(pSpr->gamma.y), nxCalc::rcp0(pSpr->gamma.z));
+		pProg->set_inv_gamma(invGamma);
+	}
+	glActiveTexture(GL_TEXTURE0 + Draw::TEXUNIT_Base);
+	glBindTexture(GL_TEXTURE_2D, htex);
+	if (pProg->mVAO) {
+		OGLSys::bind_vao(pProg->mVAO);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, s_sprVBO);
+	pProg->enable_attrs(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_sprIBO);
+	glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (const void*)0);
+	if (pProg->mVAO) {
+		OGLSys::bind_vao(0);
+	} else {
+		pProg->disable_attrs();
+	}
+}
+
 static Draw::Ifc s_ifc;
 
 struct DrwInit {
@@ -1650,6 +1786,7 @@ struct DrwInit {
 		s_ifc.begin = begin;
 		s_ifc.end = end;
 		s_ifc.batch = batch;
+		s_ifc.sprite = sprite;
 		Draw::register_ifc_impl(&s_ifc);
 	}
 } s_drwInit;

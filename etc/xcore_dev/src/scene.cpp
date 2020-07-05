@@ -38,6 +38,10 @@ static float s_smapViewDist = 50.0f;
 static float s_smapMargin = 30.0f;
 static bool s_useShadowCastCull = true;
 
+static float s_refScrW = -1.0f;
+static float s_refScrH = -1.0f;
+static xt_float3 s_sprGamma;
+
 static uint64_t s_frameCnt = 0;
 
 void ScnCfg::set_defaults() {
@@ -150,6 +154,8 @@ void init(const ScnCfg& cfg) {
 	if (s_pDraw) {
 		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
 	}
+
+	set_spr_gamma(2.2f);
 
 	nxCore::dbg_msg("draw ifc: %s\n", get_draw_ifc_name());
 
@@ -1095,6 +1101,55 @@ cxVec get_obj_center_pos(const char* pName) {
 	}
 	return cxVec(0.0f);
 }
+
+
+void set_ref_scr_size(const float w, const float h) {
+	s_refScrW = w;
+	s_refScrH = h;
+}
+
+void set_spr_gamma(const float gval) {
+	s_sprGamma.fill(Draw::clip_gamma(gval));
+}
+
+void set_spr_gamma_rgb(const float r, const float g, const float b) {
+	s_sprGamma.set(Draw::clip_gamma(r), Draw::clip_gamma(g), Draw::clip_gamma(b));
+}
+
+void set_spr_defaults(Draw::Sprite* pSpr) {
+	if (!pSpr) return;
+	::memset(pSpr, 0, sizeof(Draw::Sprite));
+	if (s_refScrW < 0.0f || s_refScrH < 0.0f) {
+		if (s_pDraw) {
+			pSpr->refWidth = float(s_pDraw->get_screen_width());
+			pSpr->refHeight = float(s_pDraw->get_screen_height());
+		} else {
+			pSpr->refWidth = 0.0f;
+			pSpr->refHeight = 0.0f;
+		}
+	} else {
+		pSpr->refWidth = s_refScrW;
+		pSpr->refHeight = s_refScrH;
+	}
+	pSpr->gamma = s_sprGamma;
+	pSpr->color.set(1.0f);
+}
+
+void sprite(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex, cxColor* pClrs) {
+	if (!s_pDraw) return;
+	if (!s_pDraw->sprite) return;
+	Draw::Sprite spr;
+	set_spr_defaults(&spr);
+	for (int i = 0; i < 4; ++i) {
+		spr.pos[i] = pos[i];
+		spr.tex[i] = tex[i];
+	}
+	spr.color = clr;
+	spr.pTex = pTex;
+	spr.pClrs = pClrs;
+	s_pDraw->sprite(&spr);
+}
+
 
 float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop, const float offsBtm) {
 	float h = pos.y;
