@@ -12,6 +12,9 @@ static cxHeap* s_pGlobalHeap = nullptr;
 static cxHeap** s_ppLocalHeaps = nullptr;
 static int s_numLocalHeaps = 0;
 
+static int* s_pBgdJobCnts = nullptr;
+static int s_numBgdJobCnts = 0;
+
 static sxLock* s_pGlbRNGLock = nullptr;
 static sxRNG s_glbRNG;
 
@@ -138,6 +141,14 @@ void init(const ScnCfg& cfg) {
 		s_pGlbRNGLock = nxSys::lock_create();
 		s_pGlbMemLock = nxSys::lock_create();
 	}
+	if (s_pBgd) {
+		s_numBgdJobCnts = (/*cpy_prev*/1 + SCN_NUM_EXEC_PRIO + /*vis*/1) * s_pBgd->get_workers_num();
+		size_t jcntsMemSize = s_numBgdJobCnts*sizeof(int);
+		s_pBgdJobCnts = (int*)nxCore::mem_alloc(jcntsMemSize, "Scn:job_cnts");
+		if (s_pBgdJobCnts) {
+			::memset(s_pBgdJobCnts, 0, jcntsMemSize);
+		}
+	}
 
 	nxCore::rng_seed(&s_glbRNG, 1);
 
@@ -171,6 +182,11 @@ void reset() {
 		cxBrigade::destroy(s_pBgd);
 		s_pBgd = nullptr;
 	}
+	if (s_pBgdJobCnts) {
+		nxCore::mem_free(s_pBgdJobCnts);
+		s_pBgdJobCnts = nullptr;
+	}
+	s_numBgdJobCnts = 0;
 	if (s_pJobQue) {
 		nxTask::queue_destroy(s_pJobQue);
 		s_pJobQue = nullptr;
@@ -332,6 +348,45 @@ void pop_ctx() {
 		s_viewUpdateFlg = true;
 		s_shadowUpdateFlg = true;
 	}
+}
+
+
+int get_num_workers() {
+	return s_pBgd ? s_pBgd->get_workers_num() : 0;
+}
+
+int get_num_active_workers() {
+	return s_pBgd ? s_pBgd->get_active_workers_num() : 0;
+}
+
+int get_visibility_job_lvl() {
+	return 1 + SCN_NUM_EXEC_PRIO;
+}
+
+int get_wrk_jobs_done_cnt(const int lvl, const int wrkId) {
+	int cnt = 0;
+	if (lvl >= 0 && s_pBgd && s_pBgd->ck_worker_id(wrkId) && s_pBgdJobCnts) {
+		int nwrk = s_pBgd->get_workers_num();
+		int idx = lvl*nwrk + wrkId;
+		if (idx < s_numBgdJobCnts) {
+			cnt = s_pBgdJobCnts[idx];
+		}
+	}
+	return cnt;
+}
+
+int get_lvl_jobs_done_cnt(const int lvl) {
+	int cnt = 0;
+	if (lvl >= 0 && s_pBgd && s_pBgdJobCnts) {
+		int nwrk = s_pBgd->get_workers_num();
+		int idx = lvl*nwrk;
+		if (idx < s_numBgdJobCnts) {
+			for (int i = 0; i < nwrk; ++i) {
+				cnt += s_pBgdJobCnts[idx + i];
+			}
+		}
+	}
+	return cnt;
 }
 
 
@@ -1525,6 +1580,18 @@ bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const c
 	return flg;
 }
 
+static void save_job_cnts(const int lvl) {
+	if (lvl < 0) return;
+	if (!s_pBgd) return;
+	if (!s_pBgdJobCnts) return;
+	int nwrk = s_pBgd->get_workers_num();
+	int idx = lvl * nwrk;
+	if (idx >= s_numBgdJobCnts) return;
+	for (int i = 0; i < nwrk; ++i) {
+		s_pBgdJobCnts[idx + i] = s_pBgd->get_jobs_done_count(i);
+	}
+}
+
 static void job_queue_alloc(int njob) {
 	if (s_pJobQue) {
 		if (njob > nxTask::queue_get_max_job_num(s_pJobQue)) {
@@ -1569,6 +1636,7 @@ void copy_prev_world_data() {
 			}
 		}
 		nxTask::queue_exec(s_pJobQue, s_pBgd);
+		save_job_cnts(0);
 	}
 #endif
 }
@@ -1594,6 +1662,7 @@ void exec() {
 				}
 			}
 			nxTask::queue_exec(s_pJobQue, s_pBgd);
+			save_job_cnts(1 + i);
 		}
 	}
 }
@@ -1616,6 +1685,7 @@ void visibility() {
 			}
 		}
 		nxTask::queue_exec(s_pJobQue, s_pBgd);
+		save_job_cnts(get_visibility_job_lvl());
 	}
 }
 

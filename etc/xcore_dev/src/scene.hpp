@@ -226,6 +226,12 @@ uint64_t get_frame_count();
 void push_ctx();
 void pop_ctx();
 
+int get_num_workers();
+int get_num_active_workers();
+int get_visibility_job_lvl();
+int get_wrk_jobs_done_cnt(const int lvl, const int wrkId);
+int get_lvl_jobs_done_cnt(const int lvl);
+
 void alloc_local_heaps(const size_t localHeapSize);
 void free_local_heaps();
 void purge_local_heaps();
