@@ -10168,6 +10168,71 @@ const sxModelData::Material* sxModelData::get_swap_material(const int imtl, cons
 	return pSwpMtl;
 }
 
+bool sxModelData::mtl_has_exts(const int imtl) const {
+	const Material* pMtl = get_material(imtl);
+	if (!pMtl) return false;
+	return pMtl->mExtOffs > 0;
+}
+
+const sxModelData::Material::ExtList* sxModelData::get_mtl_ext_list(const int imtl) const {
+	const Material::ExtList* pLst = nullptr;
+	const Material* pMtl = get_material(imtl);
+	if (pMtl && pMtl->mExtOffs > 0) {
+		pLst = reinterpret_cast<const Material::ExtList*>(XD_INCR_PTR(this, pMtl->mExtOffs));
+	}
+	return pLst;
+}
+
+int sxModelData::get_mtl_num_exts(const int imtl) const {
+	int n = 0;
+	const Material::ExtList* pLst = get_mtl_ext_list(imtl);
+	if (pLst) {
+		n = pLst->num;
+	}
+	return n;
+}
+
+uint32_t sxModelData::find_mtl_ext_offs(const int imtl, const uint32_t kind) const {
+	uint32_t offs = 0;
+	const Material::ExtList* pLst = get_mtl_ext_list(imtl);
+	if (pLst) {
+		for (uint32_t i = 0; i < pLst->num; ++i) {
+			if (kind == pLst->lst[i].kind) {
+				offs = pLst->lst[i].offs;
+				break;
+			}
+		}
+	}
+	return offs;
+}
+
+const sxModelData::Material::BasePatternExt* sxModelData::find_mtl_base_pattern_ext(const int imtl) const {
+	const Material::BasePatternExt* pPat = nullptr;
+	uint32_t offs = find_mtl_ext_offs(imtl, XD_FOURCC('P', 'a', 't', 'B'));
+	if (offs > 0) {
+		pPat = reinterpret_cast<const Material::BasePatternExt*>(XD_INCR_PTR(this, offs));
+	}
+	return pPat;
+}
+
+const sxModelData::Material::SpecPatternExt* sxModelData::find_mtl_spec_pattern_ext(const int imtl) const {
+	const Material::SpecPatternExt* pPat = nullptr;
+	uint32_t offs = find_mtl_ext_offs(imtl, XD_FOURCC('P', 'a', 't', 'S'));
+	if (offs > 0) {
+		pPat = reinterpret_cast<const Material::SpecPatternExt*>(XD_INCR_PTR(this, offs));
+	}
+	return pPat;
+}
+
+const sxModelData::Material::NormPatternExt* sxModelData::find_mtl_norm_pattern_ext(const int imtl) const {
+	const Material::NormPatternExt* pPat = nullptr;
+	uint32_t offs = find_mtl_ext_offs(imtl, XD_FOURCC('P', 'a', 't', 'N'));
+	if (offs > 0) {
+		pPat = reinterpret_cast<const Material::NormPatternExt*>(XD_INCR_PTR(this, offs));
+	}
+	return pPat;
+}
+
 cxAABB sxModelData::get_batch_bbox(const int ibat) const {
 	cxAABB bbox;
 	if (mBatOffs && ck_batch_id(ibat)) {

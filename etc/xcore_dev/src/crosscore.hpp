@@ -4499,6 +4499,38 @@ struct sxModelData : public sxData {
 			uint32_t sortTris : 1;
 		};
 
+		struct ExtExtry {
+			uint32_t kind;
+			uint32_t offs;
+		};
+
+		struct ExtList {
+			uint32_t num;
+			uint32_t reserved;
+			ExtExtry lst[1];
+		};
+
+		struct BasePatternExt {
+			xt_float2 offs;
+			xt_float2 scl;
+			xt_float3 clr;
+			int32_t texId;
+		};
+
+		struct SpecPatternExt {
+			xt_float2 offs;
+			xt_float2 scl;
+			xt_float3 clr;
+			int32_t texId;
+		};
+
+		struct NormPatternExt {
+			xt_float2 offs;
+			xt_float2 scl;
+			xt_float2 factor;
+			int32_t texId;
+		};
+
 		int32_t mNameId;
 		int32_t mPathId;
 		int32_t mBaseTexId;
@@ -4595,6 +4627,13 @@ struct sxModelData : public sxData {
 	bool mtl_has_swaps(const int imtl) const;
 	int get_mtl_num_swaps(const int imtl) const;
 	const Material* get_swap_material(const int imtl, const int iswp) const;
+	bool mtl_has_exts(const int imtl) const;
+	const Material::ExtList* get_mtl_ext_list(const int imtl) const;
+	int get_mtl_num_exts(const int imtl) const;
+	uint32_t find_mtl_ext_offs(const int imtl, const uint32_t kind) const;
+	const Material::BasePatternExt* find_mtl_base_pattern_ext(const int imtl) const;
+	const Material::SpecPatternExt* find_mtl_spec_pattern_ext(const int imtl) const;
+	const Material::NormPatternExt* find_mtl_norm_pattern_ext(const int imtl) const;
 	cxAABB get_batch_bbox(const int ibat) const;
 	const Batch* get_batch_ptr(const int ibat) const;
 	const char* get_batch_name(const int ibat) const;
