@@ -23,6 +23,9 @@ uniform vec4 gpSurfParam; // roughness, fresnel
 uniform vec4 gpBumpParam; // scale, flipT, flipB
 uniform vec3 gpAlphaCtrl; // lim
 
+uniform vec4 gpBumpPatUV; // xy: offs, zw: scl
+uniform vec4 gpBumpPatParam; // xy: factor
+
 uniform vec4 gpFogColor; // rgb, density
 uniform vec4 gpFogParam; // start, falloff, curveP1, curveP2
 

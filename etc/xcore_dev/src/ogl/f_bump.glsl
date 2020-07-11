@@ -29,4 +29,15 @@ vec3 calcBumpNrm() {
 	return nn;
 }
 
+vec3 calcBumpNrmPat() {
+	vec3 nrm = normalize(pixNrm);
+	vec3 tng;
+	vec3 btg;
+	calcTangent(pixPos, nrm, pixTex, tng, btg);
+	float sclT = gpBumpParam.y;
+	float sclB = gpBumpParam.z;
+	vec3 nmap = getNormMapPat(pixTex);
+	vec3 nn = normalize(nmap.x*tng*sclT + nmap.y*btg*sclB + nmap.z*nrm);
+	return nn;
+}
 
