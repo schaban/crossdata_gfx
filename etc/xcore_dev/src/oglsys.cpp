@@ -2030,7 +2030,20 @@ namespace OGLSys {
 						char* pInfo = (char*)GLG.mem_alloc(infoLen, "OGLSys:ProgInfo");
 						if (pInfo) {
 							glGetProgramInfoLog(pid, infoLen, &infoLen, pInfo);
-							GLG.dbg_msg("%s", pInfo);
+							const int infoBlkSize = 512;
+							char infoBlk[infoBlkSize + 1];
+							infoBlk[infoBlkSize] = 0;
+							int nblk = infoLen / infoBlkSize;
+							for (int i = 0; i < nblk; ++i) {
+								::memcpy(infoBlk, &pInfo[infoBlkSize * i], infoBlkSize);
+								GLG.dbg_msg("%s", infoBlk);
+							}
+							int endSize = infoLen % infoBlkSize;
+							if (endSize) {
+								::memcpy(infoBlk, &pInfo[infoBlkSize * nblk], endSize);
+								infoBlk[endSize] = 0;
+								GLG.dbg_msg("%s", infoBlk);
+							}
 							GLG.mem_free(pInfo);
 							pInfo = nullptr;
 						}
