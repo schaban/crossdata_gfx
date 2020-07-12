@@ -19,6 +19,7 @@ namespace Draw {
 		TEXUNIT_Bump,
 		TEXUNIT_Spec,
 		TEXUNIT_Surf,
+		TEXUNIT_BumpPat,
 		TEXUNIT_Shadow,
 		TEXUNIT_COUNT
 	};

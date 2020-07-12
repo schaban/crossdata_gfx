@@ -159,6 +159,7 @@ struct SmpLink {
 	GLint Spec;
 	GLint Bump;
 	GLint Surf;
+	GLint BumpPat;
 	GLint Shadow;
 
 	void reset() { ::memset(this, 0xFF, sizeof(*this)); }
@@ -370,6 +371,7 @@ struct GPUProg {
 			SET_TEX_UNIT(Bump);
 			SET_TEX_UNIT(Spec);
 			SET_TEX_UNIT(Surf);
+			SET_TEX_UNIT(BumpPat);
 			SET_TEX_UNIT(Shadow);
 			glUseProgram(0);
 
@@ -947,7 +949,7 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 
 	int prgCnt = 0;
 	int prgOK = 0;
-#define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.init(VtxFmt_##_vert_name, s_sdr_##_vert_name##_vert, s_sdr_##_frag_name##_frag); ++prgCnt; prgOK += s_prg_##_vert_name##_##_frag_name.is_valid();
+#define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.init(VtxFmt_##_vert_name, s_sdr_##_vert_name##_vert, s_sdr_##_frag_name##_frag); ++prgCnt; if (s_prg_##_vert_name##_##_frag_name.is_valid()) {++prgOK;} else { nxCore::dbg_msg("GPUProg init error: %s + %s\n", #_vert_name, #_frag_name); }
 #include "ogl/progs.inc"
 #undef GPU_PROG
 
