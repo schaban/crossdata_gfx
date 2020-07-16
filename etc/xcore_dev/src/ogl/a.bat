@@ -102,6 +102,15 @@ call :frag hemi_bump_pat_opaq_sdw.frag f_shadow.glsl+f_hemi.glsl+f_bump.glsl+hem
 call :frag hemi_bump_pat_limit_sdw.frag f_shadow.glsl+f_hemi.glsl+f_bump.glsl+hemi_bump_pat_sdw.glsl+hemi_bump_pat_limit_sdw.frag prologue_frag_bump.h
 call :frag hemi_bump_pat_discard_sdw.frag f_shadow.glsl+f_hemi.glsl+f_bump.glsl+hemi_bump_pat_sdw.glsl+hemi_bump_pat_discard_sdw.frag prologue_frag_bump.h
 
+rem spec bump pat, no semi
+call :frag hemi_spec_bump_pat_opaq.frag f_hemi.glsl+f_spec.glsl+f_bump.glsl+hemi_spec_bump_pat.glsl+hemi_spec_bump_pat_opaq.frag prologue_frag_bump.h
+call :frag hemi_spec_bump_pat_limit.frag f_hemi.glsl+f_spec.glsl+f_bump.glsl+hemi_spec_bump_pat.glsl+hemi_spec_bump_pat_limit.frag prologue_frag_bump.h
+call :frag hemi_spec_bump_pat_discard.frag f_hemi.glsl+f_spec.glsl+f_bump.glsl+hemi_spec_bump_pat.glsl+hemi_spec_bump_pat_discard.frag prologue_frag_bump.h
+
+call :frag hemi_spec_bump_pat_opaq_sdw.frag f_shadow.glsl+f_hemi.glsl+f_spec.glsl+f_bump.glsl+hemi_spec_bump_pat_sdw.glsl+hemi_spec_bump_pat_opaq_sdw.frag prologue_frag_bump.h
+call :frag hemi_spec_bump_pat_limit_sdw.frag f_shadow.glsl+f_hemi.glsl+f_spec.glsl+f_bump.glsl+hemi_spec_bump_pat_sdw.glsl+hemi_spec_bump_pat_limit_sdw.frag prologue_frag_bump.h
+call :frag hemi_spec_bump_pat_discard_sdw.frag f_shadow.glsl+f_hemi.glsl+f_spec.glsl+f_bump.glsl+hemi_spec_bump_pat_sdw.glsl+hemi_spec_bump_pat_discard_sdw.frag prologue_frag_bump.h
+
 
 call :frag sh_opaq.frag f_sh.glsl+sh_basic.glsl+sh_opaq.frag
 call :frag sh_semi.frag f_sh.glsl+sh_basic.glsl+sh_semi.frag

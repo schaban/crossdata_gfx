@@ -43,6 +43,13 @@ GPU_PROG(skin0, hemi_bump_pat_opaq_sdw)
 GPU_PROG(skin0, hemi_bump_pat_limit_sdw)
 GPU_PROG(skin0, hemi_bump_pat_discard_sdw)
 
+GPU_PROG(skin0, hemi_spec_bump_pat_opaq)
+GPU_PROG(skin0, hemi_spec_bump_pat_limit)
+GPU_PROG(skin0, hemi_spec_bump_pat_discard)
+GPU_PROG(skin0, hemi_spec_bump_pat_opaq_sdw)
+GPU_PROG(skin0, hemi_spec_bump_pat_limit_sdw)
+GPU_PROG(skin0, hemi_spec_bump_pat_discard_sdw)
+
 GPU_PROG(skin0, cast_opaq)
 GPU_PROG(skin0, cast_semi)
 
@@ -132,6 +139,13 @@ GPU_PROG(skin1, hemi_bump_pat_discard)
 GPU_PROG(skin1, hemi_bump_pat_opaq_sdw)
 GPU_PROG(skin1, hemi_bump_pat_limit_sdw)
 GPU_PROG(skin1, hemi_bump_pat_discard_sdw)
+
+GPU_PROG(skin1, hemi_spec_bump_pat_opaq)
+GPU_PROG(skin1, hemi_spec_bump_pat_limit)
+GPU_PROG(skin1, hemi_spec_bump_pat_discard)
+GPU_PROG(skin1, hemi_spec_bump_pat_opaq_sdw)
+GPU_PROG(skin1, hemi_spec_bump_pat_limit_sdw)
+GPU_PROG(skin1, hemi_spec_bump_pat_discard_sdw)
 
 GPU_PROG(skin1, cast_opaq)
 GPU_PROG(skin1, cast_semi)
