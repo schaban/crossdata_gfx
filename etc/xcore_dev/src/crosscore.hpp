@@ -3344,7 +3344,18 @@ struct sxData {
 	int16_t mNameId;
 	int16_t mPathId;
 	uint32_t mFilePathLen;
-	uint32_t mReserved;
+	uint32_t mOffsExt;
+
+	struct ExtExtry {
+		uint32_t kind;
+		uint32_t offs;
+	};
+
+	struct ExtList {
+		uint32_t num;
+		uint32_t reserved;
+		ExtExtry lst[1];
+	};
 
 	sxStrList* get_str_list() const { return mOffsStr ? (sxStrList*)XD_INCR_PTR(this, mOffsStr) : nullptr; }
 	const char* get_str(int id) const { sxStrList* pStrLst = get_str_list(); return pStrLst ? pStrLst->get_str(id) : nullptr; }
@@ -3353,6 +3364,8 @@ struct sxData {
 	const char* get_file_path() const { return has_file_path() ? (const char*)XD_INCR_PTR(this, mFileSize) : nullptr; }
 	const char* get_name() const { return get_str(mNameId); }
 	const char* get_base_path() const { return get_str(mPathId); }
+	const ExtList* get_ext_list() const { return mOffsExt ? (const ExtList*)XD_INCR_PTR(this, mOffsExt) : nullptr; }
+	uint32_t find_ext_offs(const uint32_t kind) const;
 
 	template<typename T> bool is() const { return mKind == T::KIND; }
 	template<typename T> T* as() const { return is<T>() ? (T*)this : nullptr; }
@@ -4499,17 +4512,6 @@ struct sxModelData : public sxData {
 			uint32_t sortTris : 1;
 		};
 
-		struct ExtExtry {
-			uint32_t kind;
-			uint32_t offs;
-		};
-
-		struct ExtList {
-			uint32_t num;
-			uint32_t reserved;
-			ExtExtry lst[1];
-		};
-
 		struct BasePatternExt {
 			xt_float2 offs;
 			xt_float2 scl;
@@ -4628,7 +4630,7 @@ struct sxModelData : public sxData {
 	int get_mtl_num_swaps(const int imtl) const;
 	const Material* get_swap_material(const int imtl, const int iswp) const;
 	bool mtl_has_exts(const int imtl) const;
-	const Material::ExtList* get_mtl_ext_list(const int imtl) const;
+	const ExtList* get_mtl_ext_list(const int imtl) const;
 	int get_mtl_num_exts(const int imtl) const;
 	uint32_t find_mtl_ext_offs(const int imtl, const uint32_t kind) const;
 	const Material::BasePatternExt* find_mtl_base_pattern_ext(const int imtl) const;

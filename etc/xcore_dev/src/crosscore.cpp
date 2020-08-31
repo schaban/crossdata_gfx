@@ -5627,6 +5627,21 @@ xt_float4 sxVecList::get_f4(int idx) {
 }
 
 
+uint32_t sxData::find_ext_offs(const uint32_t kind) const {
+	uint32_t offs = 0;
+	const ExtList* pLst = get_ext_list();
+	if (pLst) {
+		for (uint32_t i = 0; i < pLst->num; ++i) {
+			if (kind == pLst->lst[i].kind) {
+				offs = pLst->lst[i].offs;
+				break;
+			}
+		}
+	}
+	return offs;
+}
+
+
 int sxValuesData::Group::find_val_idx(const char* pName) const {
 	int idx = -1;
 	if (pName && is_valid()) {
@@ -10174,18 +10189,18 @@ bool sxModelData::mtl_has_exts(const int imtl) const {
 	return pMtl->mExtOffs > 0;
 }
 
-const sxModelData::Material::ExtList* sxModelData::get_mtl_ext_list(const int imtl) const {
-	const Material::ExtList* pLst = nullptr;
+const sxData::ExtList* sxModelData::get_mtl_ext_list(const int imtl) const {
+	const ExtList* pLst = nullptr;
 	const Material* pMtl = get_material(imtl);
 	if (pMtl && pMtl->mExtOffs > 0) {
-		pLst = reinterpret_cast<const Material::ExtList*>(XD_INCR_PTR(this, pMtl->mExtOffs));
+		pLst = reinterpret_cast<const ExtList*>(XD_INCR_PTR(this, pMtl->mExtOffs));
 	}
 	return pLst;
 }
 
 int sxModelData::get_mtl_num_exts(const int imtl) const {
 	int n = 0;
-	const Material::ExtList* pLst = get_mtl_ext_list(imtl);
+	const ExtList* pLst = get_mtl_ext_list(imtl);
 	if (pLst) {
 		n = pLst->num;
 	}
@@ -10194,7 +10209,7 @@ int sxModelData::get_mtl_num_exts(const int imtl) const {
 
 uint32_t sxModelData::find_mtl_ext_offs(const int imtl, const uint32_t kind) const {
 	uint32_t offs = 0;
-	const Material::ExtList* pLst = get_mtl_ext_list(imtl);
+	const ExtList* pLst = get_mtl_ext_list(imtl);
 	if (pLst) {
 		for (uint32_t i = 0; i < pLst->num; ++i) {
 			if (kind == pLst->lst[i].kind) {

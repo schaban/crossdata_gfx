@@ -1161,7 +1161,7 @@ class BaseExporter:
 		self.writeStrId16(bw, self.nameId) # +14 nameId
 		self.writeStrId16(bw, self.pathId) # +16 pathId
 		bw.writeU32(0) # +18 filePathLen (set by loader)
-		bw.writeU32(0) # +1C reserved
+		bw.writeU32(0) # +1C offsExt
 		self.writeHead(bw, top)
 		bw.patch(top + 0xC, bw.getPos() - top) # headSize
 		bw.align(0x10)
