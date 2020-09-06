@@ -2881,6 +2881,11 @@ bool cap_aabb_overlap(const cxVec& cp0, const cxVec& cp1, const float cr, const 
 bool tri_aabb_overlap(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& bmin, const cxVec& bmax);
 bool tri_aabb_overlap(const cxVec vtx[3], const cxVec& bmin, const cxVec& bmax);
 
+float sph_region_weight(const cxVec& pos, const cxVec& center, const float attnStart, const float attnEnd);
+float cap_region_weight(const cxVec& pos, const cxVec& capPos0, const cxVec& capPos1, const float attnStart, const float attnEnd);
+float obb_region_weight(const cxVec& pos, const cxMtx& invMtx, const cxVec& attnStart, const cxVec& attnEnd);
+
+
 } // nxGeom
 
 

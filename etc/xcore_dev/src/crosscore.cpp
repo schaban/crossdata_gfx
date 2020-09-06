@@ -3842,6 +3842,47 @@ bool tri_aabb_overlap(const cxVec vtx[3], const cxVec& bmin, const cxVec& bmax) 
 	return ::fabsf(s) <= r;
 }
 
+float sph_region_weight(const cxVec& pos, const cxVec& center, const float attnStart, const float attnEnd) {
+	float wght = 0.0f;
+	float dist = nxVec::dist(pos, center);
+	if (dist <= attnEnd) {
+		if (dist <= attnStart) {
+			wght = 1.0f;
+		} else {
+			float falloff = nxCalc::rcp0(attnEnd - attnStart);
+			wght = nxCalc::saturate(1.0f - falloff);
+		}
+	}
+	return wght;
+}
+
+float cap_region_weight(const cxVec& pos, const cxVec& capPos0, const cxVec& capPos1, const float attnStart, const float attnEnd) {
+	float wght = 0.0f;
+	float dist = nxVec::dist(pos, seg_pnt_closest(capPos0, capPos1, pos));
+	if (dist <= attnEnd) {
+		if (dist <= attnStart) {
+			wght = 1.0f;
+		} else {
+			float falloff = nxCalc::rcp0(attnEnd - attnStart);
+			wght = nxCalc::saturate(1.0f - falloff);
+		}
+	}
+	return wght;
+}
+
+float obb_region_weight(const cxVec& pos, const cxMtx& invMtx, const cxVec& attnStart, const cxVec& attnEnd) {
+	cxVec loc = invMtx.calc_pnt(pos);
+	loc.abs();
+	loc.min(cxVec(1.0f));
+	cxVec d = loc - attnStart;
+	d.saturate();
+	cxVec falloff = nxVec::rcp0(attnEnd - attnStart);
+	cxVec attn = cxVec(1.0f) - (d * falloff);
+	attn.saturate();
+	float wght = attn.x * attn.y * attn.z;
+	return wght;
+}
+
 } // nxGeom
 
 
