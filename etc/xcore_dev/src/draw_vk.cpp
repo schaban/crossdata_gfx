@@ -1088,36 +1088,74 @@ void VK_GLB::mdl_prepare(sxModelData* pMdl) {
 		}
 	}
 
-	VkBufferCreateInfo ibCrInfo;
-	::memset(&ibCrInfo, 0, sizeof(VkBufferCreateInfo));
-	ibCrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	ibCrInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	ibCrInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	ibCrInfo.size = sizeof(uint16_t) * nidx;
-	vres = vkCreateBuffer(mVkDevice, &ibCrInfo, mpAllocator, &pGPUWk->idxBuf);
-	if (VK_SUCCESS != vres) {
-		return;
-	}
-	VkMemoryRequirements ibMemReqs;
-	vkGetBufferMemoryRequirements(mVkDevice, pGPUWk->idxBuf, &ibMemReqs);
-	int ibMemIdx = get_mem_type_idx(ibMemReqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	if (ibMemIdx >= 0) {
-		VkMemoryAllocateInfo ibAllocInfo;
-		::memset(&ibAllocInfo, 0, sizeof(VkMemoryAllocateInfo));
-		ibAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		ibAllocInfo.memoryTypeIndex = (uint32_t)ibMemIdx;
-		ibAllocInfo.allocationSize = ibMemReqs.size;
-		vres = vkAllocateMemory(mVkDevice, &ibAllocInfo, mpAllocator, &pGPUWk->idxMem);
-		if (VK_SUCCESS == vres) {
-			void* pMappedIB = nullptr;
-			vres = vkMapMemory(mVkDevice, pGPUWk->idxMem, 0, ibMemReqs.size, 0, &pMappedIB);
+	if (nidx > 0) {
+		VkBufferCreateInfo ibCrInfo;
+		::memset(&ibCrInfo, 0, sizeof(VkBufferCreateInfo));
+		ibCrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		ibCrInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		ibCrInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		ibCrInfo.size = sizeof(uint16_t) * nidx;
+		vres = vkCreateBuffer(mVkDevice, &ibCrInfo, mpAllocator, &pGPUWk->idxBuf);
+		if (VK_SUCCESS != vres) {
+			return;
+		}
+		VkMemoryRequirements ibMemReqs;
+		vkGetBufferMemoryRequirements(mVkDevice, pGPUWk->idxBuf, &ibMemReqs);
+		int ibMemIdx = get_mem_type_idx(ibMemReqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		if (ibMemIdx >= 0) {
+			VkMemoryAllocateInfo ibAllocInfo;
+			::memset(&ibAllocInfo, 0, sizeof(VkMemoryAllocateInfo));
+			ibAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			ibAllocInfo.memoryTypeIndex = (uint32_t)ibMemIdx;
+			ibAllocInfo.allocationSize = ibMemReqs.size;
+			vres = vkAllocateMemory(mVkDevice, &ibAllocInfo, mpAllocator, &pGPUWk->idxMem);
 			if (VK_SUCCESS == vres) {
-				const uint16_t* pIdxData = pMdl->get_idx16_top();
-				if (pIdxData) {
-					::memcpy(pMappedIB, pIdxData, (size_t)ibMemReqs.size);
+				void* pMappedIB = nullptr;
+				vres = vkMapMemory(mVkDevice, pGPUWk->idxMem, 0, ibMemReqs.size, 0, &pMappedIB);
+				if (VK_SUCCESS == vres) {
+					const uint16_t* pIdxData = pMdl->get_idx16_top();
+					if (pIdxData) {
+						::memcpy(pMappedIB, pIdxData, (size_t)ibMemReqs.size);
+					}
+					vkUnmapMemory(mVkDevice, pGPUWk->idxMem);
+					vres = vkBindBufferMemory(mVkDevice, pGPUWk->idxBuf, pGPUWk->idxMem, 0);
 				}
-				vkUnmapMemory(mVkDevice, pGPUWk->idxMem);
-				vres = vkBindBufferMemory(mVkDevice, pGPUWk->idxBuf, pGPUWk->idxMem, 0);
+			}
+		}
+	}
+
+	if (ni32 > 0) {
+		VkBufferCreateInfo ibCrInfo;
+		::memset(&ibCrInfo, 0, sizeof(VkBufferCreateInfo));
+		ibCrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		ibCrInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		ibCrInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		ibCrInfo.size = sizeof(uint32_t) * ni32;
+		vres = vkCreateBuffer(mVkDevice, &ibCrInfo, mpAllocator, &pGPUWk->i32Buf);
+		if (VK_SUCCESS != vres) {
+			return;
+		}
+		VkMemoryRequirements ibMemReqs;
+		vkGetBufferMemoryRequirements(mVkDevice, pGPUWk->i32Buf, &ibMemReqs);
+		int ibMemIdx = get_mem_type_idx(ibMemReqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		if (ibMemIdx >= 0) {
+			VkMemoryAllocateInfo ibAllocInfo;
+			::memset(&ibAllocInfo, 0, sizeof(VkMemoryAllocateInfo));
+			ibAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			ibAllocInfo.memoryTypeIndex = (uint32_t)ibMemIdx;
+			ibAllocInfo.allocationSize = ibMemReqs.size;
+			vres = vkAllocateMemory(mVkDevice, &ibAllocInfo, mpAllocator, &pGPUWk->i32Mem);
+			if (VK_SUCCESS == vres) {
+				void* pMappedIB = nullptr;
+				vres = vkMapMemory(mVkDevice, pGPUWk->i32Mem, 0, ibMemReqs.size, 0, &pMappedIB);
+				if (VK_SUCCESS == vres) {
+					const uint32_t* pIdxData = pMdl->get_idx32_top();
+					if (pIdxData) {
+						::memcpy(pMappedIB, pIdxData, (size_t)ibMemReqs.size);
+					}
+					vkUnmapMemory(mVkDevice, pGPUWk->i32Mem);
+					vres = vkBindBufferMemory(mVkDevice, pGPUWk->i32Buf, pGPUWk->i32Mem, 0);
+				}
 			}
 		}
 	}
@@ -1145,6 +1183,14 @@ void VK_GLB::mdl_release(sxModelData* pMdl) {
 		if (pGPUWk->idxMem != VK_NULL_HANDLE) {
 			vkFreeMemory(mVkDevice, pGPUWk->idxMem, mpAllocator);
 			pGPUWk->idxMem = VK_NULL_HANDLE;
+		}
+	}
+	if (pGPUWk->i32Buf != VK_NULL_HANDLE) {
+		vkDestroyBuffer(mVkDevice, pGPUWk->i32Buf, mpAllocator);
+		pGPUWk->i32Buf = VK_NULL_HANDLE;
+		if (pGPUWk->i32Mem != VK_NULL_HANDLE) {
+			vkFreeMemory(mVkDevice, pGPUWk->i32Mem, mpAllocator);
+			pGPUWk->i32Mem = VK_NULL_HANDLE;
 		}
 	}
 	nxCore::mem_free(pGPUWk);
@@ -1243,7 +1289,7 @@ void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode,
 	if (!pMdl) return;
 	const sxModelData::Batch* pBat = pMdl->get_batch_ptr(ibat);
 	if (!pBat) return;
-	if (!pBat->is_idx16()) return;
+//	if (!pBat->is_idx16()) return;
 	MDL_GPU_WK** ppGPUWk = pMdl->get_gpu_wk<MDL_GPU_WK*>();
 	MDL_GPU_WK* pGPUWk = *ppGPUWk;
 	if (pGPUWk == nullptr) return;
@@ -1292,7 +1338,11 @@ void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode,
 	vkCmdBindDescriptorSets(mpSwapChainCmdBufs[mSwapChainIdx], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mpSwapChainDescrSets[mSwapChainIdx], 0, nullptr);
 	VkDeviceSize vbOffs = pBat->mMinIdx * sizeof(GPUVtx);
 	vkCmdBindVertexBuffers(cmd, 0, 1, &pGPUWk->vtxBuf, &vbOffs);
-	vkCmdBindIndexBuffer(cmd, pGPUWk->idxBuf, pBat->mIdxOrg * sizeof(uint16_t), VK_INDEX_TYPE_UINT16);
+	if (pBat->is_idx16()) {
+		vkCmdBindIndexBuffer(cmd, pGPUWk->idxBuf, pBat->mIdxOrg * sizeof(uint16_t), VK_INDEX_TYPE_UINT16);
+	} else {
+		vkCmdBindIndexBuffer(cmd, pGPUWk->i32Buf, pBat->mIdxOrg * sizeof(uint32_t), VK_INDEX_TYPE_UINT32);
+	}
 	vkCmdDrawIndexed(cmd, pBat->mTriNum * 3, 1, 0, 0, 0);
 	vkCmdEndRenderPass(mpSwapChainCmdBufs[mSwapChainIdx]);
 }
