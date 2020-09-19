@@ -5782,6 +5782,17 @@ void unload(sxData* pData);
 sxPackedData* pack(const uint8_t* pSrc, uint32_t srcSize, uint32_t mode = 0);
 uint8_t* unpack(sxPackedData* pPkd, const char* pTemTag = "xTmpMem", uint8_t* pDstMem = nullptr, uint32_t dstMemSize = 0, size_t* pSize = nullptr, bool recursive = true);
 
+template<typename T> T* load_as(const char* pPath) {
+	sxData* pData = nxData::load(pPath);
+	if (pData) {
+		if (pData->is<T>()) {
+			return pData->as<T>();
+		}
+		nxData::unload(pData);
+	}
+	return nullptr;
+}
+
 } // nxData
 
 
