@@ -10592,8 +10592,8 @@ int sxModelData::find_skel_node_id(const char* pName) const {
 
 void sxModelData::dump_geo(FILE* pOut) const {
 	::fprintf(pOut, "PGEOMETRY V5\n");
-	::fprintf(pOut, "NPoints %d NPrims %d\n", mPntNum, mTriNum);
-	::fprintf(pOut, "NPointGroups 0 NPrimGroups %d\n", mBatNum);
+	::fprintf(pOut, "NPoints %d NPrims %d\n", int(mPntNum), int(mTriNum));
+	::fprintf(pOut, "NPointGroups 0 NPrimGroups %d\n", int(mBatNum));
 	::fprintf(pOut, "NPointAttrib 4 NVertexAttrib 0 NPrimAttrib 0 NAttrib 0\n");
 	::fprintf(pOut, "PointAttrib\n");
 	::fprintf(pOut, "N 3 vector 0 0 0\n");
@@ -10612,13 +10612,13 @@ void sxModelData::dump_geo(FILE* pOut) const {
 			clr.a,
 			tex.u, 1.0f - tex.v);
 	}
-	::fprintf(pOut, "Run %d Poly\n", mTriNum);
+	::fprintf(pOut, "Run %d Poly\n", int(mTriNum));
 	for (uint32_t i = 0; i < mBatNum; ++i) {
 		const Batch* pBat = get_batch_ptr(i);
 		if (pBat) {
 			for (int j = 0; j < pBat->mTriNum; ++j) {
 				xt_int3 vidx = get_batch_tri_indices(i, j);
-				::fprintf(pOut, " 3 < %d %d %d\n", vidx[0], vidx[1], vidx[2]);
+				::fprintf(pOut, " 3 < %d %d %d\n", int(vidx[0]), int(vidx[1]), int(vidx[2]));
 			}
 		}
 	}
@@ -10627,7 +10627,7 @@ void sxModelData::dump_geo(FILE* pOut) const {
 		const Batch* pBat = get_batch_ptr(i);
 		const char* pBatName = get_batch_name(i);
 		::fprintf(pOut, "%s unordered\n", pBatName);
-		::fprintf(pOut, "%d ", mTriNum);
+		::fprintf(pOut, "%d ", int(mTriNum));
 		int cnt = 0;
 		for (uint32_t j = 0; j < mTriNum; ++j) {
 			::fprintf(pOut, "%c", j >= triOrg && j < triOrg + pBat->mTriNum ? '1' : '0');
@@ -10669,7 +10669,7 @@ void sxModelData::dump_ocapt(FILE* pOut, const char* pSkelPath) const {
 		PntSkin skn = get_pnt_skin(i);
 		for (int j = 0; j < skn.num; ++j) {
 			const char* pJntName = get_skin_name(skn.idx[j]);
-			::fprintf(pOut, "%d %s/%s/cregion 0 %f\n", i, pSkelPath, pJntName, skn.wgt[j]);
+			::fprintf(pOut, "%d %s/%s/cregion 0 %f\n", int(i), pSkelPath, pJntName, skn.wgt[j]);
 		}
 	}
 }
@@ -10778,24 +10778,25 @@ void sxModelData::dump_mdl_spheres(FILE* pOut) const {
 	if (!pSph) {
 		return;
 	}
+	int nskn = int(mSknNum);
 	::fprintf(pOut, "PGEOMETRY V5\n");
-	::fprintf(pOut, "NPoints %d NPrims %d\n", mSknNum, mSknNum);
-	::fprintf(pOut, "NPointGroups 0 NPrimGroups %d\n", mSknNum);
+	::fprintf(pOut, "NPoints %d NPrims %d\n", nskn, nskn);
+	::fprintf(pOut, "NPointGroups 0 NPrimGroups %d\n", nskn);
 	::fprintf(pOut, "NPointAttrib 0 NVertexAttrib 0 NPrimAttrib 0 NAttrib 0\n");
-	for (uint32_t i = 0; i < mSknNum; ++i) {
+	for (int i = 0; i < nskn; ++i) {
 		cxSphere sph = pSph[i];
 		cxVec c = sph.get_center();
 		::fprintf(pOut, "%f %f %f 1\n", c.x, c.y, c.z);
 	}
-	for (uint32_t i = 0; i < mSknNum; ++i) {
+	for (int i = 0; i < nskn; ++i) {
 		cxSphere sph = pSph[i];
 		float r = sph.get_radius();
 		::fprintf(pOut, "Sphere %d  %f 0 0  0 %f 0  0 0 %f\n", i, r, r, r);
 	}
-	for (uint32_t i = 0; i < mSknNum; ++i) {
+	for (int i = 0; i < nskn; ++i) {
 		::fprintf(pOut, "%s unordered\n", get_skin_name(i));
-		::fprintf(pOut, "%d", mSknNum);
-		for (uint32_t j = 0; j < mSknNum; ++j) {
+		::fprintf(pOut, "%d", nskn);
+		for (int j = 0; j < nskn; ++j) {
 			::fprintf(pOut, " %c", i == j ? '1' : '0');
 		}
 		::fprintf(pOut, "\n");
@@ -11462,7 +11463,7 @@ void sxCollisionData::dump_pol_geo(FILE* pOut) const {
 	if (!pOut) return;
 	if (!mPntOffs) return;
 	::fprintf(pOut, "PGEOMETRY V5\n");
-	::fprintf(pOut, "NPoints %d NPrims %d\n", mPntNum, mPolNum);
+	::fprintf(pOut, "NPoints %d NPrims %d\n", int(mPntNum), int(mPolNum));
 	::fprintf(pOut, "NPointGroups 0 NPrimGroups 0\n");
 	::fprintf(pOut, "NPointAttrib 0 NVertexAttrib 0 NPrimAttrib %d NAttrib 0\n", mGrpNum > 1 ? 2 : 1);
 	const cxVec* pPnts = reinterpret_cast<const cxVec*>(XD_INCR_PTR(this, mPntOffs));
@@ -11473,13 +11474,13 @@ void sxCollisionData::dump_pol_geo(FILE* pOut) const {
 	::fprintf(pOut, "PrimitiveAttrib\n");
 	::fprintf(pOut, "N 3 vector 0 0 0\n");
 	if (mGrpNum > 1) {
-		::fprintf(pOut, "grp_name 1 index %d", mGrpNum);
+		::fprintf(pOut, "grp_name 1 index %d", int(mGrpNum));
 		for (uint32_t i = 0; i < mGrpNum; ++i) {
 			::fprintf(pOut, " %s", get_grp_name(i));
 		}
 		::fprintf(pOut, "\n");
 	}
-	::fprintf(pOut, "Run %d Poly\n", mPolNum);
+	::fprintf(pOut, "Run %d Poly\n", int(mPolNum));
 	for (uint32_t i = 0; i < mPolNum; ++i) {
 		int nvtx = get_pol_num_vtx(i);
 		::fprintf(pOut, " %d <", nvtx);
@@ -11512,7 +11513,7 @@ void sxCollisionData::dump_tri_geo(FILE* pOut) const {
 	if (!pOut) return;
 	if (!mPntOffs) return;
 	::fprintf(pOut, "PGEOMETRY V5\n");
-	::fprintf(pOut, "NPoints %d NPrims %d\n", mPntNum, mTriNum);
+	::fprintf(pOut, "NPoints %d NPrims %d\n", int(mPntNum), int(mTriNum));
 	::fprintf(pOut, "NPointGroups 0 NPrimGroups 0\n");
 	::fprintf(pOut, "NPointAttrib 0 NVertexAttrib 0 NPrimAttrib %d NAttrib 0\n", mGrpNum > 1 ? 1 : 0);
 	const cxVec* pPnts = reinterpret_cast<const cxVec*>(XD_INCR_PTR(this, mPntOffs));
@@ -11522,13 +11523,13 @@ void sxCollisionData::dump_tri_geo(FILE* pOut) const {
 	}
 	if (mGrpNum > 1) {
 		::fprintf(pOut, "PrimitiveAttrib\n");
-		::fprintf(pOut, "grp_name 1 index %d", mGrpNum);
+		::fprintf(pOut, "grp_name 1 index %d", int(mGrpNum));
 		for (uint32_t i = 0; i < mGrpNum; ++i) {
 			::fprintf(pOut, " %s", get_grp_name(i));
 		}
 		::fprintf(pOut, "\n");
 	}
-	::fprintf(pOut, "Run %d Poly\n", mTriNum);
+	::fprintf(pOut, "Run %d Poly\n", int(mTriNum));
 	for (uint32_t i = 0; i < mPolNum; ++i) {
 		int nptris = get_pol_num_tris(i);
 		for (int j = 0; j < nptris; ++j) {

@@ -86,7 +86,7 @@
 
 #define XD_MAX_PATH 4096
 
-#define XD_FOURCC(c1, c2, c3, c4) ((((uint8_t)(c4))<<24)|(((uint8_t)(c3))<<16)|(((uint8_t)(c2))<<8)|((uint8_t)(c1)))
+#define XD_FOURCC(c1, c2, c3, c4) ( (uint32_t)((((uint8_t)(c4))<<24)|(((uint8_t)(c3))<<16)|(((uint8_t)(c2))<<8)|((uint8_t)(c1))) )
 #define XD_INCR_PTR(_ptr, _inc) ( &((uint8_t*)(_ptr))[_inc] )
 #define XD_ARY_LEN(_arr) (sizeof((_arr)) / sizeof((_arr)[0]))
 #define XD_ALIGN(_x, _n) ( ((uintptr_t)(_x) + ((_n) - 1)) & (~((_n) - 1)) )
