@@ -52,7 +52,7 @@
 #	include <time.h>
 #endif
 
-#if !XD_TSK_NATIVE || defined(XD_SYS_APPLE)
+#if !XD_TSK_NATIVE || defined(XD_SYS_APPLE) || defined(XD_FORCE_CHRONO)
 #	include <chrono>
 #endif
 
@@ -307,7 +307,7 @@ double time_micros() {
 		QueryPerformanceCounter(&ctr);
 		ms = ((double)ctr.QuadPart / (double)frq.QuadPart) * 1.0e6;
 	}
-#elif defined(XD_SYS_APPLE)
+#elif defined(XD_SYS_APPLE) || defined(XD_FORCE_CHRONO)
 	using namespace std::chrono;
 	auto t = high_resolution_clock::now();
 	ms = (double)duration_cast<nanoseconds>(t.time_since_epoch()).count() * 1.0e-3;
