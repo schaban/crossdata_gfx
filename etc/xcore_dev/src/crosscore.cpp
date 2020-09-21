@@ -798,6 +798,17 @@ int32_t atomic_dec(int32_t* p) {
 }
 #endif
 
+
+bool is_LE() {
+	static const char* pRef = "LECK";
+	uxVal32 ccLE;
+	for (int i = 0; i < 4; ++i) {
+		ccLE.b[i] = pRef[i];
+	}
+	uint32_t fcc = XD_FOURCC(pRef[0], pRef[1], pRef[2], pRef[3]);
+	return ccLE.u == fcc;
+}
+
 } // nxSys
 
 
@@ -5533,6 +5544,161 @@ uint8_t* unpack(sxPackedData* pPkd, const char* pMemTag, uint8_t* pDstMem, uint3
 	return pDst;
 }
 
+
+static inline uint32_t xdat_u32(sxData::Status st, uint32_t* p) {
+	return st.native ? *p : nxSys::bswap32(*p);
+}
+
+static inline uint32_t xdat_get_swap_u32(sxData::Status st, uint32_t* p) {
+	uint32_t val = xdat_u32(st, p);
+	nxSys::mem_bswap32(p);
+	return val;
+}
+
+static uint32_t bswap_xdat(sxData* pData, sxData::Status* pSt) {
+	if (!pData) return 0;
+	sxData::Status st = pSt ? *pSt : pData->get_status();
+	uint32_t offsStr = xdat_u32(st, &pData->mOffsStr);
+	uint32_t offsExt = xdat_u32(st, &pData->mOffsExt);
+	nxSys::mem_bswap32(&pData->mKind);
+	uint32_t flags = xdat_get_swap_u32(st, &pData->mFlags);
+	nxSys::mem_bswap32(&pData->mFileSize);
+	nxSys::mem_bswap32(&pData->mHeadSize);
+	nxSys::mem_bswap32(&pData->mOffsStr);
+	nxSys::mem_bswap16((uint16_t*)&pData->mNameId);
+	nxSys::mem_bswap16((uint16_t*)&pData->mPathId);
+	pData->mFilePathLen = 0;
+	nxSys::mem_bswap32(&pData->mOffsExt);
+	if (offsStr) {
+		sxStrList* pStrLst = (sxStrList*)XD_INCR_PTR(pData, offsStr);
+		nxSys::mem_bswap32(&pStrLst->mSize);
+		uint32_t nstr = xdat_u32(st, &pStrLst->mNum);
+		nxSys::mem_bswap32(&pStrLst->mNum);
+		for (uint32_t i = 0; i < nstr; ++i) {
+			nxSys::mem_bswap32(&pStrLst->mOffs[i]);
+		}
+	}
+	if (offsExt) {
+		sxData::ExtList* pExtLst = (sxData::ExtList*)XD_INCR_PTR(pData, offsExt);
+		uint32_t nxtn = xdat_u32(st, &pExtLst->num);
+		nxSys::mem_bswap32(&pExtLst->num);
+		for (uint32_t i = 0; i < nxtn; ++i) {
+			nxSys::mem_bswap32(&pExtLst->lst[i].kind);
+			nxSys::mem_bswap32(&pExtLst->lst[i].offs);
+		}
+	}
+	return flags;
+}
+
+static void bswap_bbox(cxAABB* pBBox) {
+	uint32_t* pMem = (uint32_t*)pBBox;
+	const uint32_t n = uint32_t(sizeof(cxAABB) / sizeof(uint32_t));
+	for (uint32_t i = 0; i < n; ++i) {
+		nxSys::mem_bswap32(&pMem[i]);
+	}
+}
+
+static void bswap_vec(cxVec* pVec) {
+	uint32_t* pMem = (uint32_t*)pVec;
+	const uint32_t n = uint32_t(sizeof(cxVec) / sizeof(uint32_t));
+	for (uint32_t i = 0; i < n; ++i) {
+		nxSys::mem_bswap32(&pMem[i]);
+	}
+}
+
+void bswap_xcol(sxCollisionData* pColData) {
+	if (!pColData) return;
+	sxData::Status st = pColData->get_status();
+	if (!st.fmt) return;
+	bool isCol = pColData->mKind == (st.native ? sxCollisionData::KIND : nxSys::bswap32(sxCollisionData::KIND));
+	if (!isCol) return;
+	uint32_t flags = bswap_xdat(pColData, &st);
+	bswap_bbox(&pColData->mBBox);
+	uint32_t npnt = xdat_get_swap_u32(st, &pColData->mPntNum);
+	uint32_t npol = xdat_get_swap_u32(st, &pColData->mPolNum);
+	uint32_t ngrp = xdat_get_swap_u32(st, &pColData->mGrpNum);
+	uint32_t ntri = xdat_get_swap_u32(st, &pColData->mTriNum);
+	uint32_t maxVtxPerPol = xdat_get_swap_u32(st, &pColData->mMaxVtxPerPol);
+	uint32_t pntOffs = xdat_get_swap_u32(st, &pColData->mPntOffs);
+	uint32_t polIdxOrgOffs = xdat_get_swap_u32(st, &pColData->mPolIdxOrgOffs);
+	uint32_t polVtxNumOffs = xdat_get_swap_u32(st, &pColData->mPolVtxNumOffs);
+	uint32_t polTriOrgOffs = xdat_get_swap_u32(st, &pColData->mPolTriOrgOffs);
+	uint32_t polIdxOffs = xdat_get_swap_u32(st, &pColData->mPolIdxOffs);
+	uint32_t polGrpOffs = xdat_get_swap_u32(st, &pColData->mPolGrpOffs);
+	uint32_t polTriIdxOffs = xdat_get_swap_u32(st, &pColData->mPolTriIdxOffs);
+	uint32_t polBBoxOffs = xdat_get_swap_u32(st, &pColData->mPolBBoxOffs);
+	uint32_t polNrmOffs = xdat_get_swap_u32(st, &pColData->mPolNrmOffs);
+	uint32_t grpInfoOffs = xdat_get_swap_u32(st, &pColData->mGrpInfoOffs);
+	uint32_t bvhBBoxOffs = xdat_get_swap_u32(st, &pColData->mBVHBBoxOffs);
+	uint32_t bvhInfoOffs = xdat_get_swap_u32(st, &pColData->mBVHInfoOffs);
+	if (npnt && pntOffs) {
+		cxVec* pPnt = (cxVec*)XD_INCR_PTR(pColData, pntOffs);
+		for (uint32_t i = 0; i < npnt; ++i) {
+			bswap_vec(&pPnt[i]);
+		}
+	}
+	if (npol && polBBoxOffs) {
+		cxAABB* pBBox = (cxAABB*)XD_INCR_PTR(pColData, polBBoxOffs);
+		for (uint32_t i = 0; i < npol; ++i) {
+			bswap_bbox(&pBBox[i]);
+		}
+	}
+	if (npol && polNrmOffs) {
+		uint16_t* pOct = (uint16_t*)XD_INCR_PTR(pColData, polNrmOffs);
+		for (uint32_t i = 0; i < npol; ++i) {
+			nxSys::mem_bswap16(pOct);
+			++pOct;
+			nxSys::mem_bswap16(pOct);
+			++pOct;
+		}
+	}
+	if (ngrp && grpInfoOffs) {
+		sxCollisionData::GrpInfo* pGrp = (sxCollisionData::GrpInfo*)XD_INCR_PTR(pColData, grpInfoOffs);
+		for (uint32_t i = 0; i < ngrp; ++i) {
+			nxSys::mem_bswap16((uint16_t*)&pGrp->mNameId);
+			nxSys::mem_bswap16((uint16_t*)&pGrp->mPathId);
+			++pGrp;
+		}
+	}
+	uint32_t nbvh = npol*2 - 1;
+	if (nbvh && bvhBBoxOffs) {
+		cxAABB* pBBox = (cxAABB*)XD_INCR_PTR(pColData, bvhBBoxOffs);
+		for (uint32_t i = 0; i < nbvh; ++i) {
+			bswap_bbox(&pBBox[i]);
+		}
+	}
+	if (nbvh && bvhInfoOffs) {
+		sxCollisionData::BVHNodeInfo* pNode = (sxCollisionData::BVHNodeInfo*)XD_INCR_PTR(pColData, bvhInfoOffs);
+		for (uint32_t i = 0; i < nbvh; ++i) {
+			nxSys::mem_bswap32((uint32_t*)&pNode->mLeft);
+			nxSys::mem_bswap32((uint32_t*)&pNode->mRight);
+			++pNode;
+		}
+	}
+	bool polsSameSize = bool(flags & 1);
+	if (npol && polIdxOrgOffs && polIdxOffs) {
+		uint32_t* pIdxOrg = (uint32_t*)XD_INCR_PTR(pColData, polIdxOrgOffs);
+		uint32_t* pPolIdx = (uint32_t*)XD_INCR_PTR(pColData, polIdxOffs);
+		for (uint32_t i = 0; i < npol; ++i) {
+			uint32_t nvtx = maxVtxPerPol;
+			if (polVtxNumOffs) {
+				uint8_t* pNumVtx = (uint8_t*)XD_INCR_PTR(pColData, polVtxNumOffs);
+				nvtx = pNumVtx[i];
+			}
+			uint32_t org = xdat_u32(st, &pIdxOrg[i]);
+			for (uint32_t j = 0; j < nvtx; ++j) {
+				nxSys::mem_bswap32(&pPolIdx[org + j]);
+			}
+		}
+	}
+	if (npol && polIdxOrgOffs) {
+		uint32_t* pIdxOrg = (uint32_t*)XD_INCR_PTR(pColData, polIdxOrgOffs);
+		for (uint32_t i = 0; i < npol; ++i) {
+			nxSys::mem_bswap32(&pIdxOrg[i]);
+		}
+	}
+}
+
 } // nxData
 
 
@@ -5680,6 +5846,55 @@ uint32_t sxData::find_ext_offs(const uint32_t kind) const {
 		}
 	}
 	return offs;
+}
+
+sxData::Status sxData::get_status() const {
+	Status s;
+	struct {
+		uint32_t ccSys;
+		uint32_t ccLE;
+		uint32_t ccBE;
+	} flst[] = {
+		{ sxValuesData::KIND, 0, 0 },
+		{ sxRigData::KIND, 0, 0 },
+		{ sxGeometryData::KIND, 0, 0 },
+		{ sxImageData::KIND, 0, 0 },
+		{ sxKeyframesData::KIND, 0, 0 },
+		{ sxModelData::KIND, 0, 0 },
+		{ sxTextureData::KIND, 0, 0 },
+		{ sxMotionData::KIND, 0, 0 },
+		{ sxCollisionData::KIND, 0, 0 },
+		{ sxFileCatalogue::KIND, 0, 0}
+	};
+	s.fmt = 0;
+	s.native = 0;
+	s.bige = 0;
+	bool sysLE = nxSys::is_LE();
+	int nfmt = XD_ARY_LEN(flst);
+	for (int i = 0; i < nfmt; ++i) {
+		if (sysLE) {
+			flst[i].ccLE = flst[i].ccSys;
+			flst[i].ccBE = nxSys::bswap32(flst[i].ccLE);
+		} else {
+			flst[i].ccBE = flst[i].ccSys;
+			flst[i].ccLE = nxSys::bswap32(flst[i].ccBE);
+		}
+	}
+	for (int i = 0; i < nfmt; ++i) {
+		if (::memcmp(&mKind, &flst[i].ccLE, sizeof(uint32_t)) == 0) {
+			s.fmt = 1;
+			s.native = sysLE ? 1 : 0;
+			s.bige = 0;
+			break;
+		} else if (::memcmp(&mKind, &flst[i].ccBE, sizeof(uint32_t)) == 0) {
+			s.fmt = 1;
+			s.native = sysLE ? 0 : 1;
+			s.bige = 1;
+			break;
+		}
+	}
+	s.fixed = mFilePathLen != 0;
+	return s;
 }
 
 

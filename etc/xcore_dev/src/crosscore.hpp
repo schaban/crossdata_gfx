@@ -48,6 +48,7 @@
 #	pragma intrinsic(_InterlockedDecrement)
 #	pragma intrinsic(_InterlockedExchangeAdd)
 #	define XD_MSC_ATOMIC
+#	pragma intrinsic(_byteswap_ulong)
 #endif
 
 #define _USE_MATH_DEFINES
@@ -176,6 +177,40 @@ inline int32_t atomic_dec(int32_t* p) { return int32_t(_InterlockedDecrement((lo
 int32_t atomic_inc(int32_t* p);
 int32_t atomic_dec(int32_t* p);
 #endif
+
+bool is_LE();
+
+inline uint32_t bswap32(uint32_t x) {
+#if defined(_MSC_VER)
+	return _byteswap_ulong(x);
+#else
+	uint32_t b0 = x & 0xFF;
+	uint32_t b1 = (x >> 8) & 0xFF;
+	uint32_t b2 = (x >> 16) & 0xFF;
+	uint32_t b3 = (x >> 24) & 0xFF;
+	return (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+#endif
+}
+
+inline void mem_bswap16(uint16_t* pMem) {
+	uint8_t* pBytes = (uint8_t*)pMem;
+	uint8_t b0 = pBytes[0];
+	uint8_t b1 = pBytes[1];
+	pBytes[0] = b1;
+	pBytes[1] = b0;
+}
+
+inline void mem_bswap32(uint32_t* pMem) {
+	uint8_t* pBytes = (uint8_t*)pMem;
+	uint8_t b0 = pBytes[0];
+	uint8_t b1 = pBytes[1];
+	uint8_t b2 = pBytes[2];
+	uint8_t b3 = pBytes[3];
+	pBytes[0] = b3;
+	pBytes[1] = b2;
+	pBytes[2] = b1;
+	pBytes[3] = b0;
+}
 
 } // nxSys
 
@@ -3351,6 +3386,13 @@ struct sxData {
 	uint32_t mFilePathLen;
 	uint32_t mOffsExt;
 
+	struct Status {
+		uint32_t fmt : 1;
+		uint32_t bige : 1;
+		uint32_t native : 1;
+		uint32_t fixed : 1;
+	};
+
 	struct ExtExtry {
 		uint32_t kind;
 		uint32_t offs;
@@ -3371,6 +3413,7 @@ struct sxData {
 	const char* get_base_path() const { return get_str(mPathId); }
 	const ExtList* get_ext_list() const { return mOffsExt ? (const ExtList*)XD_INCR_PTR(this, mOffsExt) : nullptr; }
 	uint32_t find_ext_offs(const uint32_t kind) const;
+	Status get_status() const;
 
 	template<typename T> bool is() const { return mKind == T::KIND; }
 	template<typename T> T* as() const { return is<T>() ? (T*)this : nullptr; }
@@ -5792,6 +5835,8 @@ template<typename T> T* load_as(const char* pPath) {
 	}
 	return nullptr;
 }
+
+void bswap_xcol(sxCollisionData* pColData);
 
 } // nxData
 
