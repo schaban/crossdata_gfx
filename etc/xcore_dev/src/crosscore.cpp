@@ -5676,6 +5676,7 @@ void bswap_xcol(sxCollisionData* pColData) {
 		}
 	}
 	bool polsSameSize = bool(flags & 1);
+	bool allTris = polsSameSize && (maxVtxPerPol == 3);
 	if (npol && polIdxOrgOffs && polIdxOffs) {
 		uint32_t* pIdxOrg = (uint32_t*)XD_INCR_PTR(pColData, polIdxOrgOffs);
 		uint32_t* pPolIdx = (uint32_t*)XD_INCR_PTR(pColData, polIdxOffs);
@@ -5695,6 +5696,12 @@ void bswap_xcol(sxCollisionData* pColData) {
 		uint32_t* pIdxOrg = (uint32_t*)XD_INCR_PTR(pColData, polIdxOrgOffs);
 		for (uint32_t i = 0; i < npol; ++i) {
 			nxSys::mem_bswap32(&pIdxOrg[i]);
+		}
+	}
+	if (npol && polTriOrgOffs) {
+		uint32_t* pTriOrg = (uint32_t*)XD_INCR_PTR(pColData, polTriOrgOffs);
+		for (uint32_t i = 0; i < npol; ++i) {
+			nxSys::mem_bswap32(&pTriOrg[i]);
 		}
 	}
 }
