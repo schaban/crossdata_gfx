@@ -713,9 +713,9 @@ bool VK_GLB::init_vk() {
 					attachDescr[1].format = mDepthFormat;
 					attachDescr[1].samples = VK_SAMPLE_COUNT_1_BIT;
 					attachDescr[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-					attachDescr[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-					attachDescr[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-					attachDescr[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+					attachDescr[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+					attachDescr[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+					attachDescr[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
 					attachDescr[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 					attachDescr[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 					VkAttachmentReference colorAttachRef = {};
