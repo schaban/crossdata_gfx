@@ -1082,7 +1082,6 @@ void VK_GLB::mdl_prepare(sxModelData* pMdl) {
 					}
 					pVtx[i].idx.scl(3);
 				}
-				vkUnmapMemory(mVkDevice, pGPUWk->vtxMem);
 				vres = vkBindBufferMemory(mVkDevice, pGPUWk->vtxBuf, pGPUWk->vtxMem, 0);
 			}
 		}
@@ -1117,7 +1116,6 @@ void VK_GLB::mdl_prepare(sxModelData* pMdl) {
 					if (pIdxData) {
 						::memcpy(pMappedIB, pIdxData, (size_t)ibMemReqs.size);
 					}
-					vkUnmapMemory(mVkDevice, pGPUWk->idxMem);
 					vres = vkBindBufferMemory(mVkDevice, pGPUWk->idxBuf, pGPUWk->idxMem, 0);
 				}
 			}
@@ -1153,7 +1151,6 @@ void VK_GLB::mdl_prepare(sxModelData* pMdl) {
 					if (pIdxData) {
 						::memcpy(pMappedIB, pIdxData, (size_t)ibMemReqs.size);
 					}
-					vkUnmapMemory(mVkDevice, pGPUWk->i32Mem);
 					vres = vkBindBufferMemory(mVkDevice, pGPUWk->i32Buf, pGPUWk->i32Mem, 0);
 				}
 			}
@@ -1173,6 +1170,7 @@ void VK_GLB::mdl_release(sxModelData* pMdl) {
 		vkDestroyBuffer(mVkDevice, pGPUWk->vtxBuf, mpAllocator);
 		pGPUWk->vtxBuf = VK_NULL_HANDLE;
 		if (pGPUWk->vtxMem != VK_NULL_HANDLE) {
+			vkUnmapMemory(mVkDevice, pGPUWk->vtxMem);
 			vkFreeMemory(mVkDevice, pGPUWk->vtxMem, mpAllocator);
 			pGPUWk->vtxMem = VK_NULL_HANDLE;
 		}
@@ -1181,6 +1179,7 @@ void VK_GLB::mdl_release(sxModelData* pMdl) {
 		vkDestroyBuffer(mVkDevice, pGPUWk->idxBuf, mpAllocator);
 		pGPUWk->idxBuf = VK_NULL_HANDLE;
 		if (pGPUWk->idxMem != VK_NULL_HANDLE) {
+			vkUnmapMemory(mVkDevice, pGPUWk->idxMem);
 			vkFreeMemory(mVkDevice, pGPUWk->idxMem, mpAllocator);
 			pGPUWk->idxMem = VK_NULL_HANDLE;
 		}
@@ -1189,6 +1188,7 @@ void VK_GLB::mdl_release(sxModelData* pMdl) {
 		vkDestroyBuffer(mVkDevice, pGPUWk->i32Buf, mpAllocator);
 		pGPUWk->i32Buf = VK_NULL_HANDLE;
 		if (pGPUWk->i32Mem != VK_NULL_HANDLE) {
+			vkUnmapMemory(mVkDevice, pGPUWk->i32Mem);
 			vkFreeMemory(mVkDevice, pGPUWk->i32Mem, mpAllocator);
 			pGPUWk->i32Mem = VK_NULL_HANDLE;
 		}
