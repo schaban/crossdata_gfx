@@ -1285,6 +1285,7 @@ void VK_GLB::end() {
 }
 
 void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const Draw::Context* pCtx) {
+	if (mode == Draw::DRWMODE_SHADOW_CAST) return;
 	sxModelData* pMdl = pWk->mpData;
 	if (!pMdl) return;
 	const sxModelData::Batch* pBat = pMdl->get_batch_ptr(ibat);
