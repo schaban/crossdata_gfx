@@ -180,7 +180,7 @@ int32_t atomic_dec(int32_t* p);
 
 bool is_LE();
 
-inline uint32_t bswap32(uint32_t x) {
+inline uint32_t bswap_u32(uint32_t x) {
 #if defined(_MSC_VER)
 	return _byteswap_ulong(x);
 #else
@@ -192,7 +192,7 @@ inline uint32_t bswap32(uint32_t x) {
 #endif
 }
 
-inline void mem_bswap16(uint16_t* pMem) {
+inline void mem_bswap_u16(uint16_t* pMem) {
 	uint8_t* pBytes = (uint8_t*)pMem;
 	uint8_t b0 = pBytes[0];
 	uint8_t b1 = pBytes[1];
@@ -200,7 +200,11 @@ inline void mem_bswap16(uint16_t* pMem) {
 	pBytes[1] = b0;
 }
 
-inline void mem_bswap32(uint32_t* pMem) {
+inline void mem_bswap_i16(int16_t* pMem) {
+	mem_bswap_u16((uint16_t*)pMem);
+}
+
+inline void mem_bswap_u32(uint32_t* pMem) {
 	uint8_t* pBytes = (uint8_t*)pMem;
 	uint8_t b0 = pBytes[0];
 	uint8_t b1 = pBytes[1];
@@ -210,6 +214,10 @@ inline void mem_bswap32(uint32_t* pMem) {
 	pBytes[1] = b2;
 	pBytes[2] = b1;
 	pBytes[3] = b0;
+}
+
+inline void mem_bswap_i32(int32_t* pMem) {
+	mem_bswap_u32((uint32_t*)pMem);
 }
 
 } // nxSys
@@ -5836,6 +5844,7 @@ template<typename T> T* load_as(const char* pPath) {
 	return nullptr;
 }
 
+void bswap_xmdl(sxModelData* pMdlData);
 void bswap_xcol(sxCollisionData* pColData);
 
 } // nxData
