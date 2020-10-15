@@ -40,8 +40,15 @@
 
 #if !OGLSYS_ES
 #	if defined(OGLSYS_WINDOWS)
+#		if 0
 #		define GET_GL_FN(_name) *(PROC*)&_name = (PROC)get_func_ptr(#_name)
 #		define GET_WGL_FN(_name) *(PROC*)&mWGL._name = (PROC)get_func_ptr(#_name)
+#		else
+		static PROC* proc_addr(void* funcPtr) { return (PROC*)funcPtr; }
+#		define GET_GL_FN(_name) *proc_addr(&_name) = (PROC)get_func_ptr(#_name)
+#		define GET_WGL_FN(_name) *proc_addr(&mWGL._name) = (PROC)get_func_ptr(#_name)
+#		endif
+//
 #		define OGL_FN(_type, _name) PFNGL##_type##PROC gl##_name;
 #		undef OGL_FN_CORE
 #		define OGL_FN_CORE
@@ -1302,7 +1309,7 @@ static bool str_eq(const char* pStr1, const char* pStr2) {
 
 void OGLSysGlb::handle_ogl_ext(const GLubyte* pStr, const int lenStr) {
 	char buf[128];
-	if (lenStr < sizeof(buf) - 1) {
+	if ((size_t)lenStr < sizeof(buf) - 1) {
 		::memset(buf, 0, sizeof(buf));
 		::memcpy(buf, pStr, lenStr);
 		if (str_eq(buf, "GL_KHR_texture_compression_astc_ldr")) {
@@ -1621,7 +1628,8 @@ namespace OGLSys {
 
 	void init(const OGLSysCfg& cfg) {
 		if (s_initFlg) return;
-		::memset(&GLG, 0, sizeof(GLG));
+		void* pGLG = &GLG;
+		::memset(pGLG, 0, sizeof(GLG));
 #ifdef OGLSYS_WINDOWS
 		::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCSTR)wnd_proc, &GLG.mhInstance);
 #endif
@@ -2385,7 +2393,7 @@ namespace OGLSys {
 			if (nfmt > 0) {
 				GLint fmtLst[16];
 				GLint* pLst = fmtLst;
-				if (nfmt > sizeof(fmtLst) / sizeof(fmtLst[0])) {
+				if ((size_t)nfmt > sizeof(fmtLst) / sizeof(fmtLst[0])) {
 					pLst = (GLint*)GLG.mem_alloc(nfmt * sizeof(GLint), "OGLSys:BinFmts");
 				}
 				if (pLst) {
