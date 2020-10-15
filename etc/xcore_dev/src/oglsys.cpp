@@ -261,6 +261,11 @@ static struct OGLSysGlb {
 					if (pCode) {
 						::memset(pCode, 0, size);
 						nread = ::fread(pCode, 1, size, pFile);
+						if (nread != size) {
+							mem_free(pCode);
+							pCode = nullptr;
+							size = 0;
+						}
 					}
 				}
 				::fclose(pFile);
