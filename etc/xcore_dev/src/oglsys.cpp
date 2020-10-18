@@ -1672,7 +1672,7 @@ namespace OGLSys {
 #endif
 	}
 
-	void loop(void (*pLoop)()) {
+	void loop(void(*pLoop)(void*), void* pLoopCtx) {
 #if defined(OGLSYS_WINDOWS)
 		MSG msg;
 		bool done = false;
@@ -1687,7 +1687,7 @@ namespace OGLSys {
 				}
 			} else {
 				if (pLoop) {
-					pLoop();
+					pLoop(pLoopCtx);
 				}
 				++GLG.mFrameCnt;
 			}
@@ -1760,7 +1760,7 @@ namespace OGLSys {
 			}
 			if (pApp->destroyRequested) break;
 			if (pLoop) {
-				pLoop();
+				pLoop(pLoopCtx);
 			}
 			++GLG.mFrameCnt;
 		}
@@ -1875,14 +1875,14 @@ namespace OGLSys {
 				}
 			}
 			if (pLoop) {
-				pLoop();
+				pLoop(pLoopCtx);
 			}
 			++GLG.mFrameCnt;
 		}
 #else
 		while (true) {
 			if (pLoop) {
-				pLoop();
+				pLoop(pLoopCtx);
 			}
 			++GLG.mFrameCnt;
 		}

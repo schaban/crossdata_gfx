@@ -219,7 +219,7 @@ namespace OGLSys {
 	void reset();
 	void stop();
 	void swap();
-	void loop(void (*pLoop)());
+	void loop(void (*pLoop)(void*), void* pLoopCtx = nullptr);
 	bool valid();
 
 	void* get_window();
