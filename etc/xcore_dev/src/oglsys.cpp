@@ -1875,7 +1875,7 @@ namespace OGLSys {
 						break;
 					case ClientMessage:
 						if (XGetWMProtocols(GLG.mpXDisplay, GLG.mXWnd, &pAtom, &cnt)) {
-							if (evt.xclient.data.l[0] == *pAtom) {
+							if ((Atom)evt.xclient.data.l[0] == *pAtom) {
 								done = true;
 							}
 						}
