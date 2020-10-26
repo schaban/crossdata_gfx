@@ -454,7 +454,15 @@ static struct OGLSysGlb {
 		}
 
 		void init() {
-			mpLib = ::dlopen("libGL.so.1", RTLD_LAZY | RTLD_GLOBAL);
+			static const char* glLibs[] = {
+				"libGL.so.1",
+				"libGL.so",
+				"libGL.so.17.1"
+			};
+			for (size_t i = 0; i < sizeof(glLibs) / sizeof(glLibs[0]); ++i) {
+				mpLib = ::dlopen(glLibs[i], RTLD_LAZY | RTLD_GLOBAL);
+				if (mpLib) break;
+			}
 			::printf("GLX:mpLib = %p\n", mpLib);
 			if (mpLib) {
 				mpfnGLXChooseVisual = (OGLSYS_PFNGLXCHOOSEVISUAL)get_func_ptr("glXChooseVisual");
