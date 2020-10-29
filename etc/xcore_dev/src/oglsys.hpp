@@ -47,9 +47,20 @@ android_app* oglsys_get_app();
 #elif defined(X11)
 #	define OGLSYS_X11
 #	if OGLSYS_ES
-#		define DYNAMICGLES_NO_NAMESPACE
-#		define DYNAMICEGL_NO_NAMESPACE
-#		include <DynamicGles.h>
+#		if OGLSYS_USE_DYNAMICGLES
+#			define DYNAMICGLES_NO_NAMESPACE
+#			define DYNAMICEGL_NO_NAMESPACE
+#			include <DynamicGles.h>
+#		else
+#			define GL_GLEXT_PROTOTYPES
+#			include <EGL/egl.h>
+#			include <EGL/eglext.h>
+#			include <GLES2/gl2.h>
+#			include <GLES2/gl2ext.h>
+#			include <GLES3/gl3.h>
+#			include <GLES3/gl31.h>
+#			include <GLES3/gl32.h>
+#		endif
 #	else
 #		include <GL/glcorearb.h>
 #		include <GL/glext.h>
