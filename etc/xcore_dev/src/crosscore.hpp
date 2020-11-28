@@ -6025,7 +6025,7 @@ int get_opts_count();
 const char* get_opt(const char* pName);
 int get_int_opt(const char* pName, const int defVal = 0);
 float get_float_opt(const char* pName, const float defVal = 0.0f);
-int get_arg_count();
+int get_args_count();
 const char* get_arg(const int idx);
 
 } // nxApp
