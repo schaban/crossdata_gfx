@@ -140,6 +140,8 @@ struct ParamLink {
 	GLint SurfParam;
 	GLint BumpParam;
 	GLint AlphaCtrl;
+	GLint BumpPatUV;
+	GLint BumpPatParam;
 	GLint FogColor;
 	GLint FogParam;
 	GLint InvWhite;
@@ -259,6 +261,9 @@ struct GPUProg {
 		CachedParam<xt_float4> mBumpParam;
 		CachedParam<xt_float3> mAlphaCtrl;
 
+		CachedParam<xt_float4> mBumpPatUV;
+		CachedParam<xt_float4> mBumpPatParam;
+
 		CachedParam<xt_float4> mFogColor;
 		CachedParam<xt_float4> mFogParam;
 
@@ -291,6 +296,8 @@ struct GPUProg {
 			mSurfParam.reset();
 			mBumpParam.reset();
 			mAlphaCtrl.reset();
+			mBumpPatUV.reset();
+			mBumpPatParam.reset();
 			mFogColor.reset();
 			mFogParam.reset();
 			mShadowSize.reset();
@@ -349,6 +356,8 @@ struct GPUProg {
 			PARAM_LINK(SurfParam);
 			PARAM_LINK(BumpParam);
 			PARAM_LINK(AlphaCtrl);
+			PARAM_LINK(BumpPatUV);
+			PARAM_LINK(BumpPatParam);
 			PARAM_LINK(FogColor);
 			PARAM_LINK(FogParam);
 			PARAM_LINK(InvWhite);
@@ -486,6 +495,25 @@ struct GPUProg {
 
 	void set_alpha_ctrl(const xt_float3& actrl) {
 		mCache.mAlphaCtrl.set(mParamLink.AlphaCtrl, actrl);
+	}
+
+	void set_bump_pat_uv(sxModelData::Material::NormPatternExt* pExt) {
+		if (!pExt) return;
+		xt_float4 uv;
+		uv.set(pExt->offs.x, pExt->offs.y, pExt->scl.x, pExt->scl.y);
+		mCache.mBumpPatUV.set(mParamLink.BumpPatUV, uv);
+	}
+
+	void set_bump_pat_param(sxModelData::Material::NormPatternExt* pExt) {
+		if (!pExt) return;
+		xt_float4 param;
+		param.set(pExt->factor.x, pExt->factor.y, 0.0f, 0.0f);
+		mCache.mBumpPatParam.set(mParamLink.BumpPatParam, param);
+	}
+
+	void set_bump_pat(sxModelData::Material::NormPatternExt* pExt) {
+		set_bump_pat_uv(pExt);
+		set_bump_pat_param(pExt);
 	}
 
 	void set_fog_color(const xt_float4& fclr) {
