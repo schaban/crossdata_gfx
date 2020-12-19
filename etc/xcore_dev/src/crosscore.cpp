@@ -88,6 +88,7 @@ const uint32_t sxDDSHead::ENC_BGRI = XD_FOURCC('B', 'G', 'R', 'I');
 const uint32_t sxPackedData::SIG = XD_FOURCC('x', 'p', 'k', 'd');
 
 static const char* s_pXDataMemTag = "xData";
+static const char* s_pXWorkerTag = "xWorker";
 
 #if defined(XD_TSK_NATIVE_WINDOWS)
 struct sxLock {
@@ -424,7 +425,7 @@ static DWORD APIENTRY wnd_wrk_entry(void* pSelf) {
 }
 
 sxWorker* worker_create(xt_worker_func func, void* pData) {
-	sxWorker* pWrk = (sxWorker*)nxCore::mem_alloc(sizeof(sxWorker), "xWorker");
+	sxWorker* pWrk = (sxWorker*)nxCore::mem_alloc(sizeof(sxWorker), s_pXWorkerTag);
 	if (pWrk) {
 		pWrk->mFunc = func;
 		pWrk->mpData = pData;
@@ -584,7 +585,7 @@ static void* pthread_wrk_func(void* pSelf) {
 }
 
 sxWorker* worker_create(xt_worker_func func, void* pData) {
-	sxWorker* pWrk = (sxWorker*)nxCore::mem_alloc(sizeof(sxWorker), "xWorker");
+	sxWorker* pWrk = (sxWorker*)nxCore::mem_alloc(sizeof(sxWorker), s_pXWorkerTag);
 	if (pWrk) {
 		pWrk->mFunc = func;
 		pWrk->mpData = pData;
@@ -592,6 +593,9 @@ sxWorker* worker_create(xt_worker_func func, void* pData) {
 		pWrk->mpSigDone = signal_create();
 		pWrk->mEndFlg = false;
 		pthread_create(&pWrk->mThread, nullptr, pthread_wrk_func, pWrk);
+#if defined(XD_SYS_LINUX)
+		pthread_setname_np(pWrk->mThread, s_pXWorkerTag);
+#endif
 	}
 	return pWrk;
 }
@@ -739,7 +743,7 @@ static void std_wrk_func(sxWorker* pWrk) {
 }
 
 sxWorker* worker_create(xt_worker_func func, void* pData) {
-	sxWorker* pWrk = (sxWorker*)nxCore::mem_alloc(sizeof(sxWorker), "xWorker");
+	sxWorker* pWrk = (sxWorker*)nxCore::mem_alloc(sizeof(sxWorker), s_pXWorkerTag);
 	if (pWrk) {
 		::new ((void*)pWrk) sxWorker;
 		pWrk->mFunc = func;
