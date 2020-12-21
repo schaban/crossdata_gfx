@@ -47,6 +47,8 @@ static xt_float3 s_sprGamma;
 
 static uint64_t s_frameCnt = 0;
 
+static uint32_t s_sleepMillis = 0;
+
 void ScnCfg::set_defaults() {
 	pAppPath = "";
 #if defined(XD_SYS_ANDROID)
@@ -171,6 +173,8 @@ void init(const ScnCfg& cfg) {
 	nxCore::dbg_msg("draw ifc: %s\n", get_draw_ifc_name());
 
 	s_frameCnt = 0;
+
+	s_sleepMillis = nxApp::get_int_opt("sleep", 0);
 
 	s_scnInitFlg = true;
 }
@@ -319,6 +323,10 @@ void frame_begin(const cxColor& clearColor) {
 	}
 	purge_local_heaps();
 	purge_global_heap();
+
+	if (s_sleepMillis > 0) {
+		nxSys::sleep_millis(s_sleepMillis);
+	}
 }
 
 void frame_end() {
