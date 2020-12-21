@@ -73,8 +73,17 @@
 #		define OGL_FN_EXTRA
 #		include "oglsys.inc"
 #		undef OGL_FN
+#	elif defined(OGLSYS_DUMMY)
+#		define OGL_FN(_type, _name) PFNGL##_type##PROC gl##_name;
+#		undef OGL_FN_CORE
+#		define OGL_FN_CORE
+#		undef OGL_FN_EXTRA
+#		define OGL_FN_EXTRA
+#		include "oglsys.inc"
+#		undef OGL_FN
+		void dummyglInit();
 #	endif
-#endif
+#endif // !OGLSYS_ES
 
 enum KBD_PUNCT {
 	KBD_PUNCT_SPACE = 0,
@@ -502,6 +511,8 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_X11)
 	bool valid_ogl() const { return mGLX.valid(); }
 #elif defined(OGLSYS_APPLE)
+	bool valid_ogl() const { return true; }
+#	elif defined(OGLSYS_DUMMY)
 	bool valid_ogl() const { return true; }
 #endif
 
@@ -1198,7 +1209,8 @@ void OGLSysGlb::init_ogl() {
 #	include "oglsys.inc"
 #	undef OGL_FN
 	dbg_msg("OGL extra functions: %d/%d\n", okCnt, allCnt);
-
+#elif defined(OGLSYS_DUMMY)
+	dummyglInit();
 #endif
 
 	dbg_msg("OpenGL version: %s\n", glGetString(GL_VERSION));
@@ -2039,7 +2051,9 @@ namespace OGLSys {
 					}
 				}
 #if !OGLSYS_ES
-				glProgramParameteri(pid, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+				if (glProgramParameteri) {
+					glProgramParameteri(pid, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+				}
 #endif
 				glLinkProgram(pid);
 				GLint status = 0;

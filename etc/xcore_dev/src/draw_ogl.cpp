@@ -1495,21 +1495,23 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 
 	if (HAS_PARAM(SkinMap)) {
 		const int32_t* pJntLst = pMdl->get_batch_jnt_list(ibat);
-		::memset(ftmp, 0, NFLT_JMAP * sizeof(float));
-		int njnt = pBat->mJntNum;
-		for (int i = 0; i < njnt; ++i) {
-			ftmp[pJntLst[i]] = float(i);
-		}
-		for (int i = 0; i < NFLT_JMAP; ++i) {
-			ftmp[i] *= 3.0f;
-		}
+		if (pJntLst) {
+			::memset(ftmp, 0, NFLT_JMAP * sizeof(float));
+			int njnt = pBat->mJntNum;
+			for (int i = 0; i < njnt; ++i) {
+				ftmp[pJntLst[i]] = float(i);
+			}
+			for (int i = 0; i < NFLT_JMAP; ++i) {
+				ftmp[i] *= 3.0f;
+			}
 #if DRW_LIMIT_JMAP
-		int njmax = pJntLst[njnt - 1] + 1;
-		int nv = (njmax >> 2) + ((njmax & 3) != 0 ? 1 : 0);
-		glUniform4fv(pProg->mParamLink.SkinMap, nv, ftmp);
+			int njmax = pJntLst[njnt - 1] + 1;
+			int nv = (njmax >> 2) + ((njmax & 3) != 0 ? 1 : 0);
+			glUniform4fv(pProg->mParamLink.SkinMap, nv, ftmp);
 #else
-		glUniform4fv(pProg->mParamLink.SkinMap, JMAP_SIZE, ftmp);
+			glUniform4fv(pProg->mParamLink.SkinMap, JMAP_SIZE, ftmp);
 #endif
+		}
 	}
 
 	if (HAS_PARAM(PosBase)) {

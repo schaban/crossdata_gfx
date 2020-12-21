@@ -88,6 +88,20 @@ android_app* oglsys_get_app();
 #	define OGLSYS_APPLE
 #	define OGLSYS_MACOS
 #	include <OpenGL/gl3.h>
+#elif defined(DUMMY_GL)
+#	define WIN32_LEAN_AND_MEAN 1
+#	undef NOMINMAX
+#	define NOMINMAX
+#	define OGLSYS_DUMMY
+#	include <GL/glcorearb.h>
+#	include <GL/glext.h>
+#	define OGL_FN(_type, _name) extern PFNGL##_type##PROC gl##_name;
+#	undef OGL_FN_CORE
+#	define OGL_FN_CORE
+#	undef OGL_FN_EXTRA
+#	define OGL_FN_EXTRA
+#	include "oglsys.inc"
+#	undef OGL_FN
 #else
 #	define OGLSYS_WINDOWS
 #	undef _WIN32_WINNT
