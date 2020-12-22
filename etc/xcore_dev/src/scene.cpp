@@ -32,6 +32,9 @@ static Draw::Context s_drwCtx;
 static Draw::Context s_drwCtxStk[4];
 static int s_drwCtxSP = 0;
 
+static bool s_useBump = true;
+static bool s_useSpec = true;
+
 static bool s_viewUpdateFlg = true;
 
 static bool s_shadowUniform = true;
@@ -163,6 +166,9 @@ void init(const ScnCfg& cfg) {
 
 	s_drwCtx.reset();
 	s_drwCtxSP = 0;
+
+	s_useBump = cfg.useBump;
+	s_useSpec = cfg.useSpec;
 
 	if (s_pDraw) {
 		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
@@ -1751,6 +1757,8 @@ static void obj_bat_draw(ScnObj* pObj, const int ibat, const Draw::Mode mode) {
 	Scene::update_shadow();
 	Draw::Context* pCtx = &s_drwCtx;
 	if (s_pDraw) {
+		pCtx->glb.useBump = s_useBump;
+		pCtx->glb.useSpec = s_useSpec;
 		s_pDraw->batch(pWk, ibat, mode, pCtx);
 	}
 	if (!isShadowcast) {
