@@ -153,6 +153,10 @@ void init(const ScnCfg& cfg) {
 		if (s_pBgdJobCnts) {
 			::memset(s_pBgdJobCnts, 0, jcntsMemSize);
 		}
+		if (nxApp::get_int_opt("static_sched", 0)) {
+			nxCore::dbg_msg("using static scene scheduler\n");
+			s_pBgd->set_static_scheduling();
+		}
 	}
 
 	nxCore::rng_seed(&s_glbRNG, 1);

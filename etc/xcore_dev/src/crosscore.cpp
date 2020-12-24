@@ -1505,6 +1505,10 @@ struct sxJobQueue {
 	void reset_cursor() {
 		mAccessIdx.store(0);
 	}
+
+	int get_count() const {
+		return mPutIdx;
+	}
 };
 
 static void brigade_wrk_func(void* pMem) {
@@ -1514,14 +1518,26 @@ static void brigade_wrk_func(void* pMem) {
 	if (!pBgd) return;
 	sxJobQueue* pQue = pBgd->get_queue();
 	if (!pQue) return;
-	while (true) {
-		sxJob* pJob = pQue->get_next_job();
-		if (!pJob) break;
-		pCtx->mpJob = pJob;
-		if (pJob->mFunc) {
-			pJob->mFunc(pCtx);
+	if (pBgd->is_dynamic_scheduling()) {
+		while (true) {
+			sxJob* pJob = pQue->get_next_job();
+			if (!pJob) break;
+			pCtx->mpJob = pJob;
+			if (pJob->mFunc) {
+				pJob->mFunc(pCtx);
+			}
+			++pCtx->mJobsDone;
 		}
-		++pCtx->mJobsDone;
+	} else {
+		for (int i = pCtx->mJobOrg; i <= pCtx->mJobEnd; ++i) {
+			sxJob* pJob = pQue->mpJobs[i];
+			if (!pJob) break;
+			pCtx->mpJob = pJob;
+			if (pJob->mFunc) {
+				pJob->mFunc(pCtx);
+			}
+			++pCtx->mJobsDone;
+		}
 	}
 }
 
@@ -1534,16 +1550,39 @@ void cxBrigade::exec(sxJobQueue* pQue) {
 	for (int i = 0; i < wrkNum; ++i) {
 		mpJobCtx[i].mJobsDone = 0;
 	}
-	for (int i = 0; i < wrkNum; ++i) {
-		nxSys::worker_exec(mppWrk[i]);
+	int njobs = pQue->get_count();
+	if (njobs < 1) {
+		return;
+	}
+	if (is_dynamic_scheduling()) {
+		for (int i = 0; i < wrkNum; ++i) {
+			nxSys::worker_exec(mppWrk[i]);
+		}
+	} else {
+		int jobOrg = 0;
+		int jobAdd = njobs / wrkNum;
+		int jobExt = njobs % wrkNum;
+		for (int i = 0; i < wrkNum; ++i) {
+			mpJobCtx[i].mJobOrg = jobOrg;
+			jobOrg += jobAdd;
+			if (i == 0) {
+				jobOrg += jobExt;
+			}
+			mpJobCtx[i].mJobEnd = jobOrg - 1;
+		}
+		for (int i = 0; i < wrkNum; ++i) {
+			nxSys::worker_exec(mppWrk[i]);
+		}
 	}
 }
 
 void cxBrigade::wait() {
 	if (!mpQue) return;
-	int wrkNum = mActiveWrkNum;
-	for (int i = 0; i < wrkNum; ++i) {
-		nxSys::worker_wait(mppWrk[i]);
+	if (mpQue->get_count() > 0) {
+		int wrkNum = mActiveWrkNum;
+		for (int i = 0; i < wrkNum; ++i) {
+			nxSys::worker_wait(mppWrk[i]);
+		}
 	}
 	mpQue = nullptr;
 }
@@ -1589,6 +1628,7 @@ cxBrigade* cxBrigade::create(int wrkNum) {
 		pBgd->mpJobCtx = (sxJobContext*)(pBgd->mppWrk + wrkNum);
 		pBgd->mWrkNum = wrkNum;
 		pBgd->mActiveWrkNum = wrkNum;
+		pBgd->set_dynamic_scheduling();
 		::memset(pBgd->mppWrk, 0, wrkSize);
 		for (int i = 0; i < wrkNum; ++i) {
 			pBgd->mpJobCtx[i].mpBrigade = pBgd;

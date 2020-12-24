@@ -390,9 +390,17 @@ struct sxJobContext {
 	cxBrigade* mpBrigade;
 	int mWrkId;
 	int mJobsDone;
+	int mJobOrg;
+	int mJobEnd;
 };
 
 class cxBrigade {
+public:
+	enum class SchedulingMode {
+		DYNAMIC = 0,
+		STATIC = 1
+	};
+
 protected:
 	cxBrigade() {}
 
@@ -401,6 +409,7 @@ protected:
 	sxJobContext* mpJobCtx;
 	int mWrkNum;
 	int mActiveWrkNum;
+	SchedulingMode mSchedMode;
 
 public:
 	sxJobQueue* get_queue() { return mpQue; }
@@ -413,6 +422,11 @@ public:
 	void reset_active_workers();
 	int get_jobs_done_count(const int wrkId) const;
 	sxJobContext* get_job_context(const int wrkId);
+	SchedulingMode get_scheduling_mode() const { return mSchedMode; }
+	bool is_dynamic_scheduling() const { return mSchedMode == SchedulingMode::DYNAMIC; }
+	bool is_static_scheduling() const { return mSchedMode == SchedulingMode::STATIC; }
+	void set_dynamic_scheduling() { mSchedMode = SchedulingMode::DYNAMIC; }
+	void set_static_scheduling() { mSchedMode = SchedulingMode::STATIC; }
 
 	static cxBrigade* create(int wrkNum);
 	static void destroy(cxBrigade* pBgd);
