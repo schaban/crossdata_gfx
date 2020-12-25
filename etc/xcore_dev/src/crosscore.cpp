@@ -29,6 +29,14 @@
 #	define XD_TSK_NATIVE 1
 #endif
 
+#ifndef XD_SYNC_MULTI
+#	if XD_TSK_NATIVE
+#		define XD_SYNC_MULTI 1
+#	else
+#		define XD_SYNC_MULTI 0
+#	endif
+#endif
+
 #if defined(XD_SYS_WINDOWS)
 #	undef _WIN32_WINNT
 #	define _WIN32_WINNT 0x0500
@@ -1580,8 +1588,14 @@ void cxBrigade::wait() {
 	if (!mpQue) return;
 	if (mpQue->get_count() > 0) {
 		int wrkNum = mActiveWrkNum;
-		for (int i = 0; i < wrkNum; ++i) {
-			nxSys::worker_wait(mppWrk[i]);
+		if (mpDoneHandles) {
+#if defined(XD_TSK_NATIVE_WINDOWS)
+			::WaitForMultipleObjects(wrkNum, (const HANDLE*)mpDoneHandles, TRUE, INFINITE);
+#endif
+		} else {
+			for (int i = 0; i < wrkNum; ++i) {
+				nxSys::worker_wait(mppWrk[i]);
+			}
 		}
 	}
 	mpQue = nullptr;
@@ -1620,12 +1634,18 @@ cxBrigade* cxBrigade::create(int wrkNum) {
 	size_t memSize = XD_ALIGN(sizeof(cxBrigade), 0x10);
 	size_t wrkOffs = memSize;
 	size_t wrkSize = wrkNum*sizeof(sxWorker*) + wrkNum*sizeof(sxJobContext);
+#if defined(XD_TSK_NATIVE_WINDOWS)
+	if (XD_SYNC_MULTI) {
+		wrkSize += wrkNum*sizeof(HANDLE);
+	}
+#endif
 	memSize += wrkSize;
 	pBgd = (cxBrigade*)nxCore::mem_alloc(memSize, "xBrigade");
 	if (pBgd) {
 		pBgd->mpQue = nullptr;
 		pBgd->mppWrk = (sxWorker**)XD_INCR_PTR(pBgd, wrkOffs);
 		pBgd->mpJobCtx = (sxJobContext*)(pBgd->mppWrk + wrkNum);
+		pBgd->mpDoneHandles = nullptr;
 		pBgd->mWrkNum = wrkNum;
 		pBgd->mActiveWrkNum = wrkNum;
 		pBgd->set_dynamic_scheduling();
@@ -1637,6 +1657,15 @@ cxBrigade* cxBrigade::create(int wrkNum) {
 		for (int i = 0; i < wrkNum; ++i) {
 			pBgd->mppWrk[i] = nxSys::worker_create(brigade_wrk_func, &pBgd->mpJobCtx[i]);
 		}
+#if defined(XD_TSK_NATIVE_WINDOWS)
+		if (XD_SYNC_MULTI) {
+			pBgd->mpDoneHandles = pBgd->mpJobCtx + wrkNum;
+			HANDLE* pDoneHnd = (HANDLE*)pBgd->mpDoneHandles;
+			for (int i = 0; i < wrkNum; ++i) {
+				pDoneHnd[i] = pBgd->mppWrk[i]->mpSigDone->mhEvt;
+			}
+		}
+#endif
 	}
 	return pBgd;
 }

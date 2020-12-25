@@ -407,6 +407,7 @@ protected:
 	sxJobQueue* mpQue;
 	sxWorker** mppWrk;
 	sxJobContext* mpJobCtx;
+	void* mpDoneHandles;
 	int mWrkNum;
 	int mActiveWrkNum;
 	SchedulingMode mSchedMode;
