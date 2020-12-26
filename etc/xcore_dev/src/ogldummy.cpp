@@ -403,6 +403,11 @@ GLenum APIENTRY GetError() {
 #undef OGL_FN_EXTRA
 #define OGL_FN(_type, _name) gl##_name = dummygl::_name;
 
+#if defined(_MSC_VER)
+__declspec(noinline)
+#elif defined(__GNUC__)
+__attribute__((noinline))
+#endif
 void dummyglInit() {
 #		include "oglsys.inc"
 }
