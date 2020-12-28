@@ -48,7 +48,7 @@
 #	if XD_TSK_NATIVE
 #		define XD_TSK_NATIVE_WINDOWS
 #	endif
-#elif defined(XD_SYS_LINUX)
+#elif defined(XD_SYS_LINUX) || defined(XD_SYS_BSD)
 #	if XD_TSK_NATIVE
 #		define XD_TSK_NATIVE_PTHREAD
 #	endif

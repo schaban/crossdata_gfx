@@ -31,6 +31,15 @@
 #	define XD_SYS_LINUX
 #elif defined(ANDROID)
 #	define XD_SYS_ANDROID
+#elif defined(__OpenBSD__)
+#	define XD_SYS_BSD
+#	define XD_SYS_OPENBSD
+#elif defined(__FreeBSD__)
+#	define XD_SYS_BSD
+#	define XD_SYS_FREEBSD
+#elif defined(__NetBSD__)
+#	define XD_SYS_BSD
+#	define XD_SYS_NETBSD
 #endif
 
 #include <stdlib.h>
