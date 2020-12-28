@@ -133,6 +133,11 @@ static void obj_dtor(ScnObj* pObj) {
 
 namespace Scene {
 
+void create_global_locks() {
+	s_pGlbRNGLock = nxSys::lock_create();
+	s_pGlbMemLock = nxSys::lock_create();
+}
+
 void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
 
@@ -143,8 +148,14 @@ void init(const ScnCfg& cfg) {
 
 	if (cfg.numWorkers > 0) {
 		s_pBgd = cxBrigade::create(cfg.numWorkers);
-		s_pGlbRNGLock = nxSys::lock_create();
-		s_pGlbMemLock = nxSys::lock_create();
+		create_global_locks();
+	} else {
+#ifdef XD_USE_OMP
+		create_global_locks();
+#else
+		s_pGlbRNGLock = nullptr;
+		s_pGlbMemLock = nullptr;
+#endif
 	}
 	if (s_pBgd) {
 		s_numBgdJobCnts = (/*cpy_prev*/1 + SCN_NUM_EXEC_PRIO + /*vis*/1) * s_pBgd->get_workers_num();
@@ -1302,8 +1313,14 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 	const uint32_t trisTag = XD_FOURCC('W', 'T', 'r', 'i');
 	cxHeap* pHeap = get_job_local_heap(pJobCtx);
 	if (pHeap) {
+#ifdef XD_USE_OMP
+		glb_mem_lock_acq();
+#endif
 		pStamps = (uint32_t*)pHeap->alloc(numStampBytes, stampsTag);
 		pTris = (WallAdjTriInfo*)pHeap->alloc(numTriBytes, trisTag);
+#ifdef XD_USE_OMP
+		glb_mem_lock_rel();
+#endif
 	} else {
 #if SCN_GLB_MEM_CMN_LOCK
 		glb_mem_lock_acq();
@@ -1491,8 +1508,14 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 		}
 	}
 	if (pHeap) {
+#ifdef XD_USE_OMP
+		glb_mem_lock_acq();
+#endif
 		pHeap->free(pTris);
 		pHeap->free(pStamps);
+#ifdef XD_USE_OMP
+		glb_mem_lock_rel();
+#endif
 	} else {
 #if SCN_GLB_MEM_CMN_LOCK
 		glb_mem_lock_acq();

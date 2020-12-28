@@ -51,6 +51,10 @@
 #	pragma intrinsic(_byteswap_ulong)
 #endif
 
+#ifdef XD_USE_OMP
+#	include <omp.h>
+#endif
+
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <float.h>

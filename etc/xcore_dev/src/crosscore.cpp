@@ -1744,6 +1744,23 @@ void queue_exec(sxJobQueue* pQue, cxBrigade* pBgd) {
 		pBgd->exec(pQue);
 		pBgd->wait();
 	} else {
+#ifdef XD_USE_OMP
+		int n = queue_get_job_count(pQue);
+#		pragma omp parallel for
+		for (int i = 0; i < n; ++i) {
+			sxJob* pJob = pQue->mpJobs[i];
+			if (pJob) {
+				if (pJob->mFunc) {
+					sxJobContext ctx;
+					ctx.mWrkId = -1;
+					ctx.mpBrigade = nullptr;
+					ctx.mJobsDone = 0;
+					ctx.mpJob = pJob;
+					pJob->mFunc(&ctx);
+				}
+			}
+		}
+#else
 		sxJobContext ctx;
 		ctx.mWrkId = -1;
 		ctx.mpBrigade = nullptr;
@@ -1758,6 +1775,7 @@ void queue_exec(sxJobQueue* pQue, cxBrigade* pBgd) {
 				}
 			}
 		}
+#endif
 	}
 }
 
