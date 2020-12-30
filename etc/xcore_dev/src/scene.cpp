@@ -52,6 +52,8 @@ static uint64_t s_frameCnt = 0;
 
 static uint32_t s_sleepMillis = 0;
 
+static bool s_printMemInfo = false;
+
 void ScnCfg::set_defaults() {
 	pAppPath = "";
 #if defined(XD_SYS_ANDROID)
@@ -140,6 +142,8 @@ void create_global_locks() {
 
 void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
+
+	s_printMemInfo = !!nxApp::get_int_opt("meminfo", 0);
 
 	s_pDraw = Draw::get_ifc_impl();
 
@@ -544,6 +548,21 @@ void glb_mem_free(void* pMem) {
 	glb_mem_lock_acq();
 	glb_mem_free_impl(pMem);
 	glb_mem_lock_rel();
+}
+
+void mem_info() {
+	if (s_printMemInfo) {
+		nxCore::mem_dbg();
+		uint64_t alloced = nxCore::mem_allocated_bytes();
+		uint64_t peak = nxCore::mem_peak_bytes();
+		const uint64_t lim = 0x7FFFFFFF;
+		if (alloced < lim && peak < lim) {
+			nxCore::dbg_msg("allocated: %d bytes\n", (uint32_t)(alloced & lim));
+			nxCore::dbg_msg("peak: %d bytes\n", (uint32_t)(peak & lim));
+		} else {
+			nxCore::dbg_msg("allocated: too much\n");
+		}
+	}
 }
 
 

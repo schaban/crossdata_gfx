@@ -1031,6 +1031,14 @@ void mem_dbg() {
 	}
 }
 
+uint64_t mem_allocated_bytes() {
+	return s_allocBytes;
+}
+
+uint64_t mem_peak_bytes() {
+	return s_allocPeakBytes;
+}
+
 void dbg_msg(const char* fmt, ...) {
 	char msg[1024 * 2];
 	va_list mrk;
