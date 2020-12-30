@@ -69,7 +69,20 @@ static GLuint load_shader(const char* pName) {
 		char* pSrc = (char*)nxCore::bin_load(path, &srcSize, false, true);
 		if (pSrc) {
 			GLenum kind = nxCore::str_ends_with(pName, ".vert") ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
+#if OGLSYS_ES
 			sid = OGLSys::compile_shader_str(pSrc, srcSize, kind);
+#else
+			static const char* pVerStr = "#version 120\n";
+			size_t verSize = ::strlen(pVerStr);
+			size_t altSize = verSize + srcSize;
+			char* pAltSrc = (char*)nxCore::mem_alloc(altSize, "ver+glsl");
+			if (pAltSrc) {
+				::memcpy(pAltSrc, pVerStr, verSize);
+				::memcpy(pAltSrc + verSize, pSrc, srcSize);
+				sid = OGLSys::compile_shader_str(pAltSrc, altSize, kind);
+				nxCore::mem_free(pAltSrc);
+			}
+#endif
 			nxCore::bin_unload(pSrc);
 		}
 	}
