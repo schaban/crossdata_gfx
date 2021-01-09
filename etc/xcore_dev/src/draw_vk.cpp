@@ -252,7 +252,7 @@ bool VK_GLB::init_vk() {
 	}
 	int surfExtIdx = -1;
 	int sysSurfExtIdx = -1;
-	char* pSysSurfExtName =
+	const char* pSysSurfExtName =
 #if defined(OGLSYS_WINDOWS)
 		VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 #elif defined(OGLSYS_X11)
@@ -291,9 +291,9 @@ bool VK_GLB::init_vk() {
 	if (sysSurfExtIdx < 0) {
 		return false;
 	}
-	char** ppInstExtNames = nullptr;
+	const char** ppInstExtNames = nullptr;
 	if (extsInUse > 0) {
-		ppInstExtNames = (char**)nxCore::mem_alloc(sizeof(char*)*extsInUse, "VkTmpInstExtNames");
+		ppInstExtNames = (const char**)nxCore::mem_alloc(sizeof(char*)*extsInUse, "VkTmpInstExtNames");
 		if (!ppInstExtNames) {
 			return false;
 		}
@@ -433,9 +433,9 @@ bool VK_GLB::init_vk() {
 	if (queIdxGfx < 0 || queIdxPresent < 0) {
 		return false;
 	}
-	char** ppDevExtNames = nullptr;
+	const char** ppDevExtNames = nullptr;
 	if (extsInUse > 0) {
-		ppDevExtNames = (char**)nxCore::mem_alloc(sizeof(char*)*extsInUse, "VkTmpDevExtNames");
+		ppDevExtNames = (const char**)nxCore::mem_alloc(sizeof(char*)*extsInUse, "VkTmpDevExtNames");
 		if (!ppDevExtNames) {
 			return false;
 		}
