@@ -19,6 +19,7 @@ DRW_IMPL_BEGIN
 #define MAX_XFORMS 200
 
 static bool s_useAllocCB = false;
+static bool s_useFences = false;
 
 struct GPUVtx {
 	xt_float3   pos;
@@ -708,15 +709,15 @@ bool VK_GLB::init_vk() {
 					attachDescr[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 					attachDescr[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 					attachDescr[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-					attachDescr[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-					attachDescr[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+					attachDescr[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_UNDEFINED
+					attachDescr[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 					attachDescr[1].format = mDepthFormat;
 					attachDescr[1].samples = VK_SAMPLE_COUNT_1_BIT;
 					attachDescr[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 					attachDescr[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 					attachDescr[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 					attachDescr[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-					attachDescr[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+					attachDescr[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;//VK_IMAGE_LAYOUT_UNDEFINED
 					attachDescr[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 					VkAttachmentReference colorAttachRef = {};
 					colorAttachRef.attachment = 0;
@@ -1239,8 +1240,10 @@ void VK_GLB::end() {
 	VkResult vres;
 	vkEndCommandBuffer(mpSwapChainCmdBufs[mSwapChainIdx]);
 
-	vkWaitForFences(mVkDevice, 1, &mFences[mSyncIdx], VK_TRUE, UINT64_MAX);
-	vkResetFences(mVkDevice, 1, &mFences[mSyncIdx]);
+	if (s_useFences) {
+		vkWaitForFences(mVkDevice, 1, &mFences[mSyncIdx], VK_TRUE, UINT64_MAX);
+		vkResetFences(mVkDevice, 1, &mFences[mSyncIdx]);
+	}
 
 	uint32_t nextImgIdx = mSwapChainIdx;
 	while (true) {
@@ -1268,7 +1271,7 @@ void VK_GLB::end() {
 	submitInfo.pSignalSemaphores = &mDrawSema[mSyncIdx];
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &mpSwapChainCmdBufs[mSwapChainIdx];
-	vres = vkQueueSubmit(mGfxQue, 1, &submitInfo, mFences[mSyncIdx]);
+	vres = vkQueueSubmit(mGfxQue, 1, &submitInfo, s_useFences ? mFences[mSyncIdx] : VK_NULL_HANDLE);
 
 	VkPresentInfoKHR presentInfo;
 	::memset(&presentInfo, 0, sizeof(VkPresentInfoKHR));
@@ -1279,6 +1282,10 @@ void VK_GLB::end() {
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &mDrawSema[mSyncIdx];
 	vres = mDeviceFuncs.QueuePresent(mGfxQue, &presentInfo);
+
+	if (!s_useFences) {
+		vkQueueWaitIdle(mGfxQue);
+	}
 
 	++mSyncIdx;
 	mSyncIdx %= FRAME_PRESENT_MAX;
