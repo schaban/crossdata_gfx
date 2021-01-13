@@ -337,11 +337,13 @@ bool VK_GLB::init_vk() {
 	if (VK_SUCCESS != vres) {
 		return false;
 	}
+	int gpuId = -1;
 	if (ngpu > 0) {
 		VkPhysicalDevice* pDev = (VkPhysicalDevice*)nxCore::mem_alloc(sizeof(VkPhysicalDevice)*ngpu, "VkTmpGPUList");
 		if (pDev) {
+			gpuId = nxCalc::clamp(nxApp::get_int_opt("vk.gpu", 0), 0, int(ngpu - 1));
 			vkEnumeratePhysicalDevices(VKG.mVkInst, &ngpu, pDev);
-			mVkGPU = pDev[0];
+			mVkGPU = pDev[gpuId];
 			nxCore::mem_free(pDev);
 		} else {
 			return false;
@@ -350,6 +352,7 @@ bool VK_GLB::init_vk() {
 		return false;
 	}
 	vkGetPhysicalDeviceProperties(mVkGPU, &mGPUProps);
+	nxCore::dbg_msg("VkGPU[%d/%d]: %s\n", gpuId, ngpu, mGPUProps.deviceName);
 	vkGetPhysicalDeviceMemoryProperties(mVkGPU, &mGPUMemProps);
 	mNumQueueFam = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(mVkGPU, &mNumQueueFam, nullptr);
