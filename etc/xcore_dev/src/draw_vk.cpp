@@ -864,7 +864,10 @@ void VK_GLB::reset_vk() {
 	vkDeviceWaitIdle(mVkDevice);
 	vkDestroyDevice(mVkDevice, mpAllocator);
 	vkDestroySurfaceKHR(mVkInst, mVkSurf, mpAllocator);
+#if !defined(OGLSYS_X11) // temporary fix for XCloseDisplay callback issue
 	vkDestroyInstance(mVkInst, mpAllocator);
+	mVkInst = VK_NULL_HANDLE;
+#endif
 	nxCore::mem_free(mpQueueFamProps);
 	mpQueueFamProps = nullptr;
 }
