@@ -247,6 +247,8 @@ void glb_mem_free(void* pMem);
 
 void mem_info();
 
+void thermal_info();
+
 uint64_t glb_rng_next();
 
 void set_view(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f));

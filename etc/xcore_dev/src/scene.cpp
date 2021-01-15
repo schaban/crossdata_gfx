@@ -54,6 +54,8 @@ static uint32_t s_sleepMillis = 0;
 
 static bool s_printMemInfo = false;
 
+static int s_thermalZones[2];
+
 void ScnCfg::set_defaults() {
 	pAppPath = "";
 #if defined(XD_SYS_ANDROID)
@@ -144,6 +146,12 @@ void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
 
 	s_printMemInfo = !!nxApp::get_int_opt("meminfo", 0);
+
+	for (int i = 0; i < XD_ARY_LEN(s_thermalZones); ++i) {
+		char tbuf[32];
+		XD_SPRINTF(XD_SPRINTF_BUF(tbuf, sizeof(tbuf)), "thermal%d", i);
+		s_thermalZones[i] = nxApp::get_int_opt(tbuf, -1);
+	}
 
 	s_pDraw = Draw::get_ifc_impl();
 
@@ -563,6 +571,23 @@ void mem_info() {
 			nxCore::dbg_msg("allocated: too much\n");
 		}
 	}
+}
+
+
+void thermal_info() {
+#ifdef XD_SYS_LINUX
+	char buf[512];
+	static const char* pPath = "/sys/class/thermal/thermal_zone";
+	for (int i = 0; i < XD_ARY_LEN(s_thermalZones); ++i) {
+		int id = s_thermalZones[i];
+		if (id >= 0) {
+			XD_SPRINTF(XD_SPRINTF_BUF(buf, sizeof(buf)),
+				"echo \": \" | cat \"%s%d/type\" - \"%s%d/temp\" | tr -d '\\n' && echo",
+				pPath, id, pPath, id);
+			system(buf);
+		}
+	}
+#endif
 }
 
 
