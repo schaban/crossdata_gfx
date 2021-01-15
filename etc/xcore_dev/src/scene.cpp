@@ -584,7 +584,10 @@ void thermal_info() {
 			XD_SPRINTF(XD_SPRINTF_BUF(buf, sizeof(buf)),
 				"echo \": \" | cat \"%s%d/type\" - \"%s%d/temp\" | tr -d '\\n' && echo",
 				pPath, id, pPath, id);
-			system(buf);
+			int res = system(buf);
+			if (res != 0) {
+				nxCore::dbg_msg("!system\n");
+			}
 		}
 	}
 #endif
