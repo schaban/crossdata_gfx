@@ -84,6 +84,17 @@ android_app* oglsys_get_app();
 #	include <GLES2/gl2.h>
 #	include <GLES2/gl2ext.h>
 #	include <GLES3/gl3.h>
+#elif defined(DRM_ES)
+#	define OGLSYS_DRM_ES
+#	undef OGLSYS_ES
+#	define OGLSYS_ES 1
+#	include <EGL/egl.h>
+#	include <EGL/eglext.h>
+#	include <GLES/gl.h>
+#	include <GLES/glext.h>
+#	include <GLES2/gl2.h>
+#	include <GLES2/gl2ext.h>
+#	include <GLES3/gl3.h>
 #elif defined(__APPLE__)
 #	define OGLSYS_APPLE
 #	define OGLSYS_MACOS
@@ -250,6 +261,9 @@ namespace OGLSys {
 	void* get_window();
 	void* get_display();
 	void* get_instance();
+
+	void* mem_alloc(size_t size, const char* pTag);
+	void mem_free(void* p);
 
 	void bind_def_framebuf();
 

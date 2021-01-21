@@ -36,6 +36,12 @@
 #	include <unistd.h>
 #	include <X11/Xlib.h>
 #	include <X11/Xutil.h>
+#elif defined(OGLSYS_DRM_ES)
+#	include <fcntl.h>
+#	include <drm.h>
+#	include <gbm.h>
+#	include <xf86drm.h>
+#	include <xf86drmMode.h>
 #endif
 
 #if !OGLSYS_ES
@@ -139,6 +145,29 @@ typedef void (GL_APIENTRYP OGLSYS_PFNGLUNIFORMBLOCKBINDINGPROC)(GLuint, GLuint, 
 typedef void (GL_APIENTRYP OGLSYS_PFNGLBINDBUFFERBASEPROC)(GLenum, GLuint, GLuint);
 #endif
 
+#if defined(OGLSYS_DRM_ES)
+static void cb_drm_fb_destroy(gbm_bo* pBO, void* pData) {
+	uint32_t* pFbId = (uint32_t*)pData;
+	if (pBO && pFbId) {
+		uint32_t fbId = *pFbId;
+		if (fbId) {
+			gbm_device* pDev = gbm_bo_get_device(pBO);
+			if (pDev) {
+				drmModeRmFB(gbm_device_get_fd(pDev), fbId);
+			}
+		}
+	}
+	if (pFbId) {
+		OGLSys::mem_free(pFbId);
+	}
+}
+
+static void evt_drm_page_flip(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void* pData) {
+	bool* pWaitFlg = (bool*)pData;
+	*pWaitFlg = false;
+}
+#endif
+
 static struct OGLSysGlb {
 #if defined(OGLSYS_WINDOWS)
 	HINSTANCE mhInstance;
@@ -153,6 +182,17 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_VIVANTE_FB)
 	EGLNativeDisplayType mVivDisp;
 	EGLNativeWindowType mVivWnd;
+#elif defined(OGLSYS_DRM_ES)
+	int mDrmDevFD;
+	fd_set mDrmDevFDSet;
+	drmModeConnector* mpDrmConn;
+	drmModeEncoder* mpDrmEnc;
+	int mDrmModeIdx;
+	int mDrmCtrlId;
+	gbm_device* mpGbmDev;
+	gbm_surface* mpGbmSurf;
+	gbm_bo* mpGbmBO;
+	uint32_t mDrmFbId;
 #endif
 
 	uint64_t mFrameCnt;
@@ -191,11 +231,11 @@ static struct OGLSysGlb {
 		PFNGLGENVERTEXARRAYSOESPROC pfnGenVertexArrays;
 		PFNGLDELETEVERTEXARRAYSOESPROC pfnDeleteVertexArrays;
 		PFNGLBINDVERTEXARRAYOESPROC pfnBindVertexArray;
-	#ifdef OGLSYS_VIVANTE_FB
+#ifdef OGLSYS_VIVANTE_FB
 		void* pfnDrawElementsBaseVertex;
-	#else
+#else
 		PFNGLDRAWELEMENTSBASEVERTEXOESPROC pfnDrawElementsBaseVertex;
-	#endif
+#endif
 		OGLSYS_PFNGLGETUNIFORMBLOCKINDEXPROC pfnGetUniformBlockIndex;
 		OGLSYS_PFNGLGETACTIVEUNIFORMBLOCKIVPROC pfnGetActiveUniformBlockiv;
 		OGLSYS_PFNGLGETUNIFORMINDICESPROC pfnGetUniformIndices;
@@ -317,14 +357,14 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_WINDOWS)
 	struct WGL {
 		HMODULE hLib;
-		PROC (APIENTRY *wglGetProcAddress)(LPCSTR);
-		HGLRC (APIENTRY *wglCreateContext)(HDC);
-		BOOL (APIENTRY *wglDeleteContext)(HGLRC);
-		BOOL (APIENTRY *wglMakeCurrent)(HDC, HGLRC);
-		HGLRC (WINAPI *wglCreateContextAttribsARB)(HDC, HGLRC, const int*);
-		BOOL (WINAPI *wglChoosePixelFormatARB)(HDC, const int*, const FLOAT*, UINT, int*, UINT*);
+		PROC(APIENTRY *wglGetProcAddress)(LPCSTR);
+		HGLRC(APIENTRY *wglCreateContext)(HDC);
+		BOOL(APIENTRY *wglDeleteContext)(HGLRC);
+		BOOL(APIENTRY *wglMakeCurrent)(HDC, HGLRC);
+		HGLRC(WINAPI *wglCreateContextAttribsARB)(HDC, HGLRC, const int*);
+		BOOL(WINAPI *wglChoosePixelFormatARB)(HDC, const int*, const FLOAT*, UINT, int*, UINT*);
 		const char* (APIENTRY *wglGetExtensionsStringEXT)();
-		BOOL (APIENTRY *wglSwapIntervalEXT)(int);
+		BOOL(APIENTRY *wglSwapIntervalEXT)(int);
 		int (APIENTRY *wglGetSwapIntervalEXT)();
 		HGLRC hCtx;
 		HGLRC hExtCtx;
@@ -439,10 +479,10 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_X11)
 	struct GLX {
 		typedef XVisualInfo* (*OGLSYS_PFNGLXCHOOSEVISUAL)(Display*, int, int*);
-		typedef GLXContext (*OGLSYS_PFNGLXCREATECONTEXT)(Display*, XVisualInfo*, GLXContext, Bool);
-		typedef void (*OGLSYS_PFNGLXDESTROYCONTEXT)(Display*, GLXContext);
-		typedef Bool (*OGLSYS_PFNGLXMAKECURRENT)(Display*, GLXDrawable, GLXContext);
-		typedef void (*OGLSYS_PFNGLXSWAPBUFFERS)(Display*, GLXDrawable);
+		typedef GLXContext(*OGLSYS_PFNGLXCREATECONTEXT)(Display*, XVisualInfo*, GLXContext, Bool);
+		typedef void(*OGLSYS_PFNGLXDESTROYCONTEXT)(Display*, GLXContext);
+		typedef Bool(*OGLSYS_PFNGLXMAKECURRENT)(Display*, GLXDrawable, GLXContext);
+		typedef void(*OGLSYS_PFNGLXSWAPBUFFERS)(Display*, GLXDrawable);
 
 		void* mpLib;
 		GLXContext mCtx;
@@ -574,6 +614,54 @@ static struct OGLSysGlb {
 			}
 		}
 	}
+
+#if defined(OGLSYS_DRM_ES)
+	uint32_t prepare_drm_fb() {
+		uint32_t* pFbId = nullptr;
+		if (mpGbmBO) {
+			pFbId = (uint32_t*)gbm_bo_get_user_data(mpGbmBO);
+			if (!pFbId) {
+				pFbId = (uint32_t*)mem_alloc(sizeof(uint32_t), "OGLSys::DRM::fbid");
+				if (pFbId) {
+					*pFbId = 0;
+					uint32_t w = gbm_bo_get_width(mpGbmBO);
+					uint32_t h = gbm_bo_get_height(mpGbmBO);
+					uint32_t stride = gbm_bo_get_stride(mpGbmBO);
+					uint32_t handle = gbm_bo_get_handle(mpGbmBO).u32;
+					if (drmModeAddFB(mDrmDevFD, w, h, 32, 32, stride, handle, pFbId) == 0) {
+						gbm_bo_set_user_data(mpGbmBO, pFbId, cb_drm_fb_destroy);
+					}
+				}
+			}
+		}
+		return pFbId ? *pFbId : 0;
+	}
+
+	void exec_drm_flip() {
+		if (mpGbmSurf) {
+			bool flipWaitFlg = true;
+			drmEventContext evtCtx = {};
+			evtCtx.version = DRM_EVENT_CONTEXT_VERSION;
+			evtCtx.page_flip_handler = evt_drm_page_flip;
+			gbm_bo* pOldBO = mpGbmBO;
+			mpGbmBO = gbm_surface_lock_front_buffer(mpGbmSurf);
+			uint32_t fbId = prepare_drm_fb();
+			if (drmModePageFlip(mDrmDevFD, mDrmCtrlId, fbId, DRM_MODE_PAGE_FLIP_EVENT, &flipWaitFlg) == 0) {
+				while (flipWaitFlg) {
+					int selRes = select(mDrmDevFD + 1, &mDrmDevFDSet, NULL, NULL, NULL);
+					if (selRes < 0) {
+						break;
+					}
+					if (FD_ISSET(0, &mDrmDevFDSet)) {
+						break;
+					}
+					drmHandleEvent(mDrmDevFD, &evtCtx);
+				}
+				gbm_surface_release_buffer(mpGbmSurf, pOldBO);
+			}
+		}
+	}
+#endif
 
 } GLG;
 
@@ -917,19 +1005,20 @@ void OGLSysGlb::init_wnd() {
 	}
 	int defScr = XDefaultScreen(mpXDisplay);
 	int defDepth = DefaultDepth(mpXDisplay, defScr);
-	XVisualInfo vi;
+	XVisualInfo vi = {};
 	XMatchVisualInfo(mpXDisplay, defScr, defDepth, TrueColor, &vi);
 	Window rootWnd = RootWindow(mpXDisplay, defScr);
-	XSetWindowAttributes wattrs;
+	XSetWindowAttributes wattrs = {};
 	wattrs.colormap = XCreateColormap(mpXDisplay, rootWnd, vi.visual, AllocNone);
 	wattrs.event_mask = StructureNotifyMask | ExposureMask | ButtonPressMask | KeyPressMask;
 	mWndW = mWidth;
 	mWndH = mHeight;
-	mXWnd = XCreateWindow(mpXDisplay, rootWnd, 0, 0, mWndW, mWndH, 0, vi.depth, InputOutput, vi.visual, CWEventMask | CWColormap, &wattrs);
+	mXWnd = XCreateWindow(mpXDisplay, rootWnd, mWndOrgX, mWndOrgY, mWndW, mWndH, 0, vi.depth, InputOutput, vi.visual, CWBackPixel | CWEventMask | CWColormap, &wattrs);
 	char title[100];
 	sprintf(title, mWithoutCtx ? "X11SysWnd" : "X11 %s: build %s", OGLSYS_ES ? "OGL(ES)" : "OGL", __DATE__);
 	XMapWindow(mpXDisplay, mXWnd);
 	XStoreName(mpXDisplay, mXWnd, title);
+	XFlush(mpXDisplay);
 	Atom del = XInternAtom(mpXDisplay, "WM_DELETE_WINDOW", True);
 	XSetWMProtocols(mpXDisplay, mXWnd, &del, 1);
 	XEvent evt;
@@ -958,6 +1047,59 @@ void OGLSysGlb::init_wnd() {
 	mWndW = mWidth;
 	mWndH = mHeight;
 	mVivWnd = fbCreateWindow(mVivDisp, vivX, vivY, mWidth, mHeight);
+#elif defined(OGLSYS_DRM_ES)
+	mDrmDevFD = open("/dev/dri/card0", O_RDWR);
+	drmModeRes* pRsrcs = mDrmDevFD >= 0 ? drmModeGetResources(mDrmDevFD) : nullptr;
+	mpDrmConn = nullptr;
+	mpDrmEnc = nullptr;
+	mDrmModeIdx = -1;
+	mDrmCtrlId = -1;
+	FD_ZERO(&mDrmDevFDSet);
+	if (pRsrcs) {
+		for (int i = 0; i < pRsrcs->count_connectors; ++i) {
+			drmModeConnector* pConn = drmModeGetConnector(mDrmDevFD, pRsrcs->connectors[i]);
+			if (pConn && (pConn->connection == DRM_MODE_CONNECTED)) {
+				dbg_msg("DRM Connector #%d\n", i);
+				mpDrmConn = pConn;
+				break;
+			}
+			drmModeFreeConnector(pConn);
+		}
+	}
+	if (mpDrmConn) {
+		for (int i = 0; i < pRsrcs->count_encoders; ++i) {
+			drmModeEncoder* pEnc = drmModeGetEncoder(mDrmDevFD, pRsrcs->encoders[i]);
+			if (pEnc && (pEnc->encoder_id == mpDrmConn->encoder_id)) {
+				dbg_msg("DRM Encoder #%d\n", i);
+				mpDrmEnc = pEnc;
+				mDrmCtrlId = mpDrmEnc->crtc_id;
+				break;
+			}
+			drmModeFreeEncoder(pEnc);
+		}
+		for (int i = 0; i < mpDrmConn->count_modes; ++i) {
+			if (mpDrmConn->modes[i].type & DRM_MODE_TYPE_PREFERRED) {
+				mWidth = mpDrmConn->modes[i].hdisplay;
+				mHeight = mpDrmConn->modes[i].vdisplay;
+				mWndW = mWidth;
+				mWndH = mHeight;
+				dbg_msg("DRM mode #%d (%d x %d)\n", i, mWidth, mHeight);
+				mDrmModeIdx = i;
+				break;
+			}
+		}
+	}
+	if (mDrmDevFD >= 0) {
+		FD_SET(0, &mDrmDevFDSet);
+		FD_SET(mDrmDevFD, &mDrmDevFDSet);
+		mpGbmDev = gbm_create_device(mDrmDevFD);
+		if (mpGbmDev) {
+			mpGbmSurf = gbm_surface_create(mpGbmDev, mWidth, mHeight, GBM_FORMAT_XRGB8888, GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING);
+		}
+		if (mpGbmSurf) {
+			dbg_msg("GBM surf @ %p\n", mpGbmSurf);
+		}
+	}
 #endif
 
 #if !defined(OGLSYS_ANDROID)
@@ -992,10 +1134,12 @@ void OGLSysGlb::reset_wnd() {
 #if defined(OGLSYS_VIVANTE_FB)
 #	define OGLSYS_ES_ALPHA_SIZE 0
 #	define OGLSYS_ES_DEPTH_SIZE 16
+#elif defined(OGLSYS_DRM_ES)
+#	define OGLSYS_ES_ALPHA_SIZE 0
+#	define OGLSYS_ES_DEPTH_SIZE 16
 #else
 #	define OGLSYS_ES_ALPHA_SIZE 8
 #	define OGLSYS_ES_DEPTH_SIZE 24
-
 #endif
 
 void OGLSysGlb::init_ogl() {
@@ -1015,6 +1159,11 @@ void OGLSysGlb::init_ogl() {
 	}
 #	elif defined(OGLSYS_VIVANTE_FB)
 	mEGL.display = eglGetDisplay(mVivDisp);
+#elif defined(OGLSYS_DRM_ES)
+	PFNEGLGETPLATFORMDISPLAYEXTPROC pfnGetDisp = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
+	if (pfnGetDisp) {
+		mEGL.display = pfnGetDisp(EGL_PLATFORM_GBM_KHR, mpGbmDev, nullptr);
+	}
 #	endif
 	if (!valid_display()) return;
 	int verMaj = 0;
@@ -1062,7 +1211,9 @@ void OGLSysGlb::init_ogl() {
 #elif defined(OGLSYS_X11)
 		(EGLNativeWindowType)mXWnd
 #elif defined(OGLSYS_VIVANTE_FB)
-		mVivWnd;
+		mVivWnd
+#elif defined(OGLSYS_DRM_ES)
+		mpGbmSurf
 #else
 		(EGLNativeWindowType)0
 #endif
@@ -1240,6 +1391,7 @@ void OGLSysGlb::init_ogl() {
 		}
 	}
 
+
 #if OGLSYS_ES
 	mExts.pfnGenQueries = (PFNGLGENQUERIESEXTPROC)eglGetProcAddress("glGenQueriesEXT");
 	mExts.pfnDeleteQueries = (PFNGLDELETEQUERIESEXTPROC)eglGetProcAddress("glDeleteQueriesEXT");
@@ -1288,6 +1440,23 @@ void OGLSysGlb::init_ogl() {
 		fbDestroyWindow(vivWnd);
 		glViewport(0, 0, mWidth, mHeight);
 		glScissor(0, 0, mWidth, mHeight);
+	}
+#endif
+
+#if defined(OGLSYS_DRM_ES)
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	eglSwapBuffers(mEGL.display, mEGL.surface);
+	mpGbmBO = gbm_surface_lock_front_buffer(mpGbmSurf);
+	uint32_t fbId = prepare_drm_fb();
+	uint32_t connId = 0;
+	drmModeModeInfo* pMode = nullptr;
+	if (mpDrmConn) {
+		connId = mpDrmConn->connector_id;
+		pMode = &mpDrmConn->modes[mDrmModeIdx];
+	}
+	if (drmModeSetCrtc(mDrmDevFD, mDrmCtrlId, fbId, 0, 0, &connId, 1, pMode) == 0) {
+		dbg_msg("DRM mode set: OK\n");
 	}
 #endif
 
@@ -1685,6 +1854,9 @@ namespace OGLSys {
 			GLG.mExts.pfnDiscardFramebuffer(GL_FRAMEBUFFER, sizeof(exts) / sizeof(exts[0]), exts);
 		}
 		eglSwapBuffers(GLG.mEGL.display, GLG.mEGL.surface);
+#	if defined(OGLSYS_DRM_ES)
+		GLG.exec_drm_flip();
+#	endif
 #elif defined(OGLSYS_WINDOWS)
 		::SwapBuffers(GLG.mhDC);
 #elif defined(OGLSYS_X11)
@@ -1940,6 +2112,15 @@ namespace OGLSys {
 		return nullptr;
 #endif
 	}
+
+	void* mem_alloc(size_t size, const char* pTag) {
+		return GLG.mem_alloc(size, pTag);
+	}
+
+	void mem_free(void* p) {
+		GLG.mem_free(p);
+	}
+
 
 	void bind_def_framebuf() {
 		if (valid()) {
