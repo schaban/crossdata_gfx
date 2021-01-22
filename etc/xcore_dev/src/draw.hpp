@@ -55,12 +55,29 @@ namespace Draw {
 			float znear;
 			float zfar;
 			float degFOVY;
+			int rotMode;
 
 			void update(const int width, const int height) {
 				viewMtx.mk_view(pos, tgt, up, &invViewMtx);
 				float aspect = nxCalc::div0(float(width), float(height));
+				if (rotMode == 1 || rotMode == 2) {
+					aspect = nxCalc::rcp0(aspect);
+				}
 				float fovy = XD_DEG2RAD(degFOVY);
 				projMtx.mk_proj(fovy, aspect, znear, zfar);
+				switch (rotMode) {
+					case 1:
+						projMtx.mul(nxMtx::mk_rot_z(XD_DEG2RAD(90)));
+						break;
+					case 2:
+						projMtx.mul(nxMtx::mk_rot_z(XD_DEG2RAD(-90)));
+						break;
+					case 3:
+						projMtx.mul(nxMtx::mk_rot_z(XD_DEG2RAD(-180)));
+						break;
+					default:
+						break;
+				}
 				viewProjMtx = viewMtx * projMtx;
 				invProjMtx = projMtx.get_inverted();
 				invViewProjMtx = viewProjMtx.get_inverted();
@@ -76,6 +93,7 @@ namespace Draw {
 			cxVec get_dir() const { return (tgt - pos).get_normalized(); }
 
 			void reset() {
+				rotMode = 0;
 				set_view(cxVec(0.75f, 1.3f, 3.5f), cxVec(0.0f, 0.95f, 0.0f));
 				znear = 0.1f;
 				zfar = 1000.0f;

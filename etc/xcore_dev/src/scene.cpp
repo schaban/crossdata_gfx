@@ -32,6 +32,7 @@ static Draw::Context s_drwCtx;
 static Draw::Context s_drwCtxStk[4];
 static int s_drwCtxSP = 0;
 
+static int s_viewRot = 0;
 static bool s_useBump = true;
 static bool s_useSpec = true;
 
@@ -194,6 +195,7 @@ void init(const ScnCfg& cfg) {
 	s_drwCtx.reset();
 	s_drwCtxSP = 0;
 
+	s_viewRot = nxApp::get_int_opt("viewrot", 0);
 	s_useBump = cfg.useBump;
 	s_useSpec = cfg.useSpec;
 
@@ -1831,6 +1833,7 @@ static void obj_bat_draw(ScnObj* pObj, const int ibat, const Draw::Mode mode) {
 	Scene::update_shadow();
 	Draw::Context* pCtx = &s_drwCtx;
 	if (s_pDraw) {
+		pCtx->view.rotMode = s_viewRot;
 		pCtx->glb.useBump = s_useBump;
 		pCtx->glb.useSpec = s_useSpec;
 		s_pDraw->batch(pWk, ibat, mode, pCtx);
