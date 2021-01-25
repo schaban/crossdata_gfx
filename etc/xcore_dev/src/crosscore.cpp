@@ -12761,7 +12761,7 @@ XD_NOINLINE const char* cxCmdLine::get_opt(const char* pName) const {
 	return pVal;
 }
 
-XD_NOINLINE int cxCmdLine::get_int_opt(const char* pName, const int defVal) {
+XD_NOINLINE int cxCmdLine::get_int_opt(const char* pName, const int defVal) const {
 	const char* pValStr = get_opt(pName);
 	int res = defVal;
 	if (pValStr) {
@@ -12770,13 +12770,17 @@ XD_NOINLINE int cxCmdLine::get_int_opt(const char* pName, const int defVal) {
 	return res;
 }
 
-XD_NOINLINE float cxCmdLine::get_float_opt(const char* pName, const float defVal) {
+XD_NOINLINE float cxCmdLine::get_float_opt(const char* pName, const float defVal) const {
 	const char* pValStr = get_opt(pName);
 	float res = defVal;
 	if (pValStr) {
 		res = float(::atof(pValStr));
 	}
 	return res;
+}
+
+XD_NOINLINE bool cxCmdLine::get_bool_opt(const char* pName, const bool defVal) const {
+	return !!get_int_opt(pName, defVal ? 1 : 0);
 }
 
 /*static*/ cxCmdLine* cxCmdLine::create(int argc, char* argv[]) {
@@ -13428,6 +13432,10 @@ int get_int_opt(const char* pName, const int defVal) {
 
 float get_float_opt(const char* pName, const float defVal) {
 	return s_pCmdLine ? s_pCmdLine->get_float_opt(pName, defVal) : defVal;
+}
+
+bool get_bool_opt(const char* pName, const bool defVal) {
+	return s_pCmdLine ? s_pCmdLine->get_bool_opt(pName, defVal) : defVal;
 }
 
 int get_args_count() {
