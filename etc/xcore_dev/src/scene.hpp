@@ -350,4 +350,6 @@ void exec();
 void visibility();
 void draw(bool discard = true);
 
+float speed();
+
 } // Scene

@@ -36,6 +36,8 @@ static int s_viewRot = 0;
 static bool s_useBump = true;
 static bool s_useSpec = true;
 
+static float s_speed = 1.0f;
+
 static bool s_viewUpdateFlg = true;
 
 static bool s_shadowUniform = true;
@@ -146,7 +148,7 @@ void create_global_locks() {
 void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
 
-	s_printMemInfo = !!nxApp::get_int_opt("meminfo", 0);
+	s_printMemInfo = nxApp::get_bool_opt("meminfo");
 
 	for (int i = 0; i < XD_ARY_LEN(s_thermalZones); ++i) {
 		char tbuf[32];
@@ -198,6 +200,8 @@ void init(const ScnCfg& cfg) {
 	s_viewRot = nxApp::get_int_opt("viewrot", 0);
 	s_useBump = cfg.useBump;
 	s_useSpec = cfg.useSpec;
+
+	s_speed = nxApp::get_float_opt("speed", 1.0f);
 
 	if (s_pDraw) {
 		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
@@ -1804,6 +1808,10 @@ void draw(bool discard) {
 	}
 }
 
+float speed() {
+	return s_speed;
+}
+
 } // Scene
 
 
@@ -2088,7 +2096,7 @@ void ScnObj::update_batch_vilibility(const int ibat) {
 }
 
 void ScnObj::move(const sxMotionData* pMot, const float frameAdd) {
-	exec_motion(pMot, frameAdd);
+	exec_motion(pMot, frameAdd * s_speed);
 	if (mBeforeBlendFunc) {
 		mBeforeBlendFunc(this);
 	}
