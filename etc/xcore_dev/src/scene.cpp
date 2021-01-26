@@ -56,7 +56,7 @@ static uint64_t s_frameCnt = 0;
 static uint32_t s_sleepMillis = 0;
 
 static bool s_printMemInfo = false;
-
+static bool s_printBatteryInfo = false;
 static int s_thermalZones[2];
 
 void ScnCfg::set_defaults() {
@@ -149,7 +149,7 @@ void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
 
 	s_printMemInfo = nxApp::get_bool_opt("meminfo");
-
+	s_printBatteryInfo = nxApp::get_bool_opt("battery");
 	for (int i = 0; i < XD_ARY_LEN(s_thermalZones); ++i) {
 		char tbuf[32];
 		XD_SPRINTF(XD_SPRINTF_BUF(tbuf, sizeof(tbuf)), "thermal%d", i);
@@ -595,6 +595,20 @@ void thermal_info() {
 				nxCore::dbg_msg("!system\n");
 			}
 		}
+	}
+#endif
+}
+
+void battery_info() {
+#ifdef XD_SYS_LINUX
+	if (!s_printBatteryInfo) return;
+	char buf[512];
+	static const char* pPath = "/sys/class/power_supply/battery";
+	XD_SPRINTF(XD_SPRINTF_BUF(buf, sizeof(buf)),
+		"echo \": \" | cat \"%s/status\" - \"%s/capacity\" | tr -d '\\n' && echo", pPath, pPath);
+	int res = system(buf);
+	if (res != 0) {
+		nxCore::dbg_msg("!system\n");
 	}
 #endif
 }

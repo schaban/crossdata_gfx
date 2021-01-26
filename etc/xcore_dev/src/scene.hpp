@@ -246,8 +246,8 @@ void* glb_mem_alloc(const size_t size, const uint32_t tag);
 void glb_mem_free(void* pMem);
 
 void mem_info();
-
 void thermal_info();
+void battery_info();
 
 uint64_t glb_rng_next();
 
