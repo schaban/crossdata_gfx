@@ -308,6 +308,7 @@ uint32_t f32_get_bits(const float x);
 inline uint32_t f32_get_exp_bits(const float x) { return (f32_get_bits(x) >> 23) & 0xFF; }
 inline int f32_get_exp(const float x) { return (int)f32_get_exp_bits(x) - 127; }
 inline float f32_mk_nan() { return f32_set_bits(0xFFC00000); }
+bool f32_almost_eq(const float x, const float y, const float tol = 0.0001f);
 
 uint32_t fetch_bits32(const uint8_t* pTop, const uint32_t org, const uint32_t len);
 

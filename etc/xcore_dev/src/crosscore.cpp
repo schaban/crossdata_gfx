@@ -1242,6 +1242,19 @@ uint32_t f32_get_bits(const float x) {
 	return v.u;
 }
 
+bool f32_almost_eq(const float x, const float y, const float tol) {
+	bool eq = false;
+	float adif = ::fabsf(x - y);
+	if (x == 0.0f || y == 0.0f) {
+		eq = adif <= tol;
+	} else {
+		float ax = ::fabsf(x);
+		float ay = ::fabsf(y);
+		eq = (adif / ax) <= tol && (adif / ay) <= tol;
+	}
+	return eq;
+}
+
 uint32_t fetch_bits32(const uint8_t* pTop, const uint32_t org, const uint32_t len) {
 	uint64_t res = 0;
 	uint32_t idx = org >> 3;
