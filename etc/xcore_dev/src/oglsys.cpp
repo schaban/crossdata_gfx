@@ -550,6 +550,8 @@ static struct OGLSysGlb {
 #	endif
 	mLibOCL;
 	int mNumFuncsOCL;
+	void* (*mpfnTIAllocDDR)(size_t);
+	void (*mpfnTIFreeDDR)(void*);
 #endif
 
 #if OGLSYS_ES
@@ -2917,6 +2919,8 @@ namespace OGLSys {
 			int allCnt = 0;
 			int okCnt = 0;
 #if OGLSYS_CL
+			GLG.mpfnTIAllocDDR = nullptr;
+			GLG.mpfnTIFreeDDR = nullptr;
 #	if defined(OGLSYS_WINDOWS)
 			GLG.mLibOCL = LoadLibraryW(L"OpenCL.dll");
 			if (GLG.mLibOCL) {
@@ -2926,6 +2930,7 @@ namespace OGLSys {
 			}
 #	else
 			static const char* clLibs[] = {
+				"libTIOpenCL.so",
 				"libOpenCL.so",
 				"libOpenCL.so.1"
 			};
@@ -2934,6 +2939,8 @@ namespace OGLSys {
 #			define OGLSYS_CL_FN(_name) *(void**)&_name = (void*)::dlsym(GLG.mLibOCL, "cl" #_name); ++allCnt; if (_name) ++okCnt;
 #			include "oglsys.inc"
 #			undef OGLSYS_CL_FN
+				*(void**)&GLG.mpfnTIAllocDDR = (void*)::dlsym(GLG.mLibOCL, "__malloc_ddr");
+				*(void**)&GLG.mpfnTIFreeDDR = (void*)::dlsym(GLG.mLibOCL, "__free_ddr");
 			}
 #	endif
 			GLG.mNumFuncsOCL = okCnt;
@@ -2998,7 +3005,7 @@ namespace OGLSys {
 		bool ck_device_ext(DeviceID dev, const char* pExtName) {
 			bool found = false;
 #if OGLSYS_CL
-			if (pExtName && valid() && GetDeviceInfo) {
+			if (pExtName && valid() && dev && GetDeviceInfo) {
 				char exts[1024];
 				size_t extsSize = 0;
 				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_EXTENSIONS, 0, NULL, &extsSize);
@@ -3362,6 +3369,28 @@ namespace OGLSys {
 #if OGLSYS_CL
 			if (valid() && buf) {
 				ReleaseMemObject((cl_mem)buf);
+			}
+#endif
+		}
+
+		void* alloc_ddr(DeviceContext ctx, size_t size) {
+			void* p = nullptr;
+#if OGLSYS_CL
+			if (valid() && GLG.mpfnTIAllocDDR && ctx && size > 0) {
+				if (ck_device_ext(device_from_context(ctx), "cl_ti_clmalloc")) {
+					p = GLG.mpfnTIAllocDDR(size);
+				}
+			}
+#endif
+			return p;
+		}
+
+		void free_ddr(DeviceContext ctx, void* p) {
+#if OGLSYS_CL
+			if (valid() && GLG.mpfnTIFreeDDR && ctx && p) {
+				if (ck_device_ext(device_from_context(ctx), "cl_ti_clmalloc")) {
+					GLG.mpfnTIFreeDDR(p);
+				}
 			}
 #endif
 		}

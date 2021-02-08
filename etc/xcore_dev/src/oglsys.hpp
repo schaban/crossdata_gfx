@@ -397,6 +397,8 @@ namespace OGLSys {
 		inline Buffer create_host_mem_in_buffer(DeviceContext ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, true, false); }
 		inline Buffer create_host_mem_out_buffer(DeviceContext ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, false, true); }
 		void release_buffer(Buffer buf);
+		void* alloc_ddr(DeviceContext ctx, size_t size);
+		void free_ddr(DeviceContext ctx, void* p);
 		Queue create_queue(DeviceContext ctx);
 		void release_queue(Queue que);
 		void flush_queue(Queue que);
