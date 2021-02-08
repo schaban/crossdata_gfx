@@ -1,4 +1,4 @@
-#ifdef OGL_FN_CORE
+#if defined(OGL_FN_CORE) && defined(OGL_FN)
 OGL_FN(VIEWPORT, Viewport)
 OGL_FN(SCISSOR, Scissor)
 OGL_FN(GETINTEGERV, GetIntegerv)
@@ -93,7 +93,7 @@ OGL_FN(RENDERBUFFERSTORAGE, RenderbufferStorage)
 OGL_FN(GETERROR, GetError)
 #endif /* OGL_FN_CORE */
 
-#ifdef OGL_FN_EXTRA
+#if defined(OGL_FN_EXTRA) && defined(OGL_FN)
 OGL_FN(GETACTIVEUNIFORMBLOCKIV, GetActiveUniformBlockiv)
 OGL_FN(GETUNIFORMINDICES, GetUniformIndices)
 OGL_FN(GETACTIVEUNIFORMSIV, GetActiveUniformsiv)
@@ -128,3 +128,91 @@ OGL_FN(MEMORYBARRIER, MemoryBarrier)
 OGL_FN(PATCHPARAMETERI, PatchParameteri)
 OGL_FN(PATCHPARAMETERFV, PatchParameterfv)
 #endif /* OGL_FN_EXTRA */
+
+
+#if OGLSYS_CL && defined(OGLSYS_CL_FN)
+
+OGLSYS_CL_FN(GetPlatformIDs)
+OGLSYS_CL_FN(GetPlatformInfo)
+OGLSYS_CL_FN(GetDeviceIDs)
+OGLSYS_CL_FN(GetDeviceInfo)
+
+OGLSYS_CL_FN(CreateContext)
+OGLSYS_CL_FN(CreateContextFromType)
+OGLSYS_CL_FN(RetainContext)
+OGLSYS_CL_FN(ReleaseContext)
+OGLSYS_CL_FN(GetContextInfo)
+
+OGLSYS_CL_FN(CreateCommandQueue)
+OGLSYS_CL_FN(RetainCommandQueue)
+OGLSYS_CL_FN(ReleaseCommandQueue)
+OGLSYS_CL_FN(GetCommandQueueInfo)
+
+OGLSYS_CL_FN(CreateBuffer)
+OGLSYS_CL_FN(CreateImage)
+OGLSYS_CL_FN(RetainMemObject)
+OGLSYS_CL_FN(ReleaseMemObject)
+OGLSYS_CL_FN(GetSupportedImageFormats)
+OGLSYS_CL_FN(GetMemObjectInfo)
+OGLSYS_CL_FN(GetImageInfo)
+
+OGLSYS_CL_FN(CreateSampler)
+OGLSYS_CL_FN(RetainSampler)
+OGLSYS_CL_FN(ReleaseSampler)
+OGLSYS_CL_FN(GetSamplerInfo)
+OGLSYS_CL_FN(CreateProgramWithSource)
+OGLSYS_CL_FN(CreateProgramWithBinary)
+OGLSYS_CL_FN(CreateProgramWithBuiltInKernels)
+OGLSYS_CL_FN(RetainProgram)
+OGLSYS_CL_FN(ReleaseProgram)
+OGLSYS_CL_FN(BuildProgram)
+OGLSYS_CL_FN(CompileProgram)
+OGLSYS_CL_FN(LinkProgram)
+OGLSYS_CL_FN(GetProgramInfo)
+OGLSYS_CL_FN(GetProgramBuildInfo)
+
+OGLSYS_CL_FN(CreateKernel)
+OGLSYS_CL_FN(CreateKernelsInProgram)
+OGLSYS_CL_FN(RetainKernel)
+OGLSYS_CL_FN(ReleaseKernel)
+OGLSYS_CL_FN(SetKernelArg)
+OGLSYS_CL_FN(GetKernelInfo)
+OGLSYS_CL_FN(GetKernelArgInfo)
+OGLSYS_CL_FN(GetKernelWorkGroupInfo)
+
+OGLSYS_CL_FN(WaitForEvents)
+OGLSYS_CL_FN(GetEventInfo)
+OGLSYS_CL_FN(RetainEvent)
+OGLSYS_CL_FN(ReleaseEvent)
+OGLSYS_CL_FN(GetEventProfilingInfo)
+
+OGLSYS_CL_FN(Flush)
+OGLSYS_CL_FN(Finish)
+
+OGLSYS_CL_FN(EnqueueReadBuffer)
+OGLSYS_CL_FN(EnqueueReadBufferRect)
+OGLSYS_CL_FN(EnqueueWriteBuffer)
+OGLSYS_CL_FN(EnqueueWriteBufferRect)
+OGLSYS_CL_FN(EnqueueFillBuffer)
+OGLSYS_CL_FN(EnqueueCopyBuffer)
+OGLSYS_CL_FN(EnqueueCopyBufferRect)
+OGLSYS_CL_FN(EnqueueReadImage)
+OGLSYS_CL_FN(EnqueueWriteImage)
+OGLSYS_CL_FN(EnqueueFillImage)
+OGLSYS_CL_FN(EnqueueCopyImage)
+OGLSYS_CL_FN(EnqueueCopyImageToBuffer)
+OGLSYS_CL_FN(EnqueueCopyBufferToImage)
+OGLSYS_CL_FN(EnqueueMapBuffer)
+OGLSYS_CL_FN(EnqueueMapImage)
+OGLSYS_CL_FN(EnqueueUnmapMemObject)
+OGLSYS_CL_FN(EnqueueMigrateMemObjects)
+OGLSYS_CL_FN(EnqueueNDRangeKernel)
+OGLSYS_CL_FN(EnqueueTask)
+OGLSYS_CL_FN(EnqueueNativeKernel)
+OGLSYS_CL_FN(EnqueueMarkerWithWaitList)
+OGLSYS_CL_FN(EnqueueBarrierWithWaitList)
+
+OGLSYS_CL_FN(GetExtensionFunctionAddressForPlatform)
+
+#endif /* OGLSYS_CL */
+

@@ -91,6 +91,20 @@
 #	endif
 #endif // !OGLSYS_ES
 
+#if !defined(OGLSYS_WINDOWS) && !defined(OGLSYS_APPLE) && !defined(OGLSYS_ANDROID)
+#include <dlfcn.h>
+namespace OGLSys {
+	void* dlopen_from_list(const char** pLibs, const size_t nlibs) {
+		void* pLib = nullptr;
+		for (size_t i = 0; i < nlibs; ++i) {
+			pLib = ::dlopen(pLibs[i], RTLD_LAZY | RTLD_GLOBAL);
+			if (pLib) break;
+		}
+		return pLib;
+	}
+}
+#endif
+
 enum KBD_PUNCT {
 	KBD_PUNCT_SPACE = 0,
 	KBD_PUNCT_PLUS,
@@ -508,10 +522,7 @@ static struct OGLSysGlb {
 				"libGL.so",
 				"libGL.so.17.1"
 			};
-			for (size_t i = 0; i < sizeof(glLibs) / sizeof(glLibs[0]); ++i) {
-				mpLib = ::dlopen(glLibs[i], RTLD_LAZY | RTLD_GLOBAL);
-				if (mpLib) break;
-			}
+			mpLib = OGLSys::dlopen_from_list(glLibs, OGLSYS_ARY_LEN(glLibs));
 			::printf("GLX:mpLib = %p\n", mpLib);
 			if (mpLib) {
 				mpfnGLXChooseVisual = (OGLSYS_PFNGLXCHOOSEVISUAL)get_func_ptr("glXChooseVisual");
@@ -529,6 +540,16 @@ static struct OGLSysGlb {
 			}
 		}
 	} mGLX;
+#endif
+
+#if OGLSYS_CL
+#	if defined(OGLSYS_WINDOWS)
+	HMODULE
+#	else
+	void*
+#	endif
+	mLibOCL;
+	int mNumFuncsOCL;
 #endif
 
 #if OGLSYS_ES
@@ -663,7 +684,24 @@ static struct OGLSysGlb {
 	}
 #endif
 
-} GLG;
+} GLG = {};
+
+static void glg_dbg_info(const char* pInfo, const size_t infoLen) {
+	const int infoBlkSize = 512;
+	char infoBlk[infoBlkSize + 1];
+	infoBlk[infoBlkSize] = 0;
+	size_t nblk = infoLen / infoBlkSize;
+	for (size_t i = 0; i < nblk; ++i) {
+		::memcpy(infoBlk, &pInfo[infoBlkSize * i], infoBlkSize);
+		GLG.dbg_msg("%s", infoBlk);
+	}
+	int endSize = infoLen % infoBlkSize;
+	if (endSize) {
+		::memcpy(infoBlk, &pInfo[infoBlkSize * nblk], endSize);
+		infoBlk[endSize] = 0;
+		GLG.dbg_msg("%s", infoBlk);
+	}
+}
 
 #if defined(OGLSYS_WINDOWS)
 static bool wnd_mouse_msg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -675,7 +713,7 @@ static bool wnd_mouse_msg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		WM_MOUSEWHEEL, WM_MOUSEMOVE
 	};
 	bool mouseFlg = false;
-	for (size_t i = 0; i < sizeof(mouseMsg) / sizeof(mouseMsg[0]); ++i) {
+	for (size_t i = 0; i < OGLSYS_ARY_LEN(mouseMsg); ++i) {
 		if (mouseMsg[i] == msg) {
 			mouseFlg = true;
 			break;
@@ -687,7 +725,7 @@ static bool wnd_mouse_msg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		};
 		uint32_t mask = 0;
 		uint32_t btnMask = LOWORD(wParam);
-		for (size_t i = 0; i < sizeof(mouseMask) / sizeof(mouseMask[0]); ++i) {
+		for (size_t i = 0; i < OGLSYS_ARY_LEN(mouseMask); ++i) {
 			if (btnMask & mouseMask[i]) {
 				mask |= 1 << i;
 			}
@@ -1851,7 +1889,7 @@ namespace OGLSys {
 #if OGLSYS_ES
 		if (GLG.mExts.pfnDiscardFramebuffer && GLG.mExts.discardFB) {
 			static GLenum exts[] = { GL_DEPTH_EXT, GL_STENCIL_EXT };
-			GLG.mExts.pfnDiscardFramebuffer(GL_FRAMEBUFFER, sizeof(exts) / sizeof(exts[0]), exts);
+			GLG.mExts.pfnDiscardFramebuffer(GL_FRAMEBUFFER, OGLSYS_ARY_LEN(exts), exts);
 		}
 		eglSwapBuffers(GLG.mEGL.display, GLG.mEGL.surface);
 #	if defined(OGLSYS_DRM_ES)
@@ -2118,7 +2156,9 @@ namespace OGLSys {
 	}
 
 	void mem_free(void* p) {
-		GLG.mem_free(p);
+		if (p) {
+			GLG.mem_free(p);
+		}
 	}
 
 
@@ -2173,20 +2213,7 @@ namespace OGLSys {
 						char* pInfo = (char*)GLG.mem_alloc(infoLen, "OGLSys:ShaderInfo");
 						if (pInfo) {
 							glGetShaderInfoLog(sid, infoLen, &infoLen, pInfo);
-							const int infoBlkSize = 512;
-							char infoBlk[infoBlkSize + 1];
-							infoBlk[infoBlkSize] = 0;
-							int nblk = infoLen / infoBlkSize;
-							for (int i = 0; i < nblk; ++i) {
-								::memcpy(infoBlk, &pInfo[infoBlkSize * i], infoBlkSize);
-								GLG.dbg_msg("%s", infoBlk);
-							}
-							int endSize = infoLen % infoBlkSize;
-							if (endSize) {
-								::memcpy(infoBlk, &pInfo[infoBlkSize * nblk], endSize);
-								infoBlk[endSize] = 0;
-								GLG.dbg_msg("%s", infoBlk);
-							}
+							glg_dbg_info(pInfo, infoLen);
 							GLG.mem_free(pInfo);
 							pInfo = nullptr;
 						}
@@ -2596,7 +2623,7 @@ namespace OGLSys {
 			if (nfmt > 0) {
 				GLint fmtLst[16];
 				GLint* pLst = fmtLst;
-				if ((size_t)nfmt > sizeof(fmtLst) / sizeof(fmtLst[0])) {
+				if ((size_t)nfmt > OGLSYS_ARY_LEN(fmtLst)) {
 					pLst = (GLint*)GLG.mem_alloc(nfmt * sizeof(GLint), "OGLSys:BinFmts");
 				}
 				if (pLst) {
@@ -2662,7 +2689,7 @@ namespace OGLSys {
 			pState = GLG.mKbdState.alpha;
 			idx = code - 'a';
 		} else {
-			const int npunct = sizeof(s_kbdPunctTbl) / sizeof(s_kbdPunctTbl[0]);
+			const int npunct = OGLSYS_ARY_LEN(s_kbdPunctTbl);
 			for (int i = 0; i < npunct; ++i) {
 				if (s_kbdPunctTbl[i].code == code) {
 					pState = GLG.mKbdState.punct;
@@ -2765,7 +2792,7 @@ namespace OGLSys {
 					pState = GLG.mKbdState.alpha;
 					idx = code - 'a';
 				} else {
-					const int npunct = sizeof(s_kbdPunctTbl) / sizeof(s_kbdPunctTbl[0]);
+					const int npunct = OGLSYS_ARY_LEN(s_kbdPunctTbl);
 					for (int i = 0; i < npunct; ++i) {
 						if (s_kbdPunctTbl[i].code == code) {
 							pState = GLG.mKbdState.punct;
@@ -2878,5 +2905,695 @@ namespace OGLSys {
 		GLG.update_mouse_pos(absX, absY);
 		GLG.send_input(&inp);
 	}
+
+	namespace CL {
+#if OGLSYS_CL
+#		define OGLSYS_CL_FN(_name) cl_api_cl##_name _name;
+#		include "oglsys.inc"
+#		undef OGLSYS_CL_FN
+#endif
+
+		void init() {
+			int allCnt = 0;
+			int okCnt = 0;
+#if OGLSYS_CL
+#	if defined(OGLSYS_WINDOWS)
+			GLG.mLibOCL = LoadLibraryW(L"OpenCL.dll");
+			if (GLG.mLibOCL) {
+#			define OGLSYS_CL_FN(_name) *(void**)&_name = (void*)GetProcAddress(GLG.mLibOCL, "cl" #_name); ++allCnt; if (_name) ++okCnt;
+#			include "oglsys.inc"
+#			undef OGLSYS_CL_FN
+			}
+#	else
+			static const char* clLibs[] = {
+				"libOpenCL.so",
+				"libOpenCL.so.1"
+			};
+			GLG.mLibOCL = OGLSys::dlopen_from_list(clLibs, OGLSYS_ARY_LEN(clLibs));
+			if (GLG.mLibOCL) {
+#			define OGLSYS_CL_FN(_name) *(void**)&_name = (void*)::dlsym(GLG.mLibOCL, "cl" #_name); ++allCnt; if (_name) ++okCnt;
+#			include "oglsys.inc"
+#			undef OGLSYS_CL_FN
+			}
+#	endif
+			GLG.mNumFuncsOCL = okCnt;
+#endif
+			GLG.dbg_msg("OpenCL functions: %d/%d\n", okCnt, allCnt);
+		}
+
+		void reset() {
+#if OGLSYS_CL
+#	if defined(OGLSYS_WINDOWS)
+			if (GLG.mLibOCL) {
+				FreeLibrary(GLG.mLibOCL);
+			}
+			GLG.mLibOCL = NULL;
+#	else
+			if (GLG.mLibOCL) {
+				::dlclose(GLG.mLibOCL);
+			}
+			GLG.mLibOCL = NULL;
+#	endif
+#endif
+		}
+
+		bool valid() {
+#if OGLSYS_CL
+			return GLG.mLibOCL != NULL && GLG.mNumFuncsOCL > 0;
+#else
+			return false;
+#endif
+		}
+
+		bool ck_ext(const char* pExts, const char* pExtName) {
+			bool found = false;
+#if OGLSYS_CL
+			if (!pExts || !pExtName) return false;
+			int iext = 0;
+			int iwk = 0;
+			bool done = false;
+			size_t nameLen = ::strlen(pExtName);
+			while (!done) {
+				char extc = pExts[iwk];
+				done = extc == 0;
+				if (done || extc == ' ') {
+					int extLen = iwk - iext;
+					const char* pExtStr = &pExts[iext];
+					iext = iwk + 1;
+					if (extLen > 1) {
+						if (nameLen == extLen) {
+							if (::memcmp(pExtStr, pExtName, extLen) == 0) {
+								found = true;
+								break;
+							}
+						}
+					}
+				}
+				++iwk;
+			}
+#endif
+			return found;
+		}
+
+		bool ck_device_ext(DeviceID dev, const char* pExtName) {
+			bool found = false;
+#if OGLSYS_CL
+			if (pExtName && valid() && GetDeviceInfo) {
+				char exts[1024];
+				size_t extsSize = 0;
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_EXTENSIONS, 0, NULL, &extsSize);
+				if (res == CL_SUCCESS) {
+					char* pExts = exts;
+					if (extsSize > OGLSYS_ARY_LEN(exts)) {
+						pExts = (char*)OGLSys::mem_alloc(extsSize, "OGLSys:CL:tmpDevExts");
+					}
+					if (pExts) {
+						res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_EXTENSIONS, extsSize, pExts, NULL);
+						if (res == CL_SUCCESS) {
+							found = ck_ext(pExts, pExtName);
+						}
+						if (pExts != exts) {
+							OGLSys::mem_free(pExts);
+						}
+					}
+				}
+			}
+#endif
+			return found;
+		}
+
+		PlatformList* get_platform_list() {
+			PlatformList* pLst = nullptr;
+#if OGLSYS_CL
+			cl_uint num = 0;
+			cl_platform_id idBuf[8];
+			cl_platform_id* pIds = nullptr;
+			cl_int res = valid() && GetPlatformIDs ? GetPlatformIDs(0, NULL, &num) : CL_INVALID_VALUE;
+			if (res == CL_SUCCESS && num > 0) {
+				if (num > OGLSYS_ARY_LEN(idBuf)) {
+					pIds = (cl_platform_id*)OGLSys::mem_alloc(num * sizeof(cl_platform_id), "OGLSys:CL:tmpPlatIDs");
+				} else {
+					pIds = idBuf;
+				}
+			}
+			if (pIds) {
+				GetPlatformIDs(num, pIds, NULL);
+				size_t strSize = 0;
+				for (size_t i = 0; i < (size_t)num; ++i) {
+					size_t prmSize = 0;
+					GetPlatformInfo(pIds[i], CL_PLATFORM_VERSION, 0, NULL, &prmSize);
+					strSize += prmSize;
+					GetPlatformInfo(pIds[i], CL_PLATFORM_NAME, 0, NULL, &prmSize);
+					strSize += prmSize;
+					GetPlatformInfo(pIds[i], CL_PLATFORM_VENDOR, 0, NULL, &prmSize);
+					strSize += prmSize;
+					GetPlatformInfo(pIds[i], CL_PLATFORM_EXTENSIONS, 0, NULL, &prmSize);
+					strSize += prmSize;
+				}
+				size_t lstSize = sizeof(PlatformList) + (sizeof(PlatformList::Entry) * (num - 1));
+				size_t memSize = lstSize + strSize;
+				pLst = (PlatformList*)OGLSys::mem_alloc(memSize, "OGLSys:CL:PlatList");
+				if (pLst) {
+					::memset(pLst, 0, memSize);
+					pLst->num = num;
+					char* pStrs = (char*)pLst + lstSize;
+					char profileBuf[32];
+					static const char* pFullPrf = "FULL_PROFILE";
+					size_t fullPrfSize = ::strlen(pFullPrf) + 1;
+					for (size_t i = 0; i < (size_t)num; ++i) {
+						size_t prmSize = 0;
+						GetPlatformInfo(pIds[i], CL_PLATFORM_PROFILE, sizeof(profileBuf), profileBuf, &prmSize);
+						bool fullFlg = false;
+						if (prmSize == fullPrfSize && memcmp(profileBuf, pFullPrf, fullPrfSize) == 0) {
+							fullFlg = true;
+						}
+						pLst->entries[i].plat = pIds[i];
+						pLst->entries[i].fullProfile = fullFlg;
+						GetPlatformInfo(pIds[i], CL_PLATFORM_VERSION, 0, NULL, &prmSize);
+						GetPlatformInfo(pIds[i], CL_PLATFORM_VERSION, prmSize, pStrs, NULL);
+						pLst->entries[i].pVer = pStrs;
+						pStrs += prmSize;
+						GetPlatformInfo(pIds[i], CL_PLATFORM_NAME, 0, NULL, &prmSize);
+						GetPlatformInfo(pIds[i], CL_PLATFORM_NAME, prmSize, pStrs, NULL);
+						pLst->entries[i].pName = pStrs;
+						pStrs += prmSize;
+						GetPlatformInfo(pIds[i], CL_PLATFORM_VENDOR, 0, NULL, &prmSize);
+						GetPlatformInfo(pIds[i], CL_PLATFORM_VENDOR, prmSize, pStrs, NULL);
+						pLst->entries[i].pVendor = pStrs;
+						pStrs += prmSize;
+						GetPlatformInfo(pIds[i], CL_PLATFORM_EXTENSIONS, 0, NULL, &prmSize);
+						GetPlatformInfo(pIds[i], CL_PLATFORM_EXTENSIONS, prmSize, pStrs, NULL);
+						pLst->entries[i].pExts = pStrs;
+						pStrs += prmSize;
+						pLst->entries[i].numDevs = get_num_devices(pIds[i]);
+						pLst->entries[i].numCPU = get_num_cpu_devices(pIds[i]);
+						pLst->entries[i].numGPU = get_num_gpu_devices(pIds[i]);
+						pLst->entries[i].numAcc = get_num_acc_devices(pIds[i]);
+						pLst->entries[i].defDev = NULL;
+						if (pLst->entries[i].numDevs > 0) {
+							cl_device_id defDev;
+							res = GetDeviceIDs(pIds[i], CL_DEVICE_TYPE_DEFAULT, 1, &defDev, NULL);
+							if (res == CL_SUCCESS) {
+								pLst->entries[i].defDev = defDev;
+								if (GetDeviceInfo) {
+									cl_device_type devType;
+									res = GetDeviceInfo(defDev, CL_DEVICE_TYPE, sizeof(devType), &devType, NULL);
+									if (res == CL_SUCCESS) {
+										pLst->entries[i].coprFlg = !(devType & CL_DEVICE_TYPE_CPU);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			if (pIds != idBuf) {
+				OGLSys::mem_free(pIds);
+			}
+#endif
+			return pLst;
+		}
+
+		void free_platform_list(PlatformList* pLst) {
+			OGLSys::mem_free(pLst);
+		}
+
+		DeviceID get_device(PlatformID plat, const uint32_t idx) {
+			DeviceID dev = NULL;
+#if OGLSYS_CL
+			uint32_t ndev = get_num_devices(plat);
+			if (idx < ndev) {
+				cl_device_id devs[8];
+				cl_device_id* pDevs = devs;
+				uint32_t nreq = idx + 1;
+				if (nreq > OGLSYS_ARY_LEN(devs)) {
+					pDevs = (cl_device_id*)OGLSys::mem_alloc(sizeof(cl_device_id) * nreq, "OGLSys:CL:tmpDevs");
+				}
+				if (pDevs) {
+					cl_int res = GetDeviceIDs((cl_platform_id)plat, CL_DEVICE_TYPE_ALL, nreq, pDevs, NULL);
+					if (res == CL_SUCCESS) {
+						dev = (DeviceID)pDevs[idx];
+					}
+					if (pDevs != devs) {
+						OGLSys::mem_free(pDevs);
+					}
+				}
+			}
+#endif
+			return dev;
+		}
+
+		uint32_t get_num_devices(PlatformID plat) {
+			uint32_t num = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceIDs) {
+				cl_int res = GetDeviceIDs((cl_platform_id)plat, CL_DEVICE_TYPE_ALL, 0, NULL, &num);
+				if (res != CL_SUCCESS) {
+					num = 0;
+				}
+			}
+#endif
+			return num;
+		}
+
+		uint32_t get_num_cpu_devices(PlatformID plat) {
+			uint32_t num = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceIDs) {
+				cl_int res = GetDeviceIDs((cl_platform_id)plat, CL_DEVICE_TYPE_CPU, 0, NULL, &num);
+				if (res != CL_SUCCESS) {
+					num = 0;
+				}
+			}
+#endif
+			return num;
+		}
+
+		uint32_t get_num_gpu_devices(PlatformID plat) {
+			uint32_t num = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceIDs) {
+				cl_int res = GetDeviceIDs((cl_platform_id)plat, CL_DEVICE_TYPE_GPU, 0, NULL, &num);
+				if (res != CL_SUCCESS) {
+					num = 0;
+				}
+			}
+#endif
+			return num;
+		}
+
+		uint32_t get_num_acc_devices(PlatformID plat) {
+			uint32_t num = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceIDs) {
+				cl_int res = GetDeviceIDs((cl_platform_id)plat, CL_DEVICE_TYPE_ACCELERATOR, 0, NULL, &num);
+				if (res != CL_SUCCESS) {
+					num = 0;
+				}
+			}
+#endif
+			return num;
+		}
+
+		uint32_t get_device_max_units(DeviceID dev) {
+			uint32_t num = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceInfo) {
+				cl_uint maxUnits = 0;
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(maxUnits), &maxUnits, NULL);
+				if (res == CL_SUCCESS) {
+					num = maxUnits;
+				}
+			}
+#endif
+			return num;
+		}
+
+		uint32_t get_device_max_freq(DeviceID dev) {
+			uint32_t num = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceInfo) {
+				cl_uint maxFreq = 0;
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(maxFreq), &maxFreq, NULL);
+				if (res == CL_SUCCESS) {
+					num = maxFreq;
+				}
+			}
+#endif
+			return num;
+		}
+
+		size_t get_device_global_mem_size(DeviceID dev) {
+			size_t size = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceInfo) {
+				cl_ulong memSize = 0;
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(memSize), &memSize, NULL);
+				if (res == CL_SUCCESS) {
+					size = (size_t)memSize;
+				}
+			}
+#endif
+			return size;
+		}
+
+		size_t get_device_local_mem_size(DeviceID dev) {
+			size_t size = 0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceInfo) {
+				cl_ulong memSize = 0;
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(memSize), &memSize, NULL);
+				if (res == CL_SUCCESS) {
+					size = (size_t)memSize;
+				}
+			}
+#endif
+			return size;
+		}
+
+		bool device_has_local_mem(DeviceID dev) {
+			bool loc = false;
+#if OGLSYS_CL
+			if (valid() && GetDeviceInfo) {
+				cl_device_local_mem_type memType;
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_LOCAL_MEM_TYPE, sizeof(memType), &memType, NULL);
+				if (res == CL_SUCCESS) {
+					loc = memType == CL_LOCAL;
+				}
+			}
+#endif
+			return loc;
+		}
+
+		bool device_supports_fp16(DeviceID dev) {
+			return ck_device_ext(dev, "cl_khr_fp16");
+		}
+
+		bool device_supports_fp64(DeviceID dev) {
+			return ck_device_ext(dev, "cl_khr_fp64");
+		}
+
+		bool device_is_byte_addressable(DeviceID dev) {
+			return ck_device_ext(dev, "cl_khr_byte_addressable_store");
+		}
+
+		void print_device_exts(DeviceID dev) {
+#if OGLSYS_CL
+			if (!dev) return;
+			size_t extsSize = 0;
+			cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_EXTENSIONS, 0, NULL, &extsSize);
+			if (res == CL_SUCCESS) {
+				char* pExts = (char*)OGLSys::mem_alloc(extsSize, "OGLSys:CL:tmpDevExts");
+				if (pExts) {
+					res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_EXTENSIONS, extsSize, pExts, NULL);
+					if (res == CL_SUCCESS) {
+						::printf("device exts: %s\n", pExts);
+					}
+					OGLSys::mem_free(pExts);
+				}
+			}
+#endif
+		}
+
+		DeviceContext create_device_context(DeviceID dev) {
+			DeviceContext ctx = NULL;
+#if OGLSYS_CL
+			if (valid() && dev) {
+				cl_device_id devId = (cl_device_id)dev;
+				cl_int err = 0;
+				ctx = (DeviceContext)CreateContext(NULL, 1, &devId, NULL, NULL, &err);
+			}
+#endif
+			return ctx;
+		}
+
+		void destroy_device_context(DeviceContext ctx) {
+#if OGLSYS_CL
+			if (valid() && ctx) {
+				cl_uint refCnt = 0;
+				cl_int res = GetContextInfo((cl_context)ctx, CL_CONTEXT_REFERENCE_COUNT, sizeof(refCnt), &refCnt, NULL);
+				if (res == CL_SUCCESS) {
+					for (cl_uint i = 0; i < refCnt; ++i) {
+						res = ReleaseContext((cl_context)ctx);
+						if (res != CL_SUCCESS) break;
+					}
+				}
+			}
+#endif
+		}
+
+		DeviceID device_from_context(DeviceContext ctx) {
+			DeviceID dev = NULL;
+#if OGLSYS_CL
+			if (valid() && ctx) {
+				cl_device_id clDev = NULL;
+				cl_int res = GetContextInfo((cl_context)ctx, CL_CONTEXT_DEVICES, sizeof(clDev), &clDev, NULL);
+				if (res == CL_SUCCESS) {
+					dev = (DeviceID)clDev;
+				}
+			}
+#endif
+			return dev;
+		}
+
+		Buffer create_host_mem_buffer(DeviceContext ctx, void* p, const size_t size, const bool read, const bool write) {
+			Buffer buf = NULL;
+#if OGLSYS_CL
+			if (valid() && ctx && (p && size) && (read || write)) {
+				cl_mem_flags flags = CL_MEM_WRITE_ONLY;
+				if (read && write) {
+					flags = CL_MEM_READ_WRITE;
+				} else if (read && !write) {
+					flags = CL_MEM_READ_ONLY;
+				}
+				flags |= CL_MEM_USE_HOST_PTR;
+				cl_int res = 0;
+				cl_mem mem = CreateBuffer((cl_context)ctx, flags, size, p, &res);
+				if (res == CL_SUCCESS) {
+					buf = (Buffer)mem;
+				}
+			}
+#endif
+			return buf;
+
+		}
+
+		void release_buffer(Buffer buf) {
+#if OGLSYS_CL
+			if (valid() && buf) {
+				ReleaseMemObject((cl_mem)buf);
+			}
+#endif
+		}
+
+		Queue create_queue(DeviceContext ctx) {
+			Queue que = NULL;
+#if OGLSYS_CL
+			if (valid() && ctx) {
+				cl_device_id devId = NULL;
+				cl_int res = GetContextInfo((cl_context)ctx, CL_CONTEXT_DEVICES, sizeof(devId), &devId, NULL);
+				if (res == CL_SUCCESS) {
+					cl_command_queue cq = CreateCommandQueue((cl_context)ctx, devId, 0, &res);
+					if (res == CL_SUCCESS) {
+						que = (Queue)cq;
+					}
+				}
+			}
+#endif
+			return que;
+		}
+
+		void release_queue(Queue que) {
+#if OGLSYS_CL
+			if (valid() && que) {
+				ReleaseCommandQueue((cl_command_queue)que);
+			}
+#endif
+		}
+
+		void flush_queue(Queue que) {
+#if OGLSYS_CL
+			if (valid() && que) {
+				Flush((cl_command_queue)que);
+			}
+#endif
+		}
+
+		void finish_queue(Queue que) {
+#if OGLSYS_CL
+			if (valid() && que) {
+				Finish((cl_command_queue)que);
+			}
+#endif
+		}
+
+		void update_host_mem_in_buffer(Queue que, Buffer buf, void* p, const size_t size) {
+#if OGLSYS_CL
+			if (valid() && que && buf) {
+				EnqueueWriteBuffer((cl_command_queue)que, (cl_mem)buf, CL_TRUE, 0, size, p, 0, NULL, NULL);
+			}
+#endif
+		}
+
+		void update_host_mem_out_buffer(Queue que, Buffer buf, void* p, const size_t size) {
+#if OGLSYS_CL
+			if (valid() && que && buf) {
+				EnqueueReadBuffer((cl_command_queue)que, (cl_mem)buf, CL_TRUE, 0, size, p, 0, NULL, NULL);
+			}
+#endif
+		}
+
+		void exec_kernel(Queue que, Kernel kern, const int numUnits, Event* pEvt) {
+#if OGLSYS_CL
+			if (valid() && que && kern && numUnits > 0) {
+				size_t numWkUnits = (size_t)numUnits;
+				EnqueueNDRangeKernel((cl_command_queue)que, (cl_kernel)kern, 1, NULL, &numWkUnits, NULL, 0, NULL, (cl_event*)pEvt);
+			}
+#endif
+		}
+
+		Kernel create_kernel_from_src(DeviceContext ctx, const char* pSrc, const char* pEntryName, const char* pOpts) {
+			Kernel kern = NULL;
+#if OGLSYS_CL
+			if (valid() && ctx && pSrc) {
+				cl_int res = 0;
+				cl_program prog = CreateProgramWithSource((cl_context)ctx, 1, &pSrc, NULL, &res);
+				if (res == CL_SUCCESS) {
+					res = BuildProgram(prog, 0, NULL, pOpts, NULL, NULL);
+					if (res == CL_SUCCESS) {
+						cl_kernel clkn = CreateKernel(prog, pEntryName, &res);
+						if (res == CL_SUCCESS) {
+							kern = (Kernel)clkn;
+						}
+					} else {
+						cl_device_id dev = NULL;
+						res = GetContextInfo((cl_context)ctx, CL_CONTEXT_DEVICES, sizeof(dev), &dev, NULL);
+						if (res == CL_SUCCESS) {
+							size_t logSize = 0;
+							res = GetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, 0, NULL, &logSize);
+							if (res == CL_SUCCESS) {
+								char* pLog = (char*)GLG.mem_alloc(logSize, "OGLSys:CL:buildLog");
+								if (pLog) {
+									res = GetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, logSize, pLog, NULL);
+									if (res == CL_SUCCESS) {
+										glg_dbg_info(pLog, logSize);
+									}
+									GLG.mem_free(pLog);
+									pLog = nullptr;
+								}
+							}
+						}
+					}
+				}
+			}
+#endif
+			return kern;
+		}
+
+		void release_kernel(Kernel kern) {
+#if OGLSYS_CL
+			if (valid() && kern) {
+				cl_program prog = NULL;
+				cl_int res = GetKernelInfo((cl_kernel)kern, CL_KERNEL_PROGRAM, sizeof(prog), &prog, NULL);
+				if (res == CL_SUCCESS) {
+					ReleaseKernel((cl_kernel)kern);
+					ReleaseProgram(prog);
+				}
+			}
+#endif
+		}
+
+		void set_kernel_arg(Kernel kern, uint32_t idx, const void* pVal, size_t size) {
+#if OGLSYS_CL
+			if (valid() && kern && size > 0 && pVal) {
+				SetKernelArg((cl_kernel)kern, (cl_uint)idx, size, pVal);
+			}
+#endif
+		}
+
+		void set_kernel_int_arg(Kernel kern, uint32_t idx, const int val) {
+#if OGLSYS_CL
+			cl_int clVal = (cl_int)val;
+			set_kernel_arg(kern, idx, &clVal, sizeof(clVal));
+#endif
+		}
+
+		void set_kernel_buffer_arg(Kernel kern, uint32_t idx, const Buffer buf) {
+#if OGLSYS_CL
+			cl_mem clVal = (cl_mem)buf;
+			set_kernel_arg(kern, idx, &clVal, sizeof(clVal));
+#endif
+		}
+
+		void wait_event(Event evt) {
+#if OGLSYS_CL
+			if (valid() && evt) {
+				cl_event e = (cl_event)evt;
+				WaitForEvents(1, &e);
+			}
+#endif
+		}
+
+		void release_event(Event evt) {
+#if OGLSYS_CL
+			if (valid() && evt) {
+				cl_uint refCnt = 0;
+				cl_int res = GetEventInfo((cl_event)evt, CL_EVENT_REFERENCE_COUNT, sizeof(refCnt), &refCnt, NULL);
+				if (res == CL_SUCCESS && refCnt > 0) {
+					ReleaseEvent((cl_event)evt);
+				}
+			}
+#endif
+		}
+
+		void wait_events(Event* pEvts, const int n) {
+#if OGLSYS_CL
+			if (valid() && pEvts && n > 0) {
+				WaitForEvents((cl_uint)n, (const cl_event*)pEvts);
+			}
+#endif
+		}
+
+		bool event_ck_queued(Event evt) {
+			bool ck = false;
+#if OGLSYS_CL
+			if (valid() && evt) {
+				cl_int execStatus = 0;
+				cl_int res = GetEventInfo((cl_event)evt, CL_EVENT_COMMAND_EXECUTION_STATUS,
+				                          sizeof(execStatus), &execStatus, NULL);
+				if (res == CL_SUCCESS) {
+					ck = execStatus == CL_QUEUED;
+				}
+			}
+#endif
+			return ck;
+		}
+
+		bool event_ck_submitted(Event evt) {
+			bool ck = false;
+#if OGLSYS_CL
+			if (valid() && evt) {
+				cl_int execStatus = 0;
+				cl_int res = GetEventInfo((cl_event)evt, CL_EVENT_COMMAND_EXECUTION_STATUS,
+				                          sizeof(execStatus), &execStatus, NULL);
+				if (res == CL_SUCCESS) {
+					ck = execStatus == CL_SUBMITTED;
+				}
+			}
+#endif
+			return ck;
+		}
+
+		bool event_ck_running(Event evt) {
+			bool ck = false;
+#if OGLSYS_CL
+			if (valid() && evt) {
+				cl_int execStatus = 0;
+				cl_int res = GetEventInfo((cl_event)evt, CL_EVENT_COMMAND_EXECUTION_STATUS,
+				                          sizeof(execStatus), &execStatus, NULL);
+				if (res == CL_SUCCESS) {
+					ck = execStatus == CL_RUNNING;
+				}
+			}
+#endif
+			return ck;
+		}
+
+		bool event_ck_complete(Event evt) {
+			bool ck = false;
+#if OGLSYS_CL
+			if (valid() && evt) {
+				cl_int execStatus = 0;
+				cl_int res = GetEventInfo((cl_event)evt, CL_EVENT_COMMAND_EXECUTION_STATUS,
+				                          sizeof(execStatus), &execStatus, NULL);
+				if (res == CL_SUCCESS) {
+					ck = execStatus == CL_COMPLETE;
+				}
+			}
+#endif
+			return ck;
+		}
+
+	} // CL
 
 } // OGLSys

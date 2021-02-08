@@ -140,6 +140,22 @@ android_app* oglsys_get_app();
 #endif
 #endif
 
+#if defined(OGLSYS_CL)
+#	if !defined(OGLSYS_WINDOWS) && !defined(__linux__)
+#		undef OGLSYS_CL
+#		define OGLSYS_CL 0
+#	endif
+#else
+#	define OGLSYS_CL 0
+#endif
+
+#if OGLSYS_CL
+#	define CL_TARGET_OPENCL_VERSION 120
+#	include <CL/cl_icd.h>
+#endif
+
+#define OGLSYS_ARY_LEN(_arr) (sizeof((_arr)) / sizeof((_arr)[0]))
+
 struct OGLSysIfc {
 	void* (*mem_alloc)(size_t size, const char* pTag);
 	void (*mem_free)(void* p);
@@ -321,4 +337,84 @@ namespace OGLSys {
 	void send_mouse_down(OGLSysMouseState::BTN btn, float absX, float absY, bool updateFlg);
 	void send_mouse_up(OGLSysMouseState::BTN btn, float absX, float absY, bool updateFlg);
 	void send_mouse_move(float absX, float absY);
-}
+
+	namespace CL {
+#if OGLSYS_CL
+#		define OGLSYS_CL_FN(_name) extern cl_api_cl##_name _name;
+#		include "oglsys.inc"
+#		undef OGLSYS_CL_FN
+#endif
+
+		typedef void* PlatformID;
+		typedef void* DeviceID;
+		typedef void* DeviceContext;
+		typedef void* Buffer;
+		typedef void* Queue;
+		typedef void* Kernel;
+		typedef void* Event;
+
+		struct PlatformList {
+			size_t num;
+			struct Entry {
+				PlatformID plat;
+				const char* pVer;
+				const char* pName;
+				const char* pVendor;
+				const char* pExts;
+				DeviceID defDev;
+				uint32_t numDevs;
+				uint32_t numCPU;
+				uint32_t numGPU;
+				uint32_t numAcc;
+				bool fullProfile;
+				bool coprFlg;
+			} entries[1];
+		};
+
+		void init();
+		void reset();
+		bool valid();
+		PlatformList* get_platform_list();
+		void free_platform_list(PlatformList* pLst);
+		DeviceID get_device(PlatformID plat, const uint32_t idx = 0);
+		uint32_t get_num_devices(PlatformID plat);
+		uint32_t get_num_cpu_devices(PlatformID plat);
+		uint32_t get_num_gpu_devices(PlatformID plat);
+		uint32_t get_num_acc_devices(PlatformID plat);
+		uint32_t get_device_max_units(DeviceID dev);
+		uint32_t get_device_max_freq(DeviceID dev);
+		size_t get_device_global_mem_size(DeviceID dev);
+		size_t get_device_local_mem_size(DeviceID dev);
+		bool device_has_local_mem(DeviceID dev);
+		bool device_supports_fp16(DeviceID dev);
+		bool device_supports_fp64(DeviceID dev);
+		bool device_is_byte_addressable(DeviceID dev);
+		void print_device_exts(DeviceID dev);
+		DeviceContext create_device_context(DeviceID dev);
+		void destroy_device_context(DeviceContext ctx);
+		DeviceID device_from_context(DeviceContext ctx);
+		Buffer create_host_mem_buffer(DeviceContext ctx, void* p, const size_t size, const bool read, const bool write);
+		inline Buffer create_host_mem_in_buffer(DeviceContext ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, true, false); }
+		inline Buffer create_host_mem_out_buffer(DeviceContext ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, false, true); }
+		void release_buffer(Buffer buf);
+		Queue create_queue(DeviceContext ctx);
+		void release_queue(Queue que);
+		void flush_queue(Queue que);
+		void finish_queue(Queue que);
+		void update_host_mem_in_buffer(Queue que, Buffer buf, void* p, const size_t size);
+		void update_host_mem_out_buffer(Queue que, Buffer buf, void* p, const size_t size);
+		void exec_kernel(Queue que, Kernel kern, const int numUnits, Event* pEvt = nullptr);
+		Kernel create_kernel_from_src(DeviceContext ctx, const char* pSrc, const char* pEntryName, const char* pOpts = nullptr);
+		void release_kernel(Kernel kern);
+		void set_kernel_arg(Kernel kern, uint32_t idx, const void* pVal, size_t size);
+		void set_kernel_int_arg(Kernel kern, uint32_t idx, const int val);
+		void set_kernel_buffer_arg(Kernel kern, uint32_t idx, const Buffer buf);
+		void wait_event(Event evt);
+		void release_event(Event evt);
+		void wait_events(const Event* pEvts, const int n);
+		bool event_ck_queued(Event evt);
+		bool event_ck_submitted(Event evt);
+		bool event_ck_running(Event evt);
+		bool event_ck_complete(Event evt);
+	} // CL
+}  // OGLSys
