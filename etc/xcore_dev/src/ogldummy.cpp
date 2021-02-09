@@ -1,5 +1,7 @@
 #include "oglsys.hpp"
 
+#ifdef DUMMY_GL
+
 namespace dummygl {
 
 GLuint s_ibuf = 0;
@@ -413,3 +415,5 @@ void dummyglInit() {
 }
 
 #undef OGL_FN
+
+#endif /* DUMMY_GL */
