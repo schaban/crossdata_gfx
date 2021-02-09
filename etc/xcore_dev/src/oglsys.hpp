@@ -389,6 +389,7 @@ namespace OGLSys {
 		bool device_supports_fp16(DeviceID dev);
 		bool device_supports_fp64(DeviceID dev);
 		bool device_is_byte_addressable(DeviceID dev);
+		bool device_is_intel_gpu(DeviceID dev);
 		void print_device_exts(DeviceID dev);
 		DeviceContext create_device_context(DeviceID dev);
 		void destroy_device_context(DeviceContext ctx);
