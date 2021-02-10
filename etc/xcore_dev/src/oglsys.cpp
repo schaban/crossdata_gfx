@@ -3002,7 +3002,7 @@ namespace OGLSys {
 			return found;
 		}
 
-		bool ck_device_ext(DeviceID dev, const char* pExtName) {
+		bool ck_device_ext(Device dev, const char* pExtName) {
 			bool found = false;
 #if OGLSYS_CL
 			if (pExtName && valid() && dev && GetDeviceInfo) {
@@ -3125,8 +3125,8 @@ namespace OGLSys {
 			OGLSys::mem_free(pLst);
 		}
 
-		DeviceID get_device(PlatformID plat, const uint32_t idx) {
-			DeviceID dev = NULL;
+		Device get_device(Platform plat, const uint32_t idx) {
+			Device dev = NULL;
 #if OGLSYS_CL
 			uint32_t ndev = get_num_devices(plat);
 			if (idx < ndev) {
@@ -3139,7 +3139,7 @@ namespace OGLSys {
 				if (pDevs) {
 					cl_int res = GetDeviceIDs((cl_platform_id)plat, CL_DEVICE_TYPE_ALL, nreq, pDevs, NULL);
 					if (res == CL_SUCCESS) {
-						dev = (DeviceID)pDevs[idx];
+						dev = (Device)pDevs[idx];
 					}
 					if (pDevs != devs) {
 						OGLSys::mem_free(pDevs);
@@ -3150,7 +3150,7 @@ namespace OGLSys {
 			return dev;
 		}
 
-		uint32_t get_num_devices(PlatformID plat) {
+		uint32_t get_num_devices(Platform plat) {
 			uint32_t num = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceIDs) {
@@ -3163,7 +3163,7 @@ namespace OGLSys {
 			return num;
 		}
 
-		uint32_t get_num_cpu_devices(PlatformID plat) {
+		uint32_t get_num_cpu_devices(Platform plat) {
 			uint32_t num = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceIDs) {
@@ -3176,7 +3176,7 @@ namespace OGLSys {
 			return num;
 		}
 
-		uint32_t get_num_gpu_devices(PlatformID plat) {
+		uint32_t get_num_gpu_devices(Platform plat) {
 			uint32_t num = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceIDs) {
@@ -3189,7 +3189,7 @@ namespace OGLSys {
 			return num;
 		}
 
-		uint32_t get_num_acc_devices(PlatformID plat) {
+		uint32_t get_num_acc_devices(Platform plat) {
 			uint32_t num = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceIDs) {
@@ -3202,7 +3202,7 @@ namespace OGLSys {
 			return num;
 		}
 
-		uint32_t get_device_max_units(DeviceID dev) {
+		uint32_t get_device_max_units(Device dev) {
 			uint32_t num = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceInfo) {
@@ -3216,7 +3216,7 @@ namespace OGLSys {
 			return num;
 		}
 
-		uint32_t get_device_max_freq(DeviceID dev) {
+		uint32_t get_device_max_freq(Device dev) {
 			uint32_t num = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceInfo) {
@@ -3230,7 +3230,7 @@ namespace OGLSys {
 			return num;
 		}
 
-		size_t get_device_global_mem_size(DeviceID dev) {
+		size_t get_device_global_mem_size(Device dev) {
 			size_t size = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceInfo) {
@@ -3244,7 +3244,7 @@ namespace OGLSys {
 			return size;
 		}
 
-		size_t get_device_local_mem_size(DeviceID dev) {
+		size_t get_device_local_mem_size(Device dev) {
 			size_t size = 0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceInfo) {
@@ -3258,7 +3258,7 @@ namespace OGLSys {
 			return size;
 		}
 
-		bool device_has_local_mem(DeviceID dev) {
+		bool device_has_local_mem(Device dev) {
 			bool loc = false;
 #if OGLSYS_CL
 			if (valid() && GetDeviceInfo) {
@@ -3272,19 +3272,19 @@ namespace OGLSys {
 			return loc;
 		}
 
-		bool device_supports_fp16(DeviceID dev) {
+		bool device_supports_fp16(Device dev) {
 			return ck_device_ext(dev, "cl_khr_fp16");
 		}
 
-		bool device_supports_fp64(DeviceID dev) {
+		bool device_supports_fp64(Device dev) {
 			return ck_device_ext(dev, "cl_khr_fp64");
 		}
 
-		bool device_is_byte_addressable(DeviceID dev) {
+		bool device_is_byte_addressable(Device dev) {
 			return ck_device_ext(dev, "cl_khr_byte_addressable_store");
 		}
 
-		bool device_is_intel_gpu(DeviceID dev) {
+		bool device_is_intel_gpu(Device dev) {
 			bool ck = false;
 #if OGLSYS_CL
 			if (valid() && dev) {
@@ -3307,7 +3307,7 @@ namespace OGLSys {
 			return ck;
 		}
 
-		bool device_is_vivante_gpu(DeviceID dev) {
+		bool device_is_vivante_gpu(Device dev) {
 			bool ck = false;
 #if OGLSYS_CL
 			if (valid() && dev) {
@@ -3330,7 +3330,7 @@ namespace OGLSys {
 			return ck;
 		}
 
-		void print_device_exts(DeviceID dev) {
+		void print_device_exts(Device dev) {
 #if OGLSYS_CL
 			if (!dev) return;
 			size_t extsSize = 0;
@@ -3348,19 +3348,19 @@ namespace OGLSys {
 #endif
 		}
 
-		DeviceContext create_device_context(DeviceID dev) {
-			DeviceContext ctx = NULL;
+		Context create_device_context(Device dev) {
+			Context ctx = NULL;
 #if OGLSYS_CL
 			if (valid() && dev) {
 				cl_device_id devId = (cl_device_id)dev;
 				cl_int err = 0;
-				ctx = (DeviceContext)CreateContext(NULL, 1, &devId, NULL, NULL, &err);
+				ctx = (Context)CreateContext(NULL, 1, &devId, NULL, NULL, &err);
 			}
 #endif
 			return ctx;
 		}
 
-		void destroy_device_context(DeviceContext ctx) {
+		void destroy_device_context(Context ctx) {
 #if OGLSYS_CL
 			if (valid() && ctx) {
 				cl_uint refCnt = 0;
@@ -3375,21 +3375,21 @@ namespace OGLSys {
 #endif
 		}
 
-		DeviceID device_from_context(DeviceContext ctx) {
-			DeviceID dev = NULL;
+		Device device_from_context(Context ctx) {
+			Device dev = NULL;
 #if OGLSYS_CL
 			if (valid() && ctx) {
 				cl_device_id clDev = NULL;
 				cl_int res = GetContextInfo((cl_context)ctx, CL_CONTEXT_DEVICES, sizeof(clDev), &clDev, NULL);
 				if (res == CL_SUCCESS) {
-					dev = (DeviceID)clDev;
+					dev = (Device)clDev;
 				}
 			}
 #endif
 			return dev;
 		}
 
-		Buffer create_host_mem_buffer(DeviceContext ctx, void* p, const size_t size, const bool read, const bool write) {
+		Buffer create_host_mem_buffer(Context ctx, void* p, const size_t size, const bool read, const bool write) {
 			Buffer buf = NULL;
 #if OGLSYS_CL
 			if (valid() && ctx && (p && size) && (read || write)) {
@@ -3419,7 +3419,7 @@ namespace OGLSys {
 #endif
 		}
 
-		void* alloc_ddr(DeviceContext ctx, size_t size) {
+		void* alloc_ddr(Context ctx, size_t size) {
 			void* p = nullptr;
 #if OGLSYS_CL
 			if (valid() && GLG.mpfnTIAllocDDR && ctx && size > 0) {
@@ -3431,7 +3431,7 @@ namespace OGLSys {
 			return p;
 		}
 
-		void free_ddr(DeviceContext ctx, void* p) {
+		void free_ddr(Context ctx, void* p) {
 #if OGLSYS_CL
 			if (valid() && GLG.mpfnTIFreeDDR && ctx && p) {
 				if (ck_device_ext(device_from_context(ctx), "cl_ti_clmalloc")) {
@@ -3441,7 +3441,7 @@ namespace OGLSys {
 #endif
 		}
 
-		Queue create_queue(DeviceContext ctx) {
+		Queue create_queue(Context ctx) {
 			Queue que = NULL;
 #if OGLSYS_CL
 			if (valid() && ctx) {
@@ -3507,7 +3507,7 @@ namespace OGLSys {
 #endif
 		}
 
-		Kernel create_kernel_from_src(DeviceContext ctx, const char* pSrc, const char* pEntryName, const char* pOpts) {
+		Kernel create_kernel_from_src(Context ctx, const char* pSrc, const char* pEntryName, const char* pOpts) {
 			Kernel kern = NULL;
 #if OGLSYS_CL
 			if (valid() && ctx && pSrc) {

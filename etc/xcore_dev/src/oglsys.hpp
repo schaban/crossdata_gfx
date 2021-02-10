@@ -345,9 +345,9 @@ namespace OGLSys {
 #		undef OGLSYS_CL_FN
 #endif
 
-		typedef void* PlatformID;
-		typedef void* DeviceID;
-		typedef void* DeviceContext;
+		typedef void* Platform;
+		typedef void* Device;
+		typedef void* Context;
 		typedef void* Buffer;
 		typedef void* Queue;
 		typedef void* Kernel;
@@ -356,12 +356,12 @@ namespace OGLSys {
 		struct PlatformList {
 			size_t num;
 			struct Entry {
-				PlatformID plat;
+				Platform plat;
 				const char* pVer;
 				const char* pName;
 				const char* pVendor;
 				const char* pExts;
-				DeviceID defDev;
+				Device defDev;
 				uint32_t numDevs;
 				uint32_t numCPU;
 				uint32_t numGPU;
@@ -376,39 +376,39 @@ namespace OGLSys {
 		bool valid();
 		PlatformList* get_platform_list();
 		void free_platform_list(PlatformList* pLst);
-		DeviceID get_device(PlatformID plat, const uint32_t idx = 0);
-		uint32_t get_num_devices(PlatformID plat);
-		uint32_t get_num_cpu_devices(PlatformID plat);
-		uint32_t get_num_gpu_devices(PlatformID plat);
-		uint32_t get_num_acc_devices(PlatformID plat);
-		uint32_t get_device_max_units(DeviceID dev);
-		uint32_t get_device_max_freq(DeviceID dev);
-		size_t get_device_global_mem_size(DeviceID dev);
-		size_t get_device_local_mem_size(DeviceID dev);
-		bool device_has_local_mem(DeviceID dev);
-		bool device_supports_fp16(DeviceID dev);
-		bool device_supports_fp64(DeviceID dev);
-		bool device_is_byte_addressable(DeviceID dev);
-		bool device_is_intel_gpu(DeviceID dev);
-		bool device_is_vivante_gpu(DeviceID dev);
-		void print_device_exts(DeviceID dev);
-		DeviceContext create_device_context(DeviceID dev);
-		void destroy_device_context(DeviceContext ctx);
-		DeviceID device_from_context(DeviceContext ctx);
-		Buffer create_host_mem_buffer(DeviceContext ctx, void* p, const size_t size, const bool read, const bool write);
-		inline Buffer create_host_mem_in_buffer(DeviceContext ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, true, false); }
-		inline Buffer create_host_mem_out_buffer(DeviceContext ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, false, true); }
+		Device get_device(Platform plat, const uint32_t idx = 0);
+		uint32_t get_num_devices(Platform plat);
+		uint32_t get_num_cpu_devices(Platform plat);
+		uint32_t get_num_gpu_devices(Platform plat);
+		uint32_t get_num_acc_devices(Platform plat);
+		uint32_t get_device_max_units(Device dev);
+		uint32_t get_device_max_freq(Device dev);
+		size_t get_device_global_mem_size(Device dev);
+		size_t get_device_local_mem_size(Device dev);
+		bool device_has_local_mem(Device dev);
+		bool device_supports_fp16(Device dev);
+		bool device_supports_fp64(Device dev);
+		bool device_is_byte_addressable(Device dev);
+		bool device_is_intel_gpu(Device dev);
+		bool device_is_vivante_gpu(Device dev);
+		void print_device_exts(Device dev);
+		Context create_device_context(Device dev);
+		void destroy_device_context(Context ctx);
+		Device device_from_context(Context ctx);
+		Buffer create_host_mem_buffer(Context ctx, void* p, const size_t size, const bool read, const bool write);
+		inline Buffer create_host_mem_in_buffer(Context ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, true, false); }
+		inline Buffer create_host_mem_out_buffer(Context ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, false, true); }
 		void release_buffer(Buffer buf);
-		void* alloc_ddr(DeviceContext ctx, size_t size);
-		void free_ddr(DeviceContext ctx, void* p);
-		Queue create_queue(DeviceContext ctx);
+		void* alloc_ddr(Context ctx, size_t size);
+		void free_ddr(Context ctx, void* p);
+		Queue create_queue(Context ctx);
 		void release_queue(Queue que);
 		void flush_queue(Queue que);
 		void finish_queue(Queue que);
 		void update_host_mem_in_buffer(Queue que, Buffer buf, void* p, const size_t size);
 		void update_host_mem_out_buffer(Queue que, Buffer buf, void* p, const size_t size);
 		void exec_kernel(Queue que, Kernel kern, const int numUnits, Event* pEvt = nullptr);
-		Kernel create_kernel_from_src(DeviceContext ctx, const char* pSrc, const char* pEntryName, const char* pOpts = nullptr);
+		Kernel create_kernel_from_src(Context ctx, const char* pSrc, const char* pEntryName, const char* pOpts = nullptr);
 		void release_kernel(Kernel kern);
 		void set_kernel_arg(Kernel kern, uint32_t idx, const void* pVal, size_t size);
 		void set_kernel_int_arg(Kernel kern, uint32_t idx, const int val);
