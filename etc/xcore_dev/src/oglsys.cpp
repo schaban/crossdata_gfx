@@ -3307,6 +3307,29 @@ namespace OGLSys {
 			return ck;
 		}
 
+		bool device_is_vivante_gpu(DeviceID dev) {
+			bool ck = false;
+#if OGLSYS_CL
+			if (valid() && dev) {
+				size_t size = 0;
+				char str[32];
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_VENDOR, sizeof(str), str, &size);
+				if (res == CL_SUCCESS) {
+					static const char* pVivCk = "Vivante ";
+					size_t ckSize = ::strlen(pVivCk);
+					if (size > ckSize && ::memcmp(str, pVivCk, ckSize) == 0) {
+						cl_device_type type;
+						res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_TYPE, sizeof(type), &type, NULL);
+						if (res == CL_SUCCESS) {
+							ck = !!(type & CL_DEVICE_TYPE_GPU);
+						}
+					}
+				}
+			}
+#endif
+			return ck;
+		}
+
 		void print_device_exts(DeviceID dev) {
 #if OGLSYS_CL
 			if (!dev) return;
