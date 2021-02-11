@@ -3499,10 +3499,15 @@ namespace OGLSys {
 		}
 
 		void exec_kernel(Queue que, Kernel kern, const int numUnits, Event* pEvt) {
+			if (pEvt) {
+				*pEvt = NULL;
+			}
 #if OGLSYS_CL
 			if (valid() && que && kern && numUnits > 0) {
 				size_t numWkUnits = (size_t)numUnits;
-				EnqueueNDRangeKernel((cl_command_queue)que, (cl_kernel)kern, 1, NULL, &numWkUnits, NULL, 0, NULL, (cl_event*)pEvt);
+				cl_int res = EnqueueNDRangeKernel((cl_command_queue)que, (cl_kernel)kern, 1, NULL, &numWkUnits, NULL, 0, NULL, (cl_event*)pEvt);
+				if (res != CL_SUCCESS) {
+				}
 			}
 #endif
 		}
@@ -3655,7 +3660,7 @@ namespace OGLSys {
 		}
 
 		bool event_ck_complete(Event evt) {
-			bool ck = false;
+			bool ck = evt ? false : true;
 #if OGLSYS_CL
 			if (valid() && evt) {
 				cl_int execStatus = 0;
