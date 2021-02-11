@@ -412,6 +412,8 @@ namespace OGLSys {
 		void release_kernel(Kernel kern);
 		void set_kernel_arg(Kernel kern, uint32_t idx, const void* pVal, size_t size);
 		void set_kernel_int_arg(Kernel kern, uint32_t idx, const int val);
+		void set_kernel_float_arg(Kernel kern, uint32_t idx, const float val);
+		void set_kernel_float3_arg(Kernel kern, uint32_t idx, const float x, const float y, const float z);
 		void set_kernel_buffer_arg(Kernel kern, uint32_t idx, const Buffer buf);
 		void wait_event(Event evt);
 		void release_event(Event evt);

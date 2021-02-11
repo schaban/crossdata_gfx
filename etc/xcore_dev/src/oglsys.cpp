@@ -3578,6 +3578,23 @@ namespace OGLSys {
 #endif
 		}
 
+		void set_kernel_float_arg(Kernel kern, uint32_t idx, const float val) {
+#if OGLSYS_CL
+			cl_float clVal = (cl_float)val;
+			set_kernel_arg(kern, idx, &clVal, sizeof(clVal));
+#endif
+		}
+
+		void set_kernel_float3_arg(Kernel kern, uint32_t idx, const float x, const float y, const float z) {
+#if OGLSYS_CL
+			cl_float3 clVal;
+			clVal.s[0] = x;
+			clVal.s[1] = y;
+			clVal.s[2] = z;
+			set_kernel_arg(kern, idx, &clVal, sizeof(clVal));
+#endif
+		}
+
 		void set_kernel_buffer_arg(Kernel kern, uint32_t idx, const Buffer buf) {
 #if OGLSYS_CL
 			cl_mem clVal = (cl_mem)buf;
