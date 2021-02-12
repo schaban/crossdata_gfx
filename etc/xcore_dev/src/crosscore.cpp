@@ -3726,7 +3726,80 @@ bool seg_tri_intersect_ccw(const cxVec& p0, const cxVec& p1, const cxVec& v0, co
 	return seg_quad_intersect_ccw(p0, p1, v0, v1, v2, v0, pHitPos, pHitNrm);
 }
 
+xt_float4 seg_tri_intersect_bc_cw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2) {
+	xt_float4 uvwt;
+	uvwt.fill(-1.0f);
+	cxVec e1 = v1 - v0;
+	cxVec e2 = v2 - v0;
+	cxVec sv = p0 - p1;
+	cxVec n = nxVec::cross(e2, e1);
+	float d = sv.dot(n);
+	if (d > 0.0f) {
+		cxVec sv0 = p0 - v0;
+		float t = sv0.dot(n);
+		if (t >= 0.0f && t <= d) {
+			cxVec e = nxVec::cross(sv, sv0);
+			float w = e.dot(e1);
+			if (w >= 0.0f && w <= d) {
+				float v = -e.dot(e2);
+				if (v >= 0.0f && v + w <= d) {
+					float s = 1.0f / d;
+					uvwt.set(1.0f, v, w, t);
+					uvwt.scl(s);
+					uvwt.x = 1.0f - uvwt.y - uvwt.z;
+				}
+			}
+		}
+	}
+	return uvwt;
+}
+
+xt_float4 seg_tri_intersect_bc_ccw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2) {
+	xt_float4 uvwt;
+	uvwt.fill(-1.0f);
+	cxVec e1 = v1 - v0;
+	cxVec e2 = v2 - v0;
+	cxVec sv = p0 - p1;
+	cxVec n = nxVec::cross(e1, e2);
+	float d = sv.dot(n);
+	if (d > 0.0f) {
+		cxVec sv0 = p0 - v0;
+		float t = sv0.dot(n);
+		if (t >= 0.0f && t <= d) {
+			cxVec e = nxVec::cross(sv, sv0);
+			float v = e.dot(e2);
+			if (v >= 0.0f && v <= d) {
+				float w = -e.dot(e1);
+				if (w >= 0.0f && v + w <= d) {
+					float s = 1.0f / d;
+					uvwt.set(1.0f, v, w, t);
+					uvwt.scl(s);
+					uvwt.x = 1.0f - uvwt.y - uvwt.z;
+				}
+			}
+		}
+	}
+	return uvwt;
+}
+
 cxVec barycentric(const cxVec& pos, const cxVec& v0, const cxVec& v1, const cxVec& v2) {
+	cxVec dv0 = pos - v0;
+	cxVec dv1 = v1 - v0;
+	cxVec dv2 = v2 - v0;
+	float d01 = dv0.dot(dv1);
+	float d02 = dv0.dot(dv2);
+	float d12 = dv1.dot(dv2);
+	float d11 = dv1.dot(dv1);
+	float d22 = dv2.dot(dv2);
+	float d = d11*d22 - nxCalc::sq(d12);
+	float ood = 1.0f / d;
+	float v = (d01*d22 - d02*d12) * ood;
+	float w = (d02*d11 - d01*d12) * ood;
+	float u = (1.0f - v - w);
+	return cxVec(u, v, w);
+}
+
+cxVec barycentric_uv(const cxVec& pos, const cxVec& v0, const cxVec& v1, const cxVec& v2) {
 	cxVec dv0 = pos - v0;
 	cxVec dv1 = v1 - v0;
 	cxVec dv2 = v2 - v0;

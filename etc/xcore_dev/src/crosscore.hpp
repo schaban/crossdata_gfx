@@ -2853,7 +2853,10 @@ bool seg_tri_intersect_cw_n(const cxVec& p0, const cxVec& p1, const cxVec& v0, c
 bool seg_tri_intersect_cw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, cxVec* pHitPos = nullptr, cxVec* pHitNrm = nullptr);
 bool seg_tri_intersect_ccw_n(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& nrm, cxVec* pHitPos = nullptr);
 bool seg_tri_intersect_ccw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, cxVec* pHitPos = nullptr, cxVec* pHitNrm = nullptr);
+xt_float4 seg_tri_intersect_bc_cw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2);
+xt_float4 seg_tri_intersect_bc_ccw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2);
 cxVec barycentric(const cxVec& pos, const cxVec& v0, const cxVec& v1, const cxVec& v2);
+cxVec barycentric_uv(const cxVec& pos, const cxVec& v0, const cxVec& v1, const cxVec& v2);
 float quad_dist2(const cxVec& pos, const cxVec vtx[4]);
 int quad_convex_ck(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3);
 void update_nrm_newell(cxVec* pNrm, cxVec* pVtxI, cxVec* pVtxJ);
