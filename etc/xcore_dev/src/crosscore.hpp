@@ -3867,6 +3867,13 @@ struct sxGeometryData : public sxData {
 		uint32_t mReserved2;
 	};
 
+	class LeafHitFunc {
+	public:
+		LeafHitFunc() {}
+		virtual ~LeafHitFunc() {}
+		virtual bool operator()(const Polygon& pol, const BVH::Node* pNode) { return false; }
+	};
+
 	class DisplayList {
 	public:
 		struct Batch {
@@ -4002,6 +4009,7 @@ struct sxGeometryData : public sxData {
 	void hit_query(const cxLineSeg& seg, HitFunc& fun) const;
 	void range_query_nobvh(const cxAABB& box, RangeFunc& fun) const;
 	void range_query(const cxAABB& box, RangeFunc& fun) const;
+	void leaf_hit_query(const cxLineSeg& seg, LeafHitFunc& fun) const;
 	BVH* get_BVH() const { return has_BVH() ? reinterpret_cast<BVH*>(XD_INCR_PTR(this, mBVHOffs)) : nullptr; }
 	BVH::Node* get_BVH_node(int nodeId) const { return ck_BVH_node_idx(nodeId) ? &reinterpret_cast<BVH::Node*>(get_BVH() + 1)[nodeId] : nullptr; }
 	cxAABB calc_world_bbox(cxMtx* pMtxW, int* pIdxMap = nullptr) const;

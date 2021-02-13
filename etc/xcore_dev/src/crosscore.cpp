@@ -7641,6 +7641,7 @@ struct sxBVHWork {
 	cxLineSeg mQrySeg;
 	sxGeometryData::HitFunc* mpHitFunc;
 	sxGeometryData::RangeFunc* mpRangeFunc;
+	sxGeometryData::LeafHitFunc* mpLeafHitFunc;
 	bool mStopFlg;
 
 	sxBVHWork() : mpGeo(nullptr), mpHitFunc(nullptr), mpRangeFunc(nullptr) {}
@@ -7727,6 +7728,34 @@ void sxGeometryData::range_query(const cxAABB& box, RangeFunc& fun) const {
 	} else {
 		range_query_nobvh(box, fun);
 	}
+}
+
+static void BVH_leaf_hit_sub(sxBVHWork& wk, int nodeId) {
+	if (wk.mStopFlg) return;
+	sxGeometryData::BVH::Node* pNode = wk.mpGeo->get_BVH_node(nodeId);
+	if (pNode->mBBox.overlaps(wk.mQryBBox) && pNode->mBBox.seg_ck(wk.mQrySeg)) {
+		if (pNode->is_leaf()) {
+			sxGeometryData::Polygon pol = wk.mpGeo->get_pol(pNode->get_pol_id());
+			bool contFlg = (*wk.mpLeafHitFunc)(pol, pNode);
+			if (!contFlg) {
+				wk.mStopFlg = true;
+			}
+		} else {
+			BVH_leaf_hit_sub(wk, pNode->mLeft);
+			BVH_leaf_hit_sub(wk, pNode->mRight);
+		}
+	}
+}
+
+void sxGeometryData::leaf_hit_query(const cxLineSeg& seg, LeafHitFunc& fun) const {
+	if (!has_BVH()) return;
+	sxBVHWork wk;
+	wk.mpGeo = this;
+	wk.mQrySeg = seg;
+	wk.mQryBBox.from_seg(seg);
+	wk.mpLeafHitFunc = &fun;
+	wk.mStopFlg = false;
+	BVH_leaf_hit_sub(wk, 0);
 }
 
 cxAABB sxGeometryData::calc_world_bbox(cxMtx* pMtxW, int* pIdxMap) const {
