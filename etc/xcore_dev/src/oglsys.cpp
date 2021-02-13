@@ -3230,28 +3230,28 @@ namespace OGLSys {
 			return num;
 		}
 
-		size_t get_device_global_mem_size(Device dev) {
-			size_t size = 0;
+		double get_device_global_mem_size(Device dev) {
+			double size = 0.0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceInfo) {
 				cl_ulong memSize = 0;
 				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(memSize), &memSize, NULL);
 				if (res == CL_SUCCESS) {
-					size = (size_t)memSize;
+					size = double(memSize) / 1024.0;
 				}
 			}
 #endif
 			return size;
 		}
 
-		size_t get_device_local_mem_size(Device dev) {
-			size_t size = 0;
+		double get_device_local_mem_size(Device dev) {
+			double size = 0.0;
 #if OGLSYS_CL
 			if (valid() && GetDeviceInfo) {
 				cl_ulong memSize = 0;
 				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(memSize), &memSize, NULL);
 				if (res == CL_SUCCESS) {
-					size = (size_t)memSize;
+					size = double(memSize) / 1024.0;
 				}
 			}
 #endif

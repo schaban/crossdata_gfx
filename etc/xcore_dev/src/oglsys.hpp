@@ -383,8 +383,8 @@ namespace OGLSys {
 		uint32_t get_num_acc_devices(Platform plat);
 		uint32_t get_device_max_units(Device dev);
 		uint32_t get_device_max_freq(Device dev);
-		size_t get_device_global_mem_size(Device dev);
-		size_t get_device_local_mem_size(Device dev);
+		double get_device_global_mem_size(Device dev);
+		double get_device_local_mem_size(Device dev);
 		bool device_has_local_mem(Device dev);
 		bool device_supports_fp16(Device dev);
 		bool device_supports_fp64(Device dev);
