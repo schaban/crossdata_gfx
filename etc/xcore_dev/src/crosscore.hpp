@@ -2980,9 +2980,11 @@ public:
 	void set_pos0(const cxVec& p0) { mPos0 = p0; }
 	cxVec get_pos1() const { return mPos1; }
 	cxVec* get_pos1_ptr() { return &mPos1; }
-	cxVec get_inner_pos(float t) const { return nxVec::lerp(mPos0, mPos1, nxCalc::saturate(t)); }
 	void set_pos1(const cxVec& p1) { mPos1 = p1; }
+	void set_org_dir(const cxVec& org, const cxVec& dir) { mPos0 = org; mPos1 = org + dir; }
 	void set(const cxVec& p0, const cxVec& p1) { mPos0 = p0; mPos1 = p1; }
+	void zero() { mPos0.fill(0.0f); mPos1.fill(0.0f); }
+	cxVec get_inner_pos(float t) const { return nxVec::lerp(mPos0, mPos1, nxCalc::saturate(t)); }
 	cxVec get_center() const { return (mPos0 + mPos1) * 0.5f; }
 	cxVec get_dir() const { return mPos1 - mPos0; }
 	cxVec get_dir_nrm() const { return get_dir().get_normalized(); }
