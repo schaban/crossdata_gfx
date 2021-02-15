@@ -552,6 +552,8 @@ static struct OGLSysGlb {
 	int mNumFuncsOCL;
 	void* (*mpfnTIAllocDDR)(size_t);
 	void (*mpfnTIFreeDDR)(void*);
+	void* (*mpfnTIAllocMSMC)(size_t);
+	void (*mpfnTIFreeMSMC)(void*);
 #endif
 
 #if OGLSYS_ES
@@ -2921,6 +2923,8 @@ namespace OGLSys {
 #if OGLSYS_CL
 			GLG.mpfnTIAllocDDR = nullptr;
 			GLG.mpfnTIFreeDDR = nullptr;
+			GLG.mpfnTIAllocMSMC = nullptr;
+			GLG.mpfnTIFreeMSMC = nullptr;
 #	if defined(OGLSYS_WINDOWS)
 			GLG.mLibOCL = LoadLibraryW(L"OpenCL.dll");
 			if (GLG.mLibOCL) {
@@ -2941,6 +2945,8 @@ namespace OGLSys {
 #			undef OGLSYS_CL_FN
 				*(void**)&GLG.mpfnTIAllocDDR = (void*)::dlsym(GLG.mLibOCL, "__malloc_ddr");
 				*(void**)&GLG.mpfnTIFreeDDR = (void*)::dlsym(GLG.mLibOCL, "__free_ddr");
+				*(void**)&GLG.mpfnTIAllocMSMC = (void*)::dlsym(GLG.mLibOCL, "__malloc_msmc");
+				*(void**)&GLG.mpfnTIFreeMSMC = (void*)::dlsym(GLG.mLibOCL, "__free_msmc");
 			}
 #	endif
 			GLG.mNumFuncsOCL = okCnt;
@@ -3258,6 +3264,23 @@ namespace OGLSys {
 			return size;
 		}
 
+		double get_device_fast_mem_size(Device dev) {
+			double size = 0.0;
+#if OGLSYS_CL
+			if (valid() && GetDeviceInfo) {
+				if (ck_device_ext(dev, "cl_ti_msmc_buffers")) {
+					cl_ulong memSize = 0;
+					cl_device_info param = 0x4060; /* CL_DEVICE_MSMC_MEM_SIZE_TI */
+					cl_int res = GetDeviceInfo((cl_device_id)dev, param, sizeof(memSize), &memSize, NULL);
+					if (res == CL_SUCCESS) {
+						size = double(memSize) / 1024.0;
+					}
+				}
+			}
+#endif
+			return size;
+		}
+
 		bool device_has_local_mem(Device dev) {
 			bool loc = false;
 #if OGLSYS_CL
@@ -3436,6 +3459,28 @@ namespace OGLSys {
 			if (valid() && GLG.mpfnTIFreeDDR && ctx && p) {
 				if (ck_device_ext(device_from_context(ctx), "cl_ti_clmalloc")) {
 					GLG.mpfnTIFreeDDR(p);
+				}
+			}
+#endif
+		}
+
+		void* alloc_fast(Context ctx, size_t size) {
+			void* p = nullptr;
+#if OGLSYS_CL
+			if (valid() && GLG.mpfnTIAllocMSMC && ctx && size > 0) {
+				if (ck_device_ext(device_from_context(ctx), "cl_ti_msmc_buffers")) {
+					p = GLG.mpfnTIAllocMSMC(size);
+				}
+			}
+#endif
+			return p;
+		}
+
+		void free_fast(Context ctx, void* p) {
+#if OGLSYS_CL
+			if (valid() && GLG.mpfnTIFreeMSMC && ctx && p) {
+				if (ck_device_ext(device_from_context(ctx), "cl_ti_msmc_buffers")) {
+					GLG.mpfnTIFreeMSMC(p);
 				}
 			}
 #endif

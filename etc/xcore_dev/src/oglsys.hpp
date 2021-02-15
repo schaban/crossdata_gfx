@@ -385,6 +385,7 @@ namespace OGLSys {
 		uint32_t get_device_max_freq(Device dev);
 		double get_device_global_mem_size(Device dev);
 		double get_device_local_mem_size(Device dev);
+		double get_device_fast_mem_size(Device dev);
 		bool device_has_local_mem(Device dev);
 		bool device_supports_fp16(Device dev);
 		bool device_supports_fp64(Device dev);
@@ -401,6 +402,8 @@ namespace OGLSys {
 		void release_buffer(Buffer buf);
 		void* alloc_ddr(Context ctx, size_t size);
 		void free_ddr(Context ctx, void* p);
+		void* alloc_fast(Context ctx, size_t size);
+		void free_fast(Context ctx, void* p);
 		Queue create_queue(Context ctx);
 		void release_queue(Queue que);
 		void flush_queue(Queue que);
