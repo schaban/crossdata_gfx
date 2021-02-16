@@ -392,6 +392,7 @@ namespace OGLSys {
 		bool device_is_byte_addressable(Device dev);
 		bool device_is_intel_gpu(Device dev);
 		bool device_is_vivante_gpu(Device dev);
+		bool device_is_arm_gpu(Device dev);
 		void print_device_exts(Device dev);
 		Context create_device_context(Device dev);
 		void destroy_device_context(Context ctx);

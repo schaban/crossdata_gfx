@@ -3353,6 +3353,33 @@ namespace OGLSys {
 			return ck;
 		}
 
+		bool device_is_arm_gpu(Device dev) {
+			bool ck = false;
+#if OGLSYS_CL
+			if (valid() && dev) {
+				size_t size = 0;
+				char str[32];
+				cl_int res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_VENDOR, sizeof(str), str, &size);
+				if (res == CL_SUCCESS) {
+					static const char* pARMCk = "ARM";
+					size_t ckSize = ::strlen(pARMCk);
+					if (size > ckSize && ::memcmp(str, pARMCk, ckSize) == 0) {
+						cl_device_type type;
+						res = GetDeviceInfo((cl_device_id)dev, CL_DEVICE_TYPE, sizeof(type), &type, NULL);
+						if (res == CL_SUCCESS) {
+							if (type & CL_DEVICE_TYPE_GPU) {
+								if (ck_device_ext(dev, "cl_arm_core_id")) {
+									ck = true;
+								}
+							}
+						}
+					}
+				}
+			}
+#endif
+			return ck;
+		}
+
 		void print_device_exts(Device dev) {
 #if OGLSYS_CL
 			if (!dev) return;
