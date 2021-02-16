@@ -3469,7 +3469,7 @@ namespace OGLSys {
 #endif
 		}
 
-		void* alloc_ddr(Context ctx, size_t size) {
+		void* alloc_svm(Context ctx, size_t size) {
 			void* p = nullptr;
 #if OGLSYS_CL
 			if (valid() && GLG.mpfnTIAllocDDR && ctx && size > 0) {
@@ -3481,7 +3481,7 @@ namespace OGLSys {
 			return p;
 		}
 
-		void free_ddr(Context ctx, void* p) {
+		void free_svm(Context ctx, void* p) {
 #if OGLSYS_CL
 			if (valid() && GLG.mpfnTIFreeDDR && ctx && p) {
 				if (ck_device_ext(device_from_context(ctx), "cl_ti_clmalloc")) {

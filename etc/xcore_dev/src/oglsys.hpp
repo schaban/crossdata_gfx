@@ -401,8 +401,8 @@ namespace OGLSys {
 		inline Buffer create_host_mem_in_buffer(Context ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, true, false); }
 		inline Buffer create_host_mem_out_buffer(Context ctx, void* p, const size_t size) { return create_host_mem_buffer(ctx, p, size, false, true); }
 		void release_buffer(Buffer buf);
-		void* alloc_ddr(Context ctx, size_t size);
-		void free_ddr(Context ctx, void* p);
+		void* alloc_svm(Context ctx, size_t size);
+		void free_svm(Context ctx, void* p);
 		void* alloc_fast(Context ctx, size_t size);
 		void free_fast(Context ctx, void* p);
 		Queue create_queue(Context ctx);
