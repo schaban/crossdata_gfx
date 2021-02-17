@@ -92,6 +92,16 @@ namespace Draw {
 
 			cxVec get_dir() const { return (tgt - pos).get_normalized(); }
 
+			cxVec get_dir(const float u, const float v) {
+				float nu = nxCalc::fit(u, 0.0f, 1.0f, -1.0f, 1.0f);
+				float nv = nxCalc::fit(v, 0.0f, 1.0f, -1.0f, 1.0f);
+				cxVec dir(nu, nv, 1.0f);
+				dir = invProjMtx.calc_pnt(dir);
+				dir.normalize();
+				dir = invViewMtx.calc_vec(dir);
+				return dir;
+			}
+
 			void reset() {
 				rotMode = 0;
 				set_view(cxVec(0.75f, 1.3f, 3.5f), cxVec(0.0f, 0.95f, 0.0f));
@@ -286,6 +296,14 @@ namespace Draw {
 			}
 		} glb;
 
+		struct Ext {
+			void* pData;
+
+			void reset() {
+				pData = nullptr;
+			}
+		} ext;
+
 		void reset() {
 			view.reset();
 			hemi.reset();
@@ -294,6 +312,7 @@ namespace Draw {
 			cc.reset();
 			shadow.reset();
 			glb.reset();
+			ext.reset();
 		}
 
 		bool ck_bbox_shadow_receive(const cxAABB& bbox) const {
