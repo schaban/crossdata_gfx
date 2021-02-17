@@ -7641,7 +7641,7 @@ struct sxBVHWork {
 	cxLineSeg mQrySeg;
 	sxGeometryData::HitFunc* mpHitFunc;
 	sxGeometryData::RangeFunc* mpRangeFunc;
-	sxGeometryData::LeafHitFunc* mpLeafHitFunc;
+	sxGeometryData::LeafFunc* mpLeafFunc;
 	bool mStopFlg;
 
 	sxBVHWork() : mpGeo(nullptr), mpHitFunc(nullptr), mpRangeFunc(nullptr) {}
@@ -7736,7 +7736,7 @@ static void BVH_leaf_hit_sub(sxBVHWork& wk, int nodeId) {
 	if (pNode->mBBox.overlaps(wk.mQryBBox) && pNode->mBBox.seg_ck(wk.mQrySeg)) {
 		if (pNode->is_leaf()) {
 			sxGeometryData::Polygon pol = wk.mpGeo->get_pol(pNode->get_pol_id());
-			bool contFlg = (*wk.mpLeafHitFunc)(pol, pNode);
+			bool contFlg = (*wk.mpLeafFunc)(pol, pNode);
 			if (!contFlg) {
 				wk.mStopFlg = true;
 			}
@@ -7747,13 +7747,13 @@ static void BVH_leaf_hit_sub(sxBVHWork& wk, int nodeId) {
 	}
 }
 
-void sxGeometryData::leaf_hit_query(const cxLineSeg& seg, LeafHitFunc& fun) const {
+void sxGeometryData::leaf_hit_query(const cxLineSeg& seg, LeafFunc& fun) const {
 	if (!has_BVH()) return;
 	sxBVHWork wk;
 	wk.mpGeo = this;
 	wk.mQrySeg = seg;
 	wk.mQryBBox.from_seg(seg);
-	wk.mpLeafHitFunc = &fun;
+	wk.mpLeafFunc = &fun;
 	wk.mStopFlg = false;
 	BVH_leaf_hit_sub(wk, 0);
 }
