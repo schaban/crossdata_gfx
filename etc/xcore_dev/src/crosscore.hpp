@@ -3239,6 +3239,12 @@ public:
 		b *= sb;
 	}
 
+	void scl_rgb(const cxColor& c) {
+		r *= c.r;
+		g *= c.g;
+		b *= c.b;
+	}
+
 	void add(const cxColor& c) {
 		for (int i = 0; i < 4; ++i) {
 			ch[i] += c.ch[i];
@@ -3327,6 +3333,32 @@ inline cxColor lerp(const cxColor& cA, const cxColor& cB, float t) {
 		c.ch[i] = nxCalc::lerp(cA.ch[i], cB.ch[i], t);
 	}
 	return c;
+}
+
+inline cxColor lerp_rgb(const cxColor& cA, const cxColor& cB, float t) {
+	cxColor c;
+	for (int i = 0; i < 3; ++i) {
+		c.ch[i] = nxCalc::lerp(cA.ch[i], cB.ch[i], t);
+	}
+	return c;
+}
+
+inline cxColor scl_rgb(const cxColor& c, const float s) {
+	cxColor sc = c;
+	sc.scl_rgb(s);
+	return sc;
+}
+
+inline cxColor scl_rgb(const cxColor& c, const float sr, const float sg, const float sb) {
+	cxColor sc = c;
+	sc.scl_rgb(sr, sg, sb);
+	return sc;
+}
+
+inline cxColor scl_rgb(const cxColor& c, const cxColor& s) {
+	cxColor sc = c;
+	sc.scl_rgb(s);
+	return sc;
 }
 
 } // nxColor
