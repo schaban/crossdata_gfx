@@ -2643,7 +2643,7 @@ void cxMtx::sub(const cxMtx& m1, const cxMtx& m2) {
 // Ref: http://graphics.pixar.com/library/OrthonormalB/paper.pdf
 void cxMtx::from_upvec(const cxVec& n) {
 	float s = n.z < 0 ? -1.0f : 1.0f;
-	float a = -1.0f / (s - n.z);
+	float a = -nxCalc::rcp0(s - n.z);
 	float b = n.x * n.y * a;
 	cxVec nx(1.0f + s*n.x*n.x*a, s*b, s*n.x);
 	cxVec nz(b, s + n.y*n.y*a, n.y);
