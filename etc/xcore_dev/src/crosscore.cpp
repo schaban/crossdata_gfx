@@ -7644,7 +7644,7 @@ struct sxBVHWork {
 	sxGeometryData::LeafFunc* mpLeafFunc;
 	bool mStopFlg;
 
-	sxBVHWork() : mpGeo(nullptr), mpHitFunc(nullptr), mpRangeFunc(nullptr) {}
+	sxBVHWork() : mpGeo(nullptr), mpHitFunc(nullptr), mpRangeFunc(nullptr), mStopFlg(false) {}
 };
 
 static void BVH_hit_sub(sxBVHWork& wk, int nodeId) {
@@ -7678,7 +7678,6 @@ void sxGeometryData::hit_query(const cxLineSeg& seg, HitFunc& fun) const {
 		wk.mQrySeg = seg;
 		wk.mQryBBox.from_seg(seg);
 		wk.mpHitFunc = &fun;
-		wk.mStopFlg = false;
 		BVH_hit_sub(wk, 0);
 	} else {
 		hit_query_nobvh(seg, fun);
@@ -7723,7 +7722,6 @@ void sxGeometryData::range_query(const cxAABB& box, RangeFunc& fun) const {
 		wk.mpGeo = this;
 		wk.mQryBBox = box;
 		wk.mpRangeFunc = &fun;
-		wk.mStopFlg = false;
 		BVH_range_sub(wk, 0);
 	} else {
 		range_query_nobvh(box, fun);
@@ -7754,8 +7752,32 @@ void sxGeometryData::leaf_hit_query(const cxLineSeg& seg, LeafFunc& fun) const {
 	wk.mQrySeg = seg;
 	wk.mQryBBox.from_seg(seg);
 	wk.mpLeafFunc = &fun;
-	wk.mStopFlg = false;
 	BVH_leaf_hit_sub(wk, 0);
+}
+
+struct sxBVHLvlWork {
+	const sxGeometryData* mpGeo;
+	int mLvl;
+	sxBVHLvlWork() : mpGeo(nullptr), mLvl(-1) {}
+};
+
+static void BVH_min_leaf_lvl_sub(sxBVHLvlWork& wk, int nodeId, int lvl) {
+	sxGeometryData::BVH::Node* pNode = wk.mpGeo->get_BVH_node(nodeId);
+	if (pNode->is_leaf()) {
+		if (wk.mLvl < 0 || lvl < wk.mLvl)
+		wk.mLvl = lvl;
+	} else {
+		BVH_min_leaf_lvl_sub(wk, pNode->mLeft, lvl + 1);
+		BVH_min_leaf_lvl_sub(wk, pNode->mRight, lvl + 1);
+	}
+}
+
+int sxGeometryData::find_min_leaf_level() const {
+	if (!has_BVH()) return 0;
+	sxBVHLvlWork wk;
+	wk.mpGeo = this;
+	BVH_min_leaf_lvl_sub(wk, 0, 0);
+	return wk.mLvl;
 }
 
 cxAABB sxGeometryData::calc_world_bbox(cxMtx* pMtxW, int* pIdxMap) const {
