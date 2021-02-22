@@ -4044,7 +4044,9 @@ struct sxGeometryData : public sxData {
 	void range_query_nobvh(const cxAABB& box, RangeFunc& fun) const;
 	void range_query(const cxAABB& box, RangeFunc& fun) const;
 	void leaf_hit_query(const cxLineSeg& seg, LeafFunc& fun) const;
+	xt_int2 find_leaf_level_range() const;
 	int find_min_leaf_level() const;
+	int find_max_leaf_level() const;
 	BVH* get_BVH() const { return has_BVH() ? reinterpret_cast<BVH*>(XD_INCR_PTR(this, mBVHOffs)) : nullptr; }
 	BVH::Node* get_BVH_node(int nodeId) const { return ck_BVH_node_idx(nodeId) ? &reinterpret_cast<BVH::Node*>(get_BVH() + 1)[nodeId] : nullptr; }
 	cxAABB calc_world_bbox(cxMtx* pMtxW, int* pIdxMap = nullptr) const;

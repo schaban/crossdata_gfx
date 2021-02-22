@@ -7757,27 +7757,40 @@ void sxGeometryData::leaf_hit_query(const cxLineSeg& seg, LeafFunc& fun) const {
 
 struct sxBVHLvlWork {
 	const sxGeometryData* mpGeo;
-	int mLvl;
-	sxBVHLvlWork() : mpGeo(nullptr), mLvl(-1) {}
+	xt_int2 mLvlRange;
+	sxBVHLvlWork() : mpGeo(nullptr) {
+		mLvlRange.set(-1, -1);
+	}
 };
 
-static void BVH_min_leaf_lvl_sub(sxBVHLvlWork& wk, int nodeId, int lvl) {
+static void BVH_leaf_lvl_range_sub(sxBVHLvlWork& wk, int nodeId, int lvl) {
 	sxGeometryData::BVH::Node* pNode = wk.mpGeo->get_BVH_node(nodeId);
 	if (pNode->is_leaf()) {
-		if (wk.mLvl < 0 || lvl < wk.mLvl)
-		wk.mLvl = lvl;
+		if (wk.mLvlRange[0] < 0 || lvl < wk.mLvlRange[0]) {
+			wk.mLvlRange[0] = lvl;
+		}
+		wk.mLvlRange[1] = nxCalc::max(wk.mLvlRange[1], lvl);
 	} else {
-		BVH_min_leaf_lvl_sub(wk, pNode->mLeft, lvl + 1);
-		BVH_min_leaf_lvl_sub(wk, pNode->mRight, lvl + 1);
+		BVH_leaf_lvl_range_sub(wk, pNode->mLeft, lvl + 1);
+		BVH_leaf_lvl_range_sub(wk, pNode->mRight, lvl + 1);
 	}
 }
 
-int sxGeometryData::find_min_leaf_level() const {
-	if (!has_BVH()) return 0;
+xt_int2 sxGeometryData::find_leaf_level_range() const {
 	sxBVHLvlWork wk;
-	wk.mpGeo = this;
-	BVH_min_leaf_lvl_sub(wk, 0, 0);
-	return wk.mLvl;
+	if (has_BVH()) {
+		wk.mpGeo = this;
+		BVH_leaf_lvl_range_sub(wk, 0, 0);
+	}
+	return wk.mLvlRange;
+}
+
+int sxGeometryData::find_min_leaf_level() const {
+	return find_leaf_level_range()[0];
+}
+
+int sxGeometryData::find_max_leaf_level() const {
+	return find_leaf_level_range()[1];
 }
 
 cxAABB sxGeometryData::calc_world_bbox(cxMtx* pMtxW, int* pIdxMap) const {
