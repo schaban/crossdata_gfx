@@ -2990,7 +2990,7 @@ namespace OGLSys {
 				char extc = pExts[iwk];
 				done = extc == 0;
 				if (done || extc == ' ') {
-					int extLen = iwk - iext;
+					size_t extLen = iwk - iext;
 					const char* pExtStr = &pExts[iext];
 					iext = iwk + 1;
 					if (extLen > 1) {
