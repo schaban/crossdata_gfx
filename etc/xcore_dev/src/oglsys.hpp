@@ -281,6 +281,7 @@ namespace OGLSys {
 	void* mem_alloc(size_t size, const char* pTag);
 	void mem_free(void* p);
 
+	void set_swap_interval(const int ival);
 	void bind_def_framebuf();
 
 	int get_width();

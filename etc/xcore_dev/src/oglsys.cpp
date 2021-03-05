@@ -493,10 +493,11 @@ static struct OGLSysGlb {
 #elif defined(OGLSYS_X11)
 	struct GLX {
 		typedef XVisualInfo* (*OGLSYS_PFNGLXCHOOSEVISUAL)(Display*, int, int*);
-		typedef GLXContext(*OGLSYS_PFNGLXCREATECONTEXT)(Display*, XVisualInfo*, GLXContext, Bool);
-		typedef void(*OGLSYS_PFNGLXDESTROYCONTEXT)(Display*, GLXContext);
-		typedef Bool(*OGLSYS_PFNGLXMAKECURRENT)(Display*, GLXDrawable, GLXContext);
-		typedef void(*OGLSYS_PFNGLXSWAPBUFFERS)(Display*, GLXDrawable);
+		typedef GLXContext (*OGLSYS_PFNGLXCREATECONTEXT)(Display*, XVisualInfo*, GLXContext, Bool);
+		typedef void (*OGLSYS_PFNGLXDESTROYCONTEXT)(Display*, GLXContext);
+		typedef Bool (*OGLSYS_PFNGLXMAKECURRENT)(Display*, GLXDrawable, GLXContext);
+		typedef void (*OGLSYS_PFNGLXSWAPBUFFERS)(Display*, GLXDrawable);
+		typedef void (*OGLSYS_PFNGLXSWAPINTERVAL)(Display*, GLXDrawable, int);
 
 		void* mpLib;
 		GLXContext mCtx;
@@ -505,6 +506,7 @@ static struct OGLSysGlb {
 		OGLSYS_PFNGLXDESTROYCONTEXT mpfnGLXDestroyContext;
 		OGLSYS_PFNGLXMAKECURRENT mpfnGLXMakeCurrent;
 		OGLSYS_PFNGLXSWAPBUFFERS mpfnGLXSwapBuffers;
+		OGLSYS_PFNGLXSWAPINTERVAL mpfnGLXSwapInterval;
 
 		bool valid() const { return !!mpLib; }
 
@@ -530,6 +532,7 @@ static struct OGLSysGlb {
 				mpfnGLXDestroyContext = (OGLSYS_PFNGLXDESTROYCONTEXT)get_func_ptr("glXDestroyContext");
 				mpfnGLXMakeCurrent = (OGLSYS_PFNGLXMAKECURRENT)get_func_ptr("glXMakeCurrent");
 				mpfnGLXSwapBuffers = (OGLSYS_PFNGLXSWAPBUFFERS)get_func_ptr("glXSwapBuffers");
+				mpfnGLXSwapInterval = (OGLSYS_PFNGLXSWAPINTERVAL)get_func_ptr("glXSwapIntervalEXT");
 			}
 		}
 
@@ -537,6 +540,12 @@ static struct OGLSysGlb {
 			if (valid()) {
 				::dlclose(mpLib);
 				mpLib = nullptr;
+			}
+		}
+
+		void set_swap_interval(Display* pDisp, GLXDrawable drw, int i) {
+			if (mpfnGLXSwapInterval) {
+				mpfnGLXSwapInterval(pDisp, drw, i);
 			}
 		}
 	} mGLX;
@@ -2165,6 +2174,15 @@ namespace OGLSys {
 		}
 	}
 
+	void set_swap_interval(const int ival) {
+#if OGLSYS_ES
+		eglSwapInterval(GLG.mEGL.display, ival);
+#elif defined(OGLSYS_WINDOWS)
+		GLG.mWGL.set_swap_interval(ival);
+#elif defined(OGLSYS_X11)
+		GLG.mGLX.set_swap_interval(GLG.mpXDisplay, GLG.mXWnd, ival);
+#endif
+	}
 
 	void bind_def_framebuf() {
 		if (valid()) {
