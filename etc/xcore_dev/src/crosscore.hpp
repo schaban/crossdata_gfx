@@ -4124,6 +4124,7 @@ void save_dds32_bgra8(const char* pPath, const cxColor* pClr, uint32_t w, uint32
 cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float gamma = 2.2f);
 
 void save_sgi(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, float gamma = 2.2f);
+void save_hdr(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, float gamma = 1.0f, float exposure = 1.0f);
 
 void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg);
 cxColor* upscale(const cxColor* pSrc, int srcW, int srcH, int xscl, int yscl, bool filt = true, cxColor* pDstBuff = nullptr, void* pWrkMem = nullptr, bool cneg = true);

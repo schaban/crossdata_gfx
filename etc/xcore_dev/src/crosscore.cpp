@@ -8968,6 +8968,36 @@ void save_sgi(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, fl
 	::fclose(pOut);
 }
 
+void save_hdr(const char* pPath, const cxColor* pClr, uint32_t w, uint32_t h, float gamma, float exposure) {
+	size_t n = w * h;
+	if (!pPath || !pClr || !n) return;
+	FILE* pOut = nxSys::fopen_w_bin(pPath);
+	if (!pOut) return;
+	::fprintf(pOut, "#?RADIANCE\n# crosscore\nFORMAT=%s\nGAMMA=%f\nEXPOSURE=%f\n",
+		"32-bit_rle_rgbe", gamma, exposure);
+	::fprintf(pOut, "\n-Y %d +X %d\n", h, w);
+	bool gflg = gamma > 0.0f && gamma != 1.0f;
+	float invg = 1.0f;
+	if (gflg) invg = 1.0f / gamma;
+	for (size_t i = 0; i < n; ++i) {
+		cxColor c = pClr[i];
+		if (gflg) {
+			for (int j = 0; j < 3; ++j) {
+				if (c.ch[j] > 0.0f) {
+					c.ch[j] = ::powf(c.ch[j], invg);
+				} else {
+					c.ch[j] = 0.0f;
+				}
+			}
+		} else {
+			c.clip_neg();
+		}
+		uint32_t rgbe = c.encode_rgbe();
+		::fwrite(&rgbe, sizeof(rgbe), 1, pOut);
+	}
+	::fclose(pOut);
+}
+
 /* see PBRT book for details */
 void calc_resample_wgts(int oldRes, int newRes, xt_float4* pWgt, int16_t* pOrg) {
 	float rt = float(oldRes) / float(newRes);
