@@ -2335,9 +2335,13 @@ float ScnObj::get_world_deg_y() const {
 }
 
 void ScnObj::add_world_deg_y(const float yadd) {
+#if 0
 	cxVec r = get_world_quat().get_rot_degrees();
 	r.y += yadd;
 	set_world_quat(nxQuat::from_degrees(r.x, r.y, r.z));
+#else
+	xform_world_quat(nxQuat::from_degrees(0.0f, yadd, 0.0f));
+#endif
 }
 
 float ScnObj::get_world_deg_z() const {
