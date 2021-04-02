@@ -4665,7 +4665,7 @@ uint32_t cxColor::encode_rgbe() const {
 	if (m < 1.0e-32f) return 0;
 	float t[3];
 	int e;
-	float s = (::frexpf(m, &e) * 256.0f) / m;
+	float s = nxCalc::div0(::frexpf(m, &e) * 256.0f, m);
 	for (int i = 0; i < 3; ++i) {
 		t[i] = ch[i] * s;
 	}
