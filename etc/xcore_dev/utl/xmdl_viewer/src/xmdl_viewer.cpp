@@ -216,7 +216,7 @@ private:
 	bool mWireframe;
 
 	struct ViewCtrl {
-		QWidget* mpWgt;
+		QWidget* mpWdgt;
 		cxQuat mSpin;
 		cxQuat mQuat;
 		float mRadius;
@@ -229,8 +229,8 @@ private:
 		QPointF mPosOld;
 		cxVec mPosOffs;
 
-		void init(QWidget* pWgt) {
-			mpWgt = pWgt;
+		void init(QWidget* pWdgt) {
+			mpWdgt = pWdgt;
 			mRadius = 0.5f;
 			mRelOffs = 0.0f;
 			mSpin.identity();
@@ -293,9 +293,9 @@ private:
 
 		QPointF get_rel_pos(QMouseEvent* pEvt) {
 			QPointF pos = pEvt->localPos();
-			if (mpWgt) {
-				pos.setX(nxCalc::div0(pos.x(), qreal(mpWgt->width())));
-				pos.setY(nxCalc::div0(pos.y(), qreal(mpWgt->height())));
+			if (mpWdgt) {
+				pos.setX(nxCalc::div0(pos.x(), qreal(mpWdgt->width())));
+				pos.setY(nxCalc::div0(pos.y(), qreal(mpWdgt->height())));
 			}
 			return pos;
 		}
@@ -345,6 +345,11 @@ private:
 				float dx = mPosNow.x() - mPosOld.x();
 				float dy = mPosNow.y() - mPosOld.y();
 				float add = 0.01f;
+				sxModelData* pMdl = mpWdgt ? ((OGLW*)mpWdgt)->mpMdl : nullptr;
+				if (pMdl) {
+					float s = nxCalc::clamp(pMdl->mBBox.get_size_vec().max_abs_elem(), 0.001f, 100.0f);
+					add = s * 0.005f;
+				}
 				if (dx && qAbs(dx) > qAbs(dy)) {
 					add += qAbs(dx);
 					mPosOffs.x += dx < 0 ? add : -add;
