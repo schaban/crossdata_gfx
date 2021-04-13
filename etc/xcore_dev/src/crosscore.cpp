@@ -4810,11 +4810,11 @@ void cxColor::decode_bgr565(uint16_t bgr) {
 }
 
 
-XD_NOINLINE float cxView::calc_fovx() const {
-	return 2.0f * ::atanf(::tanf(XD_DEG2RAD(mDegFOVY) * 0.5f) * mAspect);
+XD_NOINLINE float sxView::calc_fovx() const {
+	return 2.0f * ::atanf(::tanf(XD_DEG2RAD(mDegFOVY) * 0.5f) * get_aspect());
 }
 
-XD_NOINLINE void cxView::init(const int width, const int height) {
+XD_NOINLINE void sxView::init(const int width, const int height) {
 	set_window(width, height);
 	set_frame(cxVec(0.75f, 1.3f, 3.5f), cxVec(0.0f, 0.95f, 0.0f));
 	set_range(0.1f, 1000.0f);
@@ -4822,14 +4822,25 @@ XD_NOINLINE void cxView::init(const int width, const int height) {
 	update();
 }
 
-XD_NOINLINE void cxView::update() {
+XD_NOINLINE void sxView::update() {
 	mViewMtx.mk_view(mPos, mTgt, mUp, &mInvViewMtx);
 	float fovy = XD_DEG2RAD(mDegFOVY);
-	mProjMtx.mk_proj(fovy, mAspect, mNear, mFar);
+	float aspect = get_aspect();
+	mProjMtx.mk_proj(fovy, aspect, mNear, mFar);
 	mViewProjMtx = mViewMtx * mProjMtx;
 	mInvProjMtx = mProjMtx.get_inverted();
 	mInvViewProjMtx = mViewProjMtx.get_inverted();
-	mFrustum.init(mInvViewMtx, fovy, mAspect, mNear, mFar);
+	mFrustum.init(mInvViewMtx, fovy, aspect, mNear, mFar);
+}
+
+XD_NOINLINE cxVec sxView::get_uv_dir(const float u, const float v) {
+	float nu = nxCalc::fit(u, 0.0f, 1.0f, -1.0f, 1.0f);
+	float nv = nxCalc::fit(v, 0.0f, 1.0f, -1.0f, 1.0f);
+	cxVec dir(nu, nv, 1.0f);
+	dir = mInvProjMtx.calc_pnt(dir);
+	dir.normalize();
+	dir = mInvViewMtx.calc_vec(dir);
+	return dir;
 }
 
 

@@ -3364,11 +3364,7 @@ inline cxColor scl_rgb(const cxColor& c, const cxColor& s) {
 } // nxColor
 
 
-class cxView {
-protected:
-	float mAspect;
-
-public:
+struct sxView {
 	cxFrustum mFrustum;
 	cxMtx mViewMtx;
 	cxMtx mProjMtx;
@@ -3385,12 +3381,9 @@ public:
 	float mNear;
 	float mFar;
 
-	cxView() { init(); }
-
 	void set_window(const int width, const int height) {
 		mWidth = width;
 		mHeight = height;
-		mAspect = nxCalc::div0(float(width), float(height));
 	}
 
 	void set_frame(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f)) {
@@ -3408,7 +3401,11 @@ public:
 		mDegFOVY = fovy;
 	}
 
-	float get_aspect() const { return mAspect; }
+	float get_aspect() const { return nxCalc::div0(float(mWidth), float(mHeight)); }
+
+	cxVec get_dir() const { return (mTgt - mPos).get_normalized(); }
+
+	cxVec get_uv_dir(const float u, const float v);
 
 	float calc_fovx() const;
 	float calc_deg_fovx() const { return XD_RAD2DEG(calc_fovx()); }

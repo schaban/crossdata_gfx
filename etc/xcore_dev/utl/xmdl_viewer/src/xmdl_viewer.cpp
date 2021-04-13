@@ -170,7 +170,7 @@ GLuint compile_prog_strs(QOpenGLFunctions* pfn, const char* pSrcVtx, const char*
 
 class OGLW : public QOpenGLWidget {
 private:
-	cxView mView;
+	sxView mView;
 
 	sxModelData* mpMdl;
 	bool mMdlUpdateFlg;
@@ -423,6 +423,7 @@ public:
 		mGPLight.reset();
 		mGPColor.reset();
 		mGPLight.reset();
+		mView.init();
 		mViewCtrl.init(this);
 		QSurfaceFormat fmt = format();
 		fmt.setDepthBufferSize(24);
@@ -567,10 +568,10 @@ public:
 					gpLightBuf.hemiUp.set(0.0f, 1.0f, 0.0f);
 					break;
 				case 1:
-					gpLightBuf.hemiUp = (mView.mTgt - mView.mPos).get_normalized();
+					gpLightBuf.hemiUp = mView.get_dir();
 					break;
 				case 2:
-					gpLightBuf.hemiUp = (mView.mPos - mView.mTgt).get_normalized();
+					gpLightBuf.hemiUp = mView.get_dir().neg_val();
 					break;
 			}
 			if (mGamma > 0.0f && mGamma != 1.0f) {
