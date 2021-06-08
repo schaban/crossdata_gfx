@@ -41,6 +41,13 @@ class TexExporter(xcore.BaseExporter):
 				if prm.evalAsInt():
 					self.noMIP = True
 					break
+		self.noBias = False
+		for prmName in ["tex_nobias", "txd_nobias"]:
+			prm = cop.parm(prmName)
+			if prm:
+				if prm.evalAsInt():
+					self.noBias = True
+					break
 		w = self.w
 		h = self.h
 		dfmt = hou.imageDepth.Float32
@@ -100,4 +107,5 @@ class TexExporter(xcore.BaseExporter):
 	def save(self, outPath):
 		if not self.cop: return
 		if self.noMIP: self.flags |= 1
+		if self.noBias: self.flags |= 2
 		xcore.BaseExporter.save(self, outPath)

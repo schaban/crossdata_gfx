@@ -47,10 +47,14 @@ static void def_tex_lod_bias() {
 #endif
 }
 
-static void def_tex_params(const bool mipmapEnabled) {
+static void def_tex_params(const bool mipmapEnabled, const bool biasEnabled) {
 	if (s_useMipmaps && mipmapEnabled) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		def_tex_lod_bias();
+		if (biasEnabled) {
+			def_tex_lod_bias();
+		} else {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, 0);
+		}
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	}
@@ -715,7 +719,7 @@ static void prepare_texture(sxTextureData* pTex) {
 		if (s_useMipmaps && mipmapEnabled) {
 			glGenerateMipmap(GL_TEXTURE_2D);
 		}
-		def_tex_params(mipmapEnabled);
+		def_tex_params(mipmapEnabled, pTex->lod_bias_enabled());
 		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 }

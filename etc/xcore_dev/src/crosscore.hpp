@@ -4832,6 +4832,8 @@ struct sxTextureData : public sxData {
 	Format get_format() const { return Format(mFormat & 0xFF); }
 	bool mipmap_disabled() const { return (mFlags & 1) != 0; }
 	bool mipmap_enabled() const { return !mipmap_disabled(); }
+	bool lod_bias_disabled() const { return (mFlags & 2) != 0; }
+	bool lod_bias_enabled() const { return !lod_bias_disabled(); }
 	bool is_gamma2() const;
 	const void* get_data_ptr() const { return mDataOffs ? XD_INCR_PTR(this, mDataOffs) : nullptr; }
 
