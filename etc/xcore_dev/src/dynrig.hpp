@@ -107,6 +107,11 @@ void calc_knee_adj(ScnObj* pObj, const char* pKneeJntName, const char* pKneeSupN
 void calc_knee_adj_l(ScnObj* pObj, const float influence);
 void calc_knee_adj_r(ScnObj* pObj, const float influence);
 
+void calc_thigh_adj(ScnObj* pObj, const int hipJntId, const int thighUprId, const float influenceUpr, const int thighLwrId, const float influenceLwr);
+void calc_thigh_adj(ScnObj* pObj, const char* pHipJntName, const char* pThighUprName, const float influenceUpr, const char* pThighLwrName, const float influenceLwr);
+void calc_thigh_adj_l(ScnObj* pObj, const float influenceUpr, const float influenceLwr);
+void calc_thigh_adj_r(ScnObj* pObj, const float influenceUpr, const float influenceLwr);
+
 void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, const float t, const float p1 = 0.65f, const float p2 = 0.95f);
 
 void adjust_leg(ScnObj* pObj, sxCollisionData::NearestHit (*gndHitFunc)(const cxLineSeg& seg, void* pData), void* pFuncData, LegInfo* pLeg);

@@ -440,6 +440,57 @@ void calc_knee_adj_r(ScnObj* pObj, const float influence) {
 	calc_knee_adj(pObj, "j_Knee_R", "s_Knee_R", influence);
 }
 
+void calc_thigh_adj(ScnObj* pObj, const int hipJntId, const int thighUprId, const float influenceUpr, const int thighLwrId, const float influenceLwr) {
+	if (!pObj) return;
+	if (influenceUpr == 0.0f && influenceLwr == 0.0f) return;
+	if (!pObj->ck_skel_id(hipJntId)) return;
+	cxQuat jntQ = pObj->get_skel_local_quat(hipJntId);
+	cxVec jntD = jntQ.get_rot_degrees();
+	if (influenceUpr != 0.0f && pObj->ck_skel_id(thighUprId)) {
+		cxQuat uprQ = pObj->get_skel_local_rest_quat(thighUprId);
+		uprQ = nxQuat::from_degrees(jntD.x * influenceUpr, 0.0f, 0.0f) * uprQ;
+		pObj->set_skel_local_quat(thighUprId, uprQ);
+	}
+	if (influenceLwr != 0.0f && pObj->ck_skel_id(thighLwrId)) {
+		cxQuat lwrQ = pObj->get_skel_local_rest_quat(thighLwrId);
+		lwrQ = nxQuat::from_degrees(jntD.x * influenceLwr, 0.0f, 0.0f) * lwrQ;;
+		pObj->set_skel_local_quat(thighLwrId, lwrQ);
+	}
+}
+
+void calc_thigh_adj(ScnObj* pObj, const char* pHipJntName, const char* pThighUprName, const float influenceUpr, const char* pThighLwrName, const float influenceLwr) {
+	calc_thigh_adj(
+		pObj,
+		pObj->find_skel_node_id(pHipJntName),
+		pObj->find_skel_node_id(pThighUprName),
+		influenceUpr,
+		pObj->find_skel_node_id(pThighLwrName),
+		influenceLwr
+	);
+}
+
+void calc_thigh_adj_l(ScnObj* pObj, const float influenceUpr, const float influenceLwr) {
+	calc_thigh_adj(
+		pObj,
+		"j_Hip_L",
+		"s_ThighUpr_L",
+		influenceUpr,
+		"s_ThighLwr_L",
+		influenceLwr
+	);
+}
+
+void calc_thigh_adj_r(ScnObj* pObj, const float influenceUpr, const float influenceLwr) {
+	calc_thigh_adj(
+		pObj,
+		"j_Hip_R",
+		"s_ThighUpr_R",
+		influenceUpr,
+		"s_ThighLwr_R",
+		influenceLwr
+	);
+}
+
 void calc_eyelids_blink(ScnObj* pObj, const float yopen, const float yclosed, const float t, const float p1, const float p2) {
 	if (!pObj) return;
 	int eyelidL = pObj->find_skel_node_id("f_Eyelid_L");
