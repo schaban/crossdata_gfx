@@ -10,5 +10,5 @@ layout (location = 0) out vec4 outClr;
 
 void main() {
 	outClr = pixClr;
-	outClr.rgb *= 0.75;
+	outClr.rgb *= 0.5;
 }

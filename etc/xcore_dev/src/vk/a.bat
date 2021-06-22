@@ -8,7 +8,7 @@ if not exist %DST_DIR% mkdir %DST_DIR%
 goto :start
 
 :cpy
-	%GLSL% -V %1 -o %DST_DIR%\%1.spv
+	%GLSL% -Os -V %1 -o %DST_DIR%\%1.spv
 	rem copy /BY %1 %DST_DIR%\%1 > nul
 	goto :EOF
 
