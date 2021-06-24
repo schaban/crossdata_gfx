@@ -35,16 +35,21 @@ static int s_shadowCastCnt = 0;
 static GLuint s_sprVBO = 0;
 static GLuint s_sprIBO = 0;
 
-static void def_tex_lod_bias() {
+static void gl_tex2d_lod_bias(const int bias) {
 #if !OGLSYS_ES
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, bias);
+#endif
+}
+
+static void def_tex_lod_bias() {
 	static bool flg = false;
 	static int bias = 0;
 	if (!flg) {
 		bias = nxApp::get_int_opt("tlod_bias", -3);
 		flg = true;
 	}
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, bias);
-#endif
+	gl_tex2d_lod_bias(bias);
+
 }
 
 static void def_tex_params(const bool mipmapEnabled, const bool biasEnabled) {
@@ -53,7 +58,7 @@ static void def_tex_params(const bool mipmapEnabled, const bool biasEnabled) {
 		if (biasEnabled) {
 			def_tex_lod_bias();
 		} else {
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, 0);
+			gl_tex2d_lod_bias(0);
 		}
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
