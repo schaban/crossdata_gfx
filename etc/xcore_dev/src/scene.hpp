@@ -56,6 +56,7 @@ public:
 	uint32_t mTag;
 	bool mDisableDraw;
 	bool mDisableShadowCast;
+	bool mDisableShadowRecv;
 	float mObjAdjYOffs;
 	float mObjAdjRadius;
 	int mRoutine[4];

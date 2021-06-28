@@ -1858,7 +1858,12 @@ static void obj_bat_draw(ScnObj* pObj, const int ibat, const Draw::Mode mode) {
 		pCtx->view.rotMode = s_viewRot;
 		pCtx->glb.useBump = s_useBump;
 		pCtx->glb.useSpec = s_useSpec;
+		float sdens = pCtx->shadow.dens;
+		if (!isShadowcast && pObj->mDisableShadowRecv) {
+			pCtx->shadow.dens = 0.0f;
+		}
 		s_pDraw->batch(pWk, ibat, mode, pCtx);
+		pCtx->shadow.dens = sdens;
 	}
 	if (!isShadowcast) {
 		if (pObj->mBatchPostDrawFunc) {
