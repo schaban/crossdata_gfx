@@ -185,7 +185,7 @@ void init(const ScnCfg& cfg) {
 		}
 	}
 
-	nxCore::rng_seed(&s_glbRNG, 1);
+	glb_rng_reset();
 
 	s_pObjList = ObjList::create();
 	if (s_pObjList) {
@@ -613,6 +613,14 @@ void battery_info() {
 #endif
 }
 
+
+void glb_rng_reset() {
+	glb_rng_seed(1);
+}
+
+void glb_rng_seed(const uint64_t seed) {
+	nxCore::rng_seed(&s_glbRNG, seed);
+}
 
 uint64_t glb_rng_next() {
 	if (s_pGlbRNGLock) {
