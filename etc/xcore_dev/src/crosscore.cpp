@@ -4079,6 +4079,127 @@ float obb_region_weight(const cxVec& pos, const cxMtx& invMtx, const cxVec& attn
 	return wght;
 }
 
+XD_NOINLINE static void cvx_inv(cxMtx* pMtx, const int mode) {
+	switch (mode) {
+		case 0:
+		default:
+			pMtx->invert();
+			break;
+		case 1:
+			pMtx->invert_fast();
+			break;
+		case 2:
+			pMtx->invert_lu();
+			break;
+		case 3:
+			pMtx->invert_lu_hi();
+			break;
+	}
+}
+
+float sph_convex_dist(
+	const cxMtx& xformSph, const float radius,
+	const cxMtx& xformCvx,
+	const cxVec* pPts, const int npts,
+	const uint16_t* pTriPids, const cxVec* pTriNrms, const int ntri,
+	cxVec* pSphPnt, cxVec* pCvxPnt, cxVec* pSepVec,
+	const int xformMode
+) {
+	cxVec vtx[3];
+	cxVec sepVec;
+	float dist = FLT_MAX;
+
+	cxMtx invCvx = xformCvx;
+	cvx_inv(&invCvx, xformMode);
+
+	cxMtx xformStoC = xformSph * invCvx;
+	cxVec ckPos = xformStoC.get_translation();
+
+	cxMtx xformCtoS = xformStoC;
+	cvx_inv(&xformCtoS, xformMode);
+
+	cxVec minPos(0.0f);
+	cxVec minNrm(0.0f);
+	float minSqDist = -1.0f;
+	for (int i = 0; i < ntri; ++i) {
+		int triBase = i * 3;
+		for (int j = 0; j < 3; ++j) {
+			vtx[j] = pPts[pTriPids[triBase + j]];
+		}
+		cxVec nrm = pTriNrms[i];
+		cxVec v0 = ckPos - vtx[0];
+		float d = nrm.dot(v0);
+		if (d > 0.0f) {
+			cxVec closest(0.0f);
+			float tc = -1.0f;
+			cxVec rel = ckPos - nrm*d;
+			cxVec t0 = rel - vtx[0];
+			cxVec t1 = rel - vtx[1];
+			cxVec e0 = vtx[1] - vtx[0];
+			cxVec tn = nxVec::cross(e0, nrm);
+			cxVec ck0(t0.dot(tn), t0.dot(e0), -t1.dot(e0));
+			if (ck0.all_gt0()) {
+				tc = dir_line_pnt_closest(vtx[0], e0, rel, &closest);
+			} else {
+				cxVec t2 = rel - vtx[2];
+				cxVec e1 = vtx[2] - vtx[1];
+				tn = nxVec::cross(e1, nrm);
+				cxVec ck1(t1.dot(tn), t1.dot(e1), -t2.dot(e1));
+				if (ck1.all_gt0()) {
+					tc = dir_line_pnt_closest(vtx[1], e1, rel, &closest);
+				} else {
+					cxVec e2 = vtx[0] - vtx[2];
+					tn = nxVec::cross(e2, nrm);
+					cxVec ck2(t2.dot(tn), t2.dot(e2), -t0.dot(e2));
+					if (ck2.all_gt0()) {
+						tc = dir_line_pnt_closest(vtx[2], e2, rel, &closest);
+					} else {
+						if (ck0.x <= 0.0f && ck1.x <= 0.0f && ck2.x <= 0.0f) {
+							closest = rel;
+							tc = 0.0f;
+						} else {
+							if (ck0.y <= 0.0f && ck2.z <= 0.0f) {
+								closest = vtx[0];
+							} else if (ck0.z <= 0.0f && ck1.y <= 0.0f) {
+								closest = vtx[1];
+							} else {
+								closest = vtx[2];
+							}
+						}
+					}
+				}
+			}
+			float sqDist = nxVec::dist2(ckPos, closest);
+			if (minSqDist < 0.0f || sqDist < minSqDist) {
+				minSqDist = sqDist;
+				minPos = closest;
+				minNrm = nrm;
+			}
+		}
+	}
+	if (minSqDist >= 0.0f) {
+		if (minSqDist > 1e-5f) {
+			dist = ::sqrtf(minSqDist) - radius;
+			sepVec = minPos - ckPos;
+			sepVec.normalize();
+		} else {
+			dist = -radius;
+			sepVec = minNrm.neg_val();
+		}
+		if (pCvxPnt) {
+			*pCvxPnt = minPos;
+		}
+		if (pSphPnt) {
+			*pSphPnt = xformCtoS.calc_pnt(ckPos + sepVec*radius);
+		}
+		if (pSepVec) {
+			*pSepVec = xformCvx.calc_vec(sepVec);
+		}
+	}
+
+	return dist;
+}
+
 } // nxGeom
 
 

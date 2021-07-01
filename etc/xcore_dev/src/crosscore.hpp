@@ -2128,6 +2128,11 @@ public:
 
 	xt_float2 encode_octa() const;
 	void decode_octa(const xt_float2& oct);
+
+	bool all_gt0() const { return x > 0.0f && y > 0.0f && z > 0.0f; }
+	bool all_ge0() const { return x >= 0.0f && y >= 0.0f && z >= 0.0f; }
+	bool all_lt0() const { return x < 0.0f && y < 0.0f && z < 0.0f; }
+	bool all_le0() const { return x <= 0.0f && y <= 0.0f && z <= 0.0f; }
 };
 
 inline cxVec operator + (const cxVec& v1, const cxVec& v2) { cxVec v = v1; v.add(v2); return v; }
@@ -2863,6 +2868,15 @@ void update_nrm_newell(cxVec* pNrm, cxVec* pVtxI, cxVec* pVtxJ);
 cxVec poly_normal_cw(cxVec* pVtx, const int vtxNum);
 cxVec poly_normal_ccw(cxVec* pVtx, const int vtxNum);
 
+inline float dir_line_pnt_closest(const cxVec& lp, const cxVec& dir, const cxVec& pnt, cxVec* pClosestPos = nullptr) {
+	cxVec vec = pnt - lp;
+	float t = nxCalc::div0(vec.dot(dir), dir.dot(dir));
+	if (pClosestPos) {
+		*pClosestPos = lp + dir*t;
+	}
+	return t;
+}
+
 inline float line_pnt_closest(const cxVec& lp0, const cxVec& lp1, const cxVec& pnt, cxVec* pClosestPos = nullptr, cxVec* pLineDir = nullptr) {
 	cxVec dir = lp1 - lp0;
 	cxVec vec = pnt - lp0;
@@ -2962,6 +2976,14 @@ float sph_region_weight(const cxVec& pos, const cxVec& center, const float attnS
 float cap_region_weight(const cxVec& pos, const cxVec& capPos0, const cxVec& capPos1, const float attnStart, const float attnEnd);
 float obb_region_weight(const cxVec& pos, const cxMtx& invMtx, const cxVec& attnStart, const cxVec& attnEnd);
 
+float sph_convex_dist(
+	const cxMtx& xformSph, const float radius,
+	const cxMtx& xformCvx,
+	const cxVec* pPts, const int npts,
+	const uint16_t* pTriPids, const cxVec* pTriNrms, const int ntri,
+	cxVec* pSphPnt = nullptr, cxVec* pCvxPnt = nullptr, cxVec* pSepVec = nullptr,
+	const int xformMode = 0
+);
 
 } // nxGeom
 
