@@ -2978,11 +2978,10 @@ float obb_region_weight(const cxVec& pos, const cxMtx& invMtx, const cxVec& attn
 
 float sph_convex_dist(
 	const cxMtx& xformSph, const float radius,
-	const cxMtx& xformCvx,
-	const cxVec* pPts, const int npts,
+	const cxMtx& xformCvx, const cxVec* pPts, const int npts,
 	const uint16_t* pTriPids, const cxVec* pTriNrms, const int ntri,
 	cxVec* pSphPnt = nullptr, cxVec* pCvxPnt = nullptr, cxVec* pSepVec = nullptr,
-	const int xformMode = 0
+	const int xformMode = 0, const bool cw = false
 );
 
 } // nxGeom

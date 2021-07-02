@@ -4099,11 +4099,10 @@ XD_NOINLINE static void cvx_inv(cxMtx* pMtx, const int mode) {
 
 float sph_convex_dist(
 	const cxMtx& xformSph, const float radius,
-	const cxMtx& xformCvx,
-	const cxVec* pPts, const int npts,
+	const cxMtx& xformCvx, const cxVec* pPts, const int npts,
 	const uint16_t* pTriPids, const cxVec* pTriNrms, const int ntri,
 	cxVec* pSphPnt, cxVec* pCvxPnt, cxVec* pSepVec,
-	const int xformMode
+	const int xformMode, const bool cw
 ) {
 	cxVec vtx[3];
 	cxVec sepVec;
@@ -4123,8 +4122,14 @@ float sph_convex_dist(
 	float minSqDist = -1.0f;
 	for (int i = 0; i < ntri; ++i) {
 		int triBase = i * 3;
-		for (int j = 0; j < 3; ++j) {
-			vtx[j] = pPts[pTriPids[triBase + j]];
+		if (cw) {
+			for (int j = 3; --j >= 0;) {
+				vtx[2 - j] = pPts[pTriPids[triBase + j]];
+			}
+		} else {
+			for (int j = 0; j < 3; ++j) {
+				vtx[j] = pPts[pTriPids[triBase + j]];
+			}
 		}
 		cxVec nrm = pTriNrms[i];
 		cxVec v0 = ckPos - vtx[0];
