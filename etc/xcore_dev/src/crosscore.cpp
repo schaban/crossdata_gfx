@@ -3577,14 +3577,19 @@ bool seg_seg_overlap_2d(const float s0x0, const float s0y0, const float s0x1, co
 	return res;
 }
 
-bool seg_plane_intersect(const cxVec& p0, const cxVec& p1, const cxPlane& pln, float* pT) {
+bool seg_plane_intersect(const cxVec& p0, const cxVec& p1, const cxPlane& pln, float* pT, cxVec* pHitPos) {
 	cxVec d = p1 - p0;
 	cxVec n = pln.get_normal();
 	float dn = d.dot(n);
 	float t = (pln.get_D() - n.dot(p0)) / dn;
 	bool res = t >= 0.0f && t <= 1.0f;
-	if (res && pT) {
-		*pT = t;
+	if (res) {
+		if (pT) {
+			*pT = t;
+		}
+		if (pHitPos) {
+			*pHitPos = p0 + d*t;
+		}
 	}
 	return res;
 }

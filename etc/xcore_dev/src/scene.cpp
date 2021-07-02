@@ -1353,17 +1353,6 @@ static bool wall_adj_tri_func(const sxCollisionData& col, const sxCollisionData:
 	return true;
 }
 
-static bool wall_adj_seg_pln_isect(const cxPlane& pln, const cxVec& p0, const cxVec& p1, cxVec* pIsect) {
-	float t = 0.0f;
-	bool res = pln.seg_intersect(p0, p1, &t);
-	if (res) {
-		if (pIsect) {
-			*pIsect = cxLineSeg(p0, p1).get_inner_pos(t);
-		}
-	}
-	return res;
-}
-
 static bool wall_adj_pnt_in_tri(const cxVec& pnt, const cxVec vtx[3], const cxVec nrm) {
 	for (int i = 0; i < 3; ++i) {
 		cxVec ev = vtx[(i + 1) % 3] - vtx[i];
@@ -1475,7 +1464,7 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 									if (adist > maxRange) {
 										XD_BIT_ARY_ST(uint32_t, wk.pStamps, i);
 									}
-									if (!wall_adj_seg_pln_isect(triPlane, npos, opos, &isect)) {
+									if (!triPlane.seg_intersect(npos, opos, nullptr, &isect)) {
 										calcFlg = false;
 									}
 								} else {

@@ -2848,7 +2848,7 @@ inline float signed_tri_area_2d(const float ax, const float ay, const float bx, 
 }
 
 bool seg_seg_overlap_2d(const float s0x0, const float s0y0, const float s0x1, const float s0y1, const float s1x0, const float s1y0, const float s1x1, const float s1y1);
-bool seg_plane_intersect(const cxVec& p0, const cxVec& p1, const cxPlane& pln, float* pT = nullptr);
+bool seg_plane_intersect(const cxVec& p0, const cxVec& p1, const cxPlane& pln, float* pT = nullptr, cxVec* pHitPos = nullptr);
 bool seg_quad_intersect_cw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, cxVec* pHitPos = nullptr, cxVec* pHitNrm = nullptr);
 bool seg_quad_intersect_cw_n(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, const cxVec& nrm, cxVec* pHitPos = nullptr);
 bool seg_quad_intersect_ccw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, cxVec* pHitPos = nullptr, cxVec* pHitNrm = nullptr);
@@ -3027,7 +3027,10 @@ public:
 	float signed_dist(const cxVec& pos) const { return pos.dot(get_normal()) - get_D(); }
 	float dist(const cxVec& pos) const { return ::fabsf(signed_dist(pos)); }
 	bool pnt_in_front(const cxVec& pos) const { return signed_dist(pos) >= 0.0f; }
-	bool seg_intersect(const cxVec& p0, const cxVec& p1, float* pT = nullptr) const { return nxGeom::seg_plane_intersect(p0, p1, *this, pT); }
+
+	bool seg_intersect(const cxVec& p0, const cxVec& p1, float* pT = nullptr, cxVec* pHitPos = nullptr) const {
+		return nxGeom::seg_plane_intersect(p0, p1, *this, pT, pHitPos);
+	}
 };
 
 class cxSphere {
