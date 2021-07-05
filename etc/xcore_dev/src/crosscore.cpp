@@ -3964,6 +3964,53 @@ cxVec poly_normal_ccw(cxVec* pVtx, const int vtxNum) {
 	return nrm;
 }
 
+cxVec tri_pnt_closest(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& pnt) {
+	cxVec cpnt(FLT_MAX);
+	cxVec e1 = v1 - v0;
+	cxVec e2 = v2 - v0;
+	cxVec v = pnt - v0;
+	float d1 = v.dot(e1);
+	float d2 = v.dot(e2);
+	if (d1 <= 0.0f && d2 <= 0.0f) {
+		cpnt = v0;
+	} else {
+		v = pnt - v1;
+		float d3 = v.dot(e1);
+		float d4 = v.dot(e2);
+		if (d3 >= 0.0f && d3 >= d4) {
+			cpnt = v1;
+		} else {
+			float t2 = d1*d4 - d3*d2;
+			if (t2 <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
+				cpnt = v0 + e1*nxCalc::div0(d1, d1 - d3);
+			} else {
+				v = pnt - v2;
+				float d5 = v.dot(e1);
+				float d6 = v.dot(e2);
+				if (d6 >= 0.0f && d6 >= d5) {
+					cpnt = v2;
+				} else {
+					float t1 = d5*d2 - d1*d6;
+					if (t1 <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
+						cpnt = v0 + e2*nxCalc::div0(d2, d2 - d6);
+					} else {
+						float t0 = d3*d6 - d5*d4;
+						float d43 = d4 - d3;
+						float d56 = d5 - d6;
+						if (t0 <= 0.0f && d43 >= 0.0f && d56 >= 0.0f) {
+							cpnt = v1 + (v2 - v1)*nxCalc::div0(d43, d43 + d56);
+						} else {
+							float s = nxCalc::rcp0(t0 + t1 + t2);
+							cpnt = v0 + e1*t1*s + e2*t2*s;
+						}
+					}
+				}
+			}
+		}
+	}
+	return cpnt;
+}
+
 float seg_seg_dist2(const cxVec& s0p0, const cxVec& s0p1, const cxVec& s1p0, const cxVec& s1p1, cxVec* pBridgeP0, cxVec* pBridgeP1) {
 	static float eps = 1e-6f;
 	float t0 = 0.0f;

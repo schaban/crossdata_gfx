@@ -2898,6 +2898,8 @@ inline cxVec seg_pnt_closest(const cxVec& sp0, const cxVec& sp1, const cxVec& pn
 	return sp0 + dir*t;
 }
 
+cxVec tri_pnt_closest(const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& pnt);
+
 float seg_seg_dist2(const cxVec& s0p0, const cxVec& s0p1, const cxVec& s1p0, const cxVec& s1p1, cxVec* pBridgeP0 = nullptr, cxVec* pBridgeP1 = nullptr);
 
 inline bool pnt_in_tri(const cxVec& pos, const cxVec& v0, const cxVec& v1, const cxVec& v2) {
