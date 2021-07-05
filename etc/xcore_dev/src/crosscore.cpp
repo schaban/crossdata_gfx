@@ -3594,6 +3594,51 @@ bool seg_plane_intersect(const cxVec& p0, const cxVec& p1, const cxPlane& pln, f
 	return res;
 }
 
+bool seg_sph_intersect(const cxVec& p0, const cxVec& p1, const cxSphere& sph, float* pT, cxVec* pHitPos) {
+	return seg_sph_intersect(p0, p1, sph.get_center(), sph.get_radius(), pT, pHitPos);
+}
+
+bool seg_sph_intersect(const cxVec& p0, const cxVec& p1, const cxVec& c, const float r, float* pT, cxVec* pHitPos) {
+	cxVec d = p1 - p0;
+	float len = d.length();
+	cxVec hitPos = p0;
+	float t = -1.0f;
+	bool res = false;
+	if (len > 0.0f) {
+		cxVec v = p0 - c;
+		float b = v.dot(d * (1.0f / len));
+		float c = v.mag2() - r*r;
+		res = !(b > 0.0f && c > 0.0f);
+		if (res) {
+			float ds = b*b - c;
+			res = ds >= 0.0f;
+			if (res) {
+				t = (-b - ::sqrtf(ds)) / len;
+				if (t < 0.0f) {
+					t = 0.0f;
+					hitPos = p0;
+				} else {
+					res = t <= 1.0f;
+					if (res) {
+						hitPos = p0 + d*t;
+					}
+				}
+			}
+		}
+	} else {
+		res = pnt_in_sph(p0, c, r);
+	}
+	if (res) {
+		if (pT) {
+			*pT = t;
+		}
+		if (pHitPos) {
+			*pHitPos = hitPos;
+		}
+	}
+	return res;
+}
+
 bool seg_quad_intersect_cw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, cxVec* pHitPos, cxVec* pHitNrm) {
 	return seg_quad_intersect_ccw(p0, p1, v3, v2, v1, v0, pHitPos, pHitNrm);
 }

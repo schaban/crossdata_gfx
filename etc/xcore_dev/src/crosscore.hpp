@@ -2849,6 +2849,8 @@ inline float signed_tri_area_2d(const float ax, const float ay, const float bx, 
 
 bool seg_seg_overlap_2d(const float s0x0, const float s0y0, const float s0x1, const float s0y1, const float s1x0, const float s1y0, const float s1x1, const float s1y1);
 bool seg_plane_intersect(const cxVec& p0, const cxVec& p1, const cxPlane& pln, float* pT = nullptr, cxVec* pHitPos = nullptr);
+bool seg_sph_intersect(const cxVec& p0, const cxVec& p1, const cxSphere& sph, float* pT = nullptr, cxVec* pHitPos = nullptr);
+bool seg_sph_intersect(const cxVec& p0, const cxVec& p1, const cxVec& c, const float r, float* pT = nullptr, cxVec* pHitPos = nullptr);
 bool seg_quad_intersect_cw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, cxVec* pHitPos = nullptr, cxVec* pHitNrm = nullptr);
 bool seg_quad_intersect_cw_n(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, const cxVec& nrm, cxVec* pHitPos = nullptr);
 bool seg_quad_intersect_ccw(const cxVec& p0, const cxVec& p1, const cxVec& v0, const cxVec& v1, const cxVec& v2, const cxVec& v3, cxVec* pHitPos = nullptr, cxVec* pHitNrm = nullptr);
@@ -3031,6 +3033,10 @@ public:
 	bool seg_intersect(const cxVec& p0, const cxVec& p1, float* pT = nullptr, cxVec* pHitPos = nullptr) const {
 		return nxGeom::seg_plane_intersect(p0, p1, *this, pT, pHitPos);
 	}
+
+	bool intersect(const cxLineSeg& seg, float* pT = nullptr, cxVec* pHitPos = nullptr) const {
+		return seg_intersect(seg.get_pos0(), seg.get_pos1(), pT, pHitPos);
+	}
 };
 
 class cxSphere {
@@ -3071,6 +3077,14 @@ public:
 	bool overlaps(const cxSphere& sph) const { return nxGeom::sph_sph_overlap(get_center(), get_radius(), sph.get_center(), sph.get_radius()); }
 	bool overlaps(const cxAABB& box) const;
 	bool overlaps(const cxCapsule& cap, cxVec* pCapAxisPos = nullptr) const;
+
+	bool seg_intersect(const cxVec& p0, const cxVec& p1, float* pT = nullptr, cxVec* pHitPos = nullptr) const {
+		return nxGeom::seg_sph_intersect(p0, p1, *this, pT, pHitPos);
+	}
+
+	bool intersect(const cxLineSeg& seg, float* pT = nullptr, cxVec* pHitPos = nullptr) const {
+		return seg_intersect(seg.get_pos0(), seg.get_pos1(), pT, pHitPos);
+	}
 };
 
 class cxAABB {
