@@ -182,7 +182,12 @@ FULL vec4 calcShadowPos(FULL vec3 wpos) {
 }
 
 FULL float calcShadowVal() {
-	FULL float val = calcShadowVal4(calcShadowPos(pixPos));
+	FULL vec4 spos = calcShadowPos(pixPos);
+#ifdef GL_ES
+	FULL float val = calcShadowVal2(spos);
+#else
+	FULL float val = calcShadowVal3(spos);
+#endif
 	FULL float start = gpShadowFade.x;
 	FULL float falloff = gpShadowFade.y;
 	FULL float d = distance(pixPos, gpViewPos);
