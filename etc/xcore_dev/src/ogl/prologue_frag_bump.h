@@ -1,4 +1,3 @@
-//#version 120
 #extension GL_OES_standard_derivatives : enable
 
 #ifdef GL_ES

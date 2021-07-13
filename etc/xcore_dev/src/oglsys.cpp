@@ -42,6 +42,9 @@
 #	include <gbm.h>
 #	include <xf86drm.h>
 #	include <xf86drmMode.h>
+#elif defined(OGLSYS_WEB)
+#	include <emscripten.h>
+#	include <SDL.h>
 #endif
 
 #if !OGLSYS_ES
@@ -207,6 +210,12 @@ static struct OGLSysGlb {
 	gbm_surface* mpGbmSurf;
 	gbm_bo* mpGbmBO;
 	uint32_t mDrmFbId;
+#elif defined(OGLSYS_WEB)
+	SDL_Window* mpSDLWnd;
+	SDL_Renderer* mpSDLRdr;
+	SDL_GLContext mSDLGLCtx;
+	void(*mpWebLoop)(void*);
+	void* mpWebLoopCtx;
 #endif
 
 	uint64_t mFrameCnt;
@@ -586,6 +595,8 @@ static struct OGLSysGlb {
 	bool valid_ogl() const { return mGLX.valid(); }
 #elif defined(OGLSYS_APPLE)
 	bool valid_ogl() const { return true; }
+#	elif defined(OGLSYS_WEB)
+	bool valid_ogl() const { return true; }
 #	elif defined(OGLSYS_DUMMY)
 	bool valid_ogl() const { return true; }
 #endif
@@ -698,6 +709,74 @@ static struct OGLSysGlb {
 #endif
 
 } GLG = {};
+
+#if defined(OGLSYS_WEB)
+static void web_kbd(const SDL_Event& evt) {
+	bool* pState = nullptr;
+	int idx = -1;
+	switch (evt.key.keysym.sym) {
+		case SDLK_UP:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_UP;
+			break;
+		case SDLK_DOWN:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_DOWN;
+			break;
+		case SDLK_LEFT:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_LEFT;
+			break;
+		case SDLK_RIGHT:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_RIGHT;
+			break;
+		case SDLK_TAB:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_TAB;
+			break;
+		case SDLK_BACKSPACE:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_BACK;
+			break;
+		case SDLK_LSHIFT:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_LSHIFT;
+			break;
+		case SDLK_LCTRL:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_LCTRL;
+			break;
+		case SDLK_RSHIFT:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_RSHIFT;
+			break;
+		case SDLK_RCTRL:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_RCTRL;
+			break;
+		default:
+			break;
+	}
+	if (pState && idx >= 0) {
+		pState[idx] = (evt.type == SDL_KEYDOWN);
+	}
+}
+
+static void web_loop() {
+	SDL_Event evt;
+	while (SDL_PollEvent(&evt)) {
+		if (evt.type == SDL_KEYDOWN || evt.type == SDL_KEYUP) {
+			web_kbd(evt);
+		} else if (evt.type == SDL_QUIT) {
+		}
+	}
+	if (GLG.mpWebLoop) {
+		GLG.mpWebLoop(GLG.mpWebLoopCtx);
+	}
+	++GLG.mFrameCnt;
+}
+#endif
 
 static void glg_dbg_info(const char* pInfo, const size_t infoLen) {
 	const int infoBlkSize = 512;
@@ -1151,6 +1230,10 @@ void OGLSysGlb::init_wnd() {
 			dbg_msg("GBM surf @ %p\n", mpGbmSurf);
 		}
 	}
+#elif defined(OGLSYS_WEB)
+	mWndW = mWidth;
+	mWndH = mHeight;
+	SDL_CreateWindowAndRenderer(mWidth, mHeight, SDL_WINDOW_OPENGL, &mpSDLWnd, &mpSDLRdr);
 #endif
 
 #if !defined(OGLSYS_ANDROID)
@@ -1179,6 +1262,8 @@ void OGLSysGlb::reset_wnd() {
 #elif defined(OGLSYS_VIVANTE_FB)
 	fbDestroyWindow(mVivWnd);
 	fbDestroyDisplay(mVivDisp);
+#elif defined(OGLSYS_WEB)
+	mpSDLWnd = nullptr;
 #endif
 }
 
@@ -1415,9 +1500,8 @@ void OGLSysGlb::init_ogl() {
 	dummyglInit();
 #endif
 
-	dbg_msg("OpenGL version: %s\n", glGetString(GL_VERSION));
-	dbg_msg("%s\n", glGetString(GL_VENDOR));
-	dbg_msg("%s\n\n", glGetString(GL_RENDERER));
+	dbg_msg("OGL version: %s\n", glGetString(GL_VERSION));
+	dbg_msg("OGL platform: %s, %s\n\n", glGetString(GL_VENDOR), glGetString(GL_RENDERER));
 
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &mDefFBO);
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTexSize);
@@ -1511,7 +1595,7 @@ void OGLSysGlb::init_ogl() {
 	}
 #endif
 
-#if !OGLSYS_ES
+#if !OGLSYS_ES && !defined(OGLSYS_WEB)
 	glDisable(GL_MULTISAMPLE);
 #endif
 }
@@ -2122,6 +2206,10 @@ namespace OGLSys {
 			}
 			++GLG.mFrameCnt;
 		}
+#elif defined(OGLSYS_WEB)
+		GLG.mpWebLoop = pLoop;
+		GLG.mpWebLoopCtx = pLoopCtx;
+		emscripten_set_main_loop(web_loop, 0, 1);
 #else
 		while (true) {
 			if (pLoop) {
@@ -2280,7 +2368,7 @@ namespace OGLSys {
 						glAttachShader(pid, sid);
 					}
 				}
-#if !OGLSYS_ES
+#if !OGLSYS_ES && !defined(OGLSYS_WEB)
 				if (glProgramParameteri) {
 					glProgramParameteri(pid, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
 				}
@@ -2348,6 +2436,8 @@ namespace OGLSys {
 			}
 #elif defined(OGLSYS_APPLE)
 			// TODO
+#elif defined(OGLSYS_WEB)
+			/* no-op */
 #else
 			if (glGetProgramBinary) {
 				GLsizei len = 0;
@@ -2381,7 +2471,7 @@ namespace OGLSys {
 
 	void enable_msaa(const bool flg) {
 		if (!GLG.valid_ogl()) return;
-#if !OGLSYS_ES
+#if !OGLSYS_ES && !defined(OGLSYS_WEB)
 		if (flg) {
 			glEnable(GL_MULTISAMPLE);
 		} else {
@@ -2400,6 +2490,8 @@ namespace OGLSys {
 		}
 #elif defined(OGLSYS_APPLE)
 		//glGenQueries(1, &handle);
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (glGenQueries) {
 			glGenQueries(1, &handle);
@@ -2417,6 +2509,8 @@ namespace OGLSys {
 		if (handle != 0) {
 			glDeleteQueries(1, &handle);
 		}
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (handle != 0 && glDeleteQueries) {
 			glDeleteQueries(1, &handle);
@@ -2433,6 +2527,8 @@ namespace OGLSys {
 		if (handle != 0) {
 			glQueryCounter(handle, GL_TIMESTAMP);
 		}
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (handle != 0 && glQueryCounter) {
 			glQueryCounter(handle, GL_TIMESTAMP);
@@ -2460,6 +2556,8 @@ namespace OGLSys {
 		if (handle != 0) {
 			glGetQueryObjectui64v(handle, GL_QUERY_RESULT, &val);
 		}
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (handle != 0) {
 			if (glGetQueryObjectui64v) {
@@ -2489,6 +2587,8 @@ namespace OGLSys {
 				glGetQueryObjectiv(handle, GL_QUERY_RESULT_AVAILABLE, &flg);
 			}
 		}
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (handle != 0) {
 			if (glGetQueryObjectui64v && glGetQueryObjectiv) {
@@ -2508,6 +2608,9 @@ namespace OGLSys {
 			GLG.mExts.pfnGenVertexArrays(1, &vao);
 		}
 #elif defined(OGLSYS_APPLE)
+		/* no-op */
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (glGenVertexArrays != nullptr) {
 			glGenVertexArrays(1, &vao);
@@ -2522,6 +2625,9 @@ namespace OGLSys {
 			GLG.mExts.pfnBindVertexArray(vao);
 		}
 #elif defined(OGLSYS_APPLE)
+		/* no-op */
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (glBindVertexArray != nullptr) {
 			glBindVertexArray(vao);
@@ -2535,6 +2641,9 @@ namespace OGLSys {
 			GLG.mExts.pfnDeleteVertexArrays(1, &vao);
 		}
 #elif defined(OGLSYS_APPLE)
+		/* no-op */
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (glDeleteVertexArrays != nullptr) {
 			glDeleteVertexArrays(1, &vao);
@@ -2551,6 +2660,9 @@ namespace OGLSys {
 		}
 		#endif
 #elif defined(OGLSYS_APPLE)
+		/* no-op */
+#elif defined(OGLSYS_WEB)
+		/* no-op */
 #else
 		if (glDrawElementsBaseVertex != nullptr) {
 			glDrawElementsBaseVertex(GL_TRIANGLES, ntris * 3, idxType, (const void*)ibOrg, baseVtx);
@@ -2573,6 +2685,12 @@ namespace OGLSys {
 		return GLG.mDefTexs.white;
 	}
 
+	void set_tex2d_lod_bias(const int bias) {
+#if !OGLSYS_ES && !defined(OGLSYS_WEB)
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, bias);
+#endif
+	}
+
 
 	bool ext_ck_bindless_texs() {
 		return GLG.mExts.bindlessTex;
@@ -2589,6 +2707,8 @@ namespace OGLSys {
 	bool ext_ck_vtx_half() {
 #if OGLSYS_ES
 		return GLG.mExts.vtxHalf;
+#elif defined(OGLSYS_WEB)
+		return false;
 #else
 		return true;
 #endif
@@ -2597,6 +2717,8 @@ namespace OGLSys {
 	bool ext_ck_idx_uint() {
 #if OGLSYS_ES
 		return GLG.mExts.idxUInt;
+#elif defined(OGLSYS_WEB)
+		return false;
 #else
 		return true;
 #endif
@@ -2619,6 +2741,8 @@ namespace OGLSys {
 		return GLG.mExts.progBin;
 #elif defined(OGLSYS_APPLE)
 		return GLG.mExts.progBin;
+#elif defined(OGLSYS_WEB)
+		return false;
 #else
 		return glGetProgramBinary != nullptr;
 #endif
@@ -2628,6 +2752,8 @@ namespace OGLSys {
 #if OGLSYS_ES
 		return false;
 #elif defined(OGLSYS_APPLE)
+		return false;
+#elif defined(OGLSYS_WEB)
 		return false;
 #else
 		return glShaderBinary != nullptr;
@@ -2639,6 +2765,7 @@ namespace OGLSys {
 		if (ext_ck_shader_bin()) {
 #if OGLSYS_ES
 #elif defined(OGLSYS_APPLE)
+#elif defined(OGLSYS_WEB)
 #else
 			GLint nfmt = 0;
 			glGetIntegerv(GL_NUM_SHADER_BINARY_FORMATS, &nfmt);
@@ -2674,6 +2801,7 @@ namespace OGLSys {
 			res = true;
 		}
 #elif defined(OGLSYS_APPLE)
+#elif defined(OGLSYS_WEB)
 #else
 		if (glGenVertexArrays != nullptr) {
 			res = true;
@@ -2689,6 +2817,7 @@ namespace OGLSys {
 			res = true;
 		}
 #elif defined(OGLSYS_APPLE)
+#elif defined(OGLSYS_WEB)
 #else
 		if (glDrawElementsBaseVertex != nullptr) {
 			res = true;

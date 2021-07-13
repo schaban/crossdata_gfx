@@ -1,5 +1,3 @@
-//#version 120
-
 #ifdef GL_ES
 precision mediump float;
 #	define HALF mediump

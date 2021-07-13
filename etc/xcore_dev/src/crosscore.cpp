@@ -4233,6 +4233,7 @@ float sph_convex_dist(
 		float d = nrm.dot(v0);
 		if (d > 0.0f) {
 			cxVec closest(0.0f);
+#if 0
 			float tc = -1.0f;
 			cxVec rel = ckPos - nrm*d;
 			cxVec t0 = rel - vtx[0];
@@ -4271,6 +4272,9 @@ float sph_convex_dist(
 					}
 				}
 			}
+#else
+			closest = tri_pnt_closest(vtx[0], vtx[1], vtx[2], ckPos);
+#endif
 			float sqDist = nxVec::dist2(ckPos, closest);
 			if (minSqDist < 0.0f || sqDist < minSqDist) {
 				minSqDist = sqDist;

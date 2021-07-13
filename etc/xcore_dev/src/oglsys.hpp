@@ -99,6 +99,15 @@ android_app* oglsys_get_app();
 #	define OGLSYS_APPLE
 #	define OGLSYS_MACOS
 #	include <OpenGL/gl3.h>
+#elif defined(OGLSYS_WEB)
+#	undef OGLSYS_ES
+#	define OGLSYS_ES 0
+#	include <GLES2/gl2.h>
+#	include <GLES2/gl2ext.h>
+#	include <GLES3/gl3.h>
+#	ifndef GL_HALF_FLOAT
+#		define GL_HALF_FLOAT 0x140B
+#	endif
 #elif defined(DUMMY_GL)
 #	define WIN32_LEAN_AND_MEAN 1
 #	undef NOMINMAX
@@ -313,6 +322,7 @@ namespace OGLSys {
 
 	GLuint get_black_tex();
 	GLuint get_white_tex();
+	void set_tex2d_lod_bias(const int bias);
 
 	bool ext_ck_bindless_texs();
 	bool ext_ck_derivatives();
