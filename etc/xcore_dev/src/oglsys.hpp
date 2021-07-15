@@ -323,6 +323,7 @@ namespace OGLSys {
 	GLuint get_black_tex();
 	GLuint get_white_tex();
 	void set_tex2d_lod_bias(const int bias);
+	GLint get_max_vtx_texs();
 
 	bool ext_ck_bindless_texs();
 	bool ext_ck_derivatives();

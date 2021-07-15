@@ -996,6 +996,19 @@ static LRESULT CALLBACK wnd_proc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
 	bool kbdFlg = wnd_kbd_msg(hWnd, msg, wParam, lParam);
 	if (!mouseFlg && !kbdFlg) {
 		switch (msg) {
+#ifdef OGLSYS_ICON_ID
+			case WM_CREATE:
+				if (OGLSYS_ICON_ID) {
+					HINSTANCE hInst = ((LPCREATESTRUCT)lParam)->hInstance;
+					HICON hIcon = LoadIcon(hInst, MAKEINTRESOURCE(OGLSYS_ICON_ID));
+					if (hIcon) {
+						SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+					} else {
+						res = DefWindowProc(hWnd, msg, wParam, lParam);
+					}
+				}
+				break;
+#endif
 			case WM_DESTROY:
 				if (s_wndQuitOnDestroy) {
 					PostQuitMessage(0);
@@ -2689,6 +2702,12 @@ namespace OGLSys {
 #if !OGLSYS_ES && !defined(OGLSYS_WEB)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, bias);
 #endif
+	}
+
+	GLint get_max_vtx_texs() {
+		GLint num = 0;
+		glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS, &num);
+		return num;
 	}
 
 
