@@ -3405,6 +3405,13 @@ inline cxColor scl_rgb(const cxColor& c, const cxColor& s) {
 
 
 struct sxView {
+	enum class Mode {
+		STANDARD = 0,
+		ROT_L90 = 1,
+		ROT_R90 = 2,
+		ROT_180 = 3
+	};
+
 	cxFrustum mFrustum;
 	cxMtx mViewMtx;
 	cxMtx mProjMtx;
@@ -3420,6 +3427,7 @@ struct sxView {
 	int mHeight;
 	float mNear;
 	float mFar;
+	Mode mMode;
 
 	void set_window(const int width, const int height) {
 		mWidth = width;
@@ -3437,11 +3445,10 @@ struct sxView {
 		mFar = zfar;
 	}
 
-	void set_deg_fovy(const float fovy) {
-		mDegFOVY = fovy;
-	}
+	void set_deg_fovy(const float fovy) { mDegFOVY = fovy; }
 
-	float get_aspect() const { return nxCalc::div0(float(mWidth), float(mHeight)); }
+	float get_native_aspect() const { return nxCalc::div0(float(mWidth), float(mHeight)); }
+	float get_aspect() const;
 
 	cxVec get_dir() const { return (mTgt - mPos).get_normalized(); }
 
@@ -3450,7 +3457,10 @@ struct sxView {
 	float calc_fovx() const;
 	float calc_deg_fovx() const { return XD_RAD2DEG(calc_fovx()); }
 
+	cxMtx get_mode_mtx() const;
+
 	void init(const int width = 800, const int height = 600);
+	void reset() { init(); }
 	void update();
 };
 

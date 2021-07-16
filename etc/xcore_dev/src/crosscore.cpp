@@ -5037,11 +5037,39 @@ void cxColor::decode_bgr565(uint16_t bgr) {
 }
 
 
+XD_NOINLINE float sxView::get_aspect() const {
+	float aspect = get_native_aspect();
+	if (mMode == Mode::ROT_L90 || mMode == Mode::ROT_R90) {
+		aspect = nxCalc::rcp0(aspect);
+	}
+	return aspect;
+}
+
 XD_NOINLINE float sxView::calc_fovx() const {
 	return 2.0f * ::atanf(::tanf(XD_DEG2RAD(mDegFOVY) * 0.5f) * get_aspect());
 }
 
+XD_NOINLINE cxMtx sxView::get_mode_mtx() const {
+	cxMtx m;
+	switch (mMode) {
+		case Mode::ROT_L90:
+			m = nxMtx::mk_rot_z(XD_DEG2RAD(90));
+			break;
+		case Mode::ROT_R90:
+			m = nxMtx::mk_rot_z(XD_DEG2RAD(-90));
+			break;
+		case Mode::ROT_180:
+			m = nxMtx::mk_rot_z(XD_DEG2RAD(-180));
+			break;
+		default:
+			m.identity();
+			break;
+	}
+	return m;
+}
+
 XD_NOINLINE void sxView::init(const int width, const int height) {
+	mMode = Mode::STANDARD;
 	set_window(width, height);
 	set_frame(cxVec(0.75f, 1.3f, 3.5f), cxVec(0.0f, 0.95f, 0.0f));
 	set_range(0.1f, 1000.0f);
@@ -5054,6 +5082,15 @@ XD_NOINLINE void sxView::update() {
 	float fovy = XD_DEG2RAD(mDegFOVY);
 	float aspect = get_aspect();
 	mProjMtx.mk_proj(fovy, aspect, mNear, mFar);
+	switch (mMode) {
+		case Mode::ROT_L90:
+		case Mode::ROT_R90:
+		case Mode::ROT_180:
+			mProjMtx.mul(get_mode_mtx());
+			break;
+		default:
+			break;
+	}
 	mViewProjMtx = mViewMtx * mProjMtx;
 	mInvProjMtx = mProjMtx.get_inverted();
 	mInvViewProjMtx = mViewProjMtx.get_inverted();
