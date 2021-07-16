@@ -67,13 +67,9 @@ namespace Draw {
 				projMtx.mk_proj(fovy, aspect, znear, zfar);
 				switch (rotMode) {
 					case 1:
-						projMtx.mul(nxMtx::mk_rot_z(XD_DEG2RAD(90)));
-						break;
 					case 2:
-						projMtx.mul(nxMtx::mk_rot_z(XD_DEG2RAD(-90)));
-						break;
 					case 3:
-						projMtx.mul(nxMtx::mk_rot_z(XD_DEG2RAD(-180)));
+						projMtx.mul(get_rot_mode_mtx());
 						break;
 					default:
 						break;
@@ -82,6 +78,17 @@ namespace Draw {
 				invProjMtx = projMtx.get_inverted();
 				invViewProjMtx = viewProjMtx.get_inverted();
 				frustum.init(invViewMtx, fovy, aspect, znear, zfar);
+			}
+
+			cxMtx get_rot_mode_mtx() {
+				cxMtx m;
+				switch (rotMode) {
+					case 1: m = nxMtx::mk_rot_z(XD_DEG2RAD(90)); break;
+					case 2: m = nxMtx::mk_rot_z(XD_DEG2RAD(-90)); break;
+					case 3: m = nxMtx::mk_rot_z(XD_DEG2RAD(-180)); break;
+					default: m.identity(); break;
+				}
+				return m;
 			}
 
 			void set_view(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f)) {
@@ -130,6 +137,17 @@ namespace Draw {
 				up.set(0.0f, 1.0f, 0.0f);
 				exp = 1.0f;
 				gain = 1.0f;
+			}
+
+			cxColor eval(const cxVec& v) {
+				float val = (v.dot(cxVec(up.x, up.y, up.z)) + 1.0f) * 0.5f;
+				val = nxCalc::saturate(::powf(val, exp) * gain);
+				cxColor clr(
+					nxCalc::lerp(lower.x, upper.x, val),
+					nxCalc::lerp(lower.y, upper.y, val),
+					nxCalc::lerp(lower.z, upper.z, val)
+				);
+				return clr;
 			}
 		} hemi;
 
