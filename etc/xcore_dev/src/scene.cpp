@@ -697,6 +697,10 @@ cxMtx get_inv_view_proj_mtx() {
 	return s_drwCtx.view.invViewProjMtx;
 }
 
+cxMtx get_view_mode_mtx() {
+	return s_drwCtx.view.get_rot_mode_mtx();
+}
+
 cxVec get_view_pos() {
 	return s_drwCtx.view.pos;
 }
@@ -719,6 +723,10 @@ float get_view_near() {
 
 float get_view_far() {
 	return s_drwCtx.view.zfar;
+}
+
+bool is_rot_view() {
+	return s_drwCtx.view.rotMode != 0;
 }
 
 bool is_sphere_visible(const cxSphere& sph, const bool exact) {
@@ -806,14 +814,18 @@ static void update_shadow_persp() {
 		return;
 	}
 	Draw::Context* pCtx = &s_drwCtx;
-	//cxMtx mtxView = Scene::get_view_mtx();
 	cxMtx mtxProj = Scene::get_proj_mtx();
 	cxMtx mtxInvView = Scene::get_inv_view_mtx();
 	cxMtx mtxInvProj = Scene::get_inv_proj_mtx();
 	cxMtx mtxViewProj = Scene::get_view_proj_mtx();
 	cxMtx mtxInvViewProj = Scene::get_inv_view_proj_mtx();
-
 	cxVec dir = pCtx->shadow.dir.get_normalized();
+
+	if (is_rot_view()) {
+		cxMtx mm = get_view_mode_mtx().get_inverted();
+		mtxProj.rev_mul(mm);
+		mtxInvProj.rev_mul(mm);
+	}
 
 	float vdist = s_smapViewDist;
 	vdist *= mtxProj.m[1][1];

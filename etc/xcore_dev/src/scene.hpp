@@ -264,12 +264,15 @@ cxMtx get_proj_mtx();
 cxMtx get_inv_view_mtx();
 cxMtx get_inv_proj_mtx();
 cxMtx get_inv_view_proj_mtx();
+cxMtx get_view_mode_mtx();
 cxVec get_view_pos();
 cxVec get_view_tgt();
 cxVec get_view_dir();
 cxVec get_view_up();
 float get_view_near();
 float get_view_far();
+
+bool is_rot_view();
 
 bool is_sphere_visible(const cxSphere& sph, const bool exact = true);
 
