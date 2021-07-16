@@ -2640,6 +2640,10 @@ void cxMtx::sub(const cxMtx& m1, const cxMtx& m2) {
 	nxLA::sub_mm((float*)this, (const float*)m1, (const float*)m2, 4, 4);
 }
 
+void cxMtx::rev_mul(const cxMtx& mtx) {
+	mul(mtx, *this);
+}
+
 // Ref: http://graphics.pixar.com/library/OrthonormalB/paper.pdf
 void cxMtx::from_upvec(const cxVec& n) {
 	float s = n.z < 0 ? -1.0f : 1.0f;

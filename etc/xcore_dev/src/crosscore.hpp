@@ -2242,6 +2242,8 @@ public:
 	void sub(const cxMtx& mtx);
 	void sub(const cxMtx& m1, const cxMtx& m2);
 
+	void rev_mul(const cxMtx& mtx);
+
 	cxVec get_translation() const {
 		return cxVec(m[3][0], m[3][1], m[3][2]);
 	}
