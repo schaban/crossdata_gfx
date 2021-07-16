@@ -35,11 +35,6 @@ static int s_shadowCastCnt = 0;
 static GLuint s_sprVBO = 0;
 static GLuint s_sprIBO = 0;
 
-static void gl_tex2d_lod_bias(const int bias) {
-#if !OGLSYS_ES
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, bias);
-#endif
-}
 
 static void def_tex_lod_bias() {
 	static bool flg = false;
@@ -48,7 +43,7 @@ static void def_tex_lod_bias() {
 		bias = nxApp::get_int_opt("tlod_bias", -3);
 		flg = true;
 	}
-	gl_tex2d_lod_bias(bias);
+	OGLSys::set_tex2d_lod_bias(bias);
 
 }
 
@@ -58,7 +53,7 @@ static void def_tex_params(const bool mipmapEnabled, const bool biasEnabled) {
 		if (biasEnabled) {
 			def_tex_lod_bias();
 		} else {
-			gl_tex2d_lod_bias(0);
+			OGLSys::set_tex2d_lod_bias(0);
 		}
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -81,7 +76,16 @@ static GLuint load_shader(const char* pName) {
 #if OGLSYS_ES
 			sid = OGLSys::compile_shader_str(pSrc, srcSize, kind);
 #else
-			static const char* pVerStr = "#version 120\n";
+			static const char* pVerStr;
+#	if defined(OGLSYS_WEB)
+			if (kind == GL_VERTEX_SHADER) {
+				pVerStr = "#version 100\n#define WEBGL\n";
+			} else {
+				pVerStr = "#version 100\n";
+			}
+#	else
+			pVerStr = "#version 120\n";
+#endif
 			size_t verSize = ::strlen(pVerStr);
 			size_t altSize = verSize + srcSize;
 			char* pAltSrc = (char*)nxCore::mem_alloc(altSize, "ver+glsl");
