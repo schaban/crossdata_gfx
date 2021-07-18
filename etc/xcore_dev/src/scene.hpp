@@ -345,10 +345,10 @@ void set_spr_gamma_rgb(const float r, const float g, const float b);
 void sprite(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex = nullptr, cxColor* pClrs = nullptr);
 
 float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop = 1.8f, const float offsBtm = 0.5f);
-bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, float radius, cxVec* pAdjPos, float wallSlopeLim = 0.7f);
+bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, const float radius, cxVec* pAdjPos, const float wallSlopeLim = 0.7f);
 
-bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, float staticRadius, cxVec* pAdjPos, float reflectFactor = 0.5f, float margin = 0.0f);
-bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, float staticRadius, cxVec* pAdjPos, float reflectFactor = 0.5f, float margin = 0.0f);
+bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, const float staticRadius, cxVec* pAdjPos, const float reflectFactor = 0.5f, const float margin = 0.0f);
+bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, float staticRadius, cxVec* pAdjPos, const float reflectFactor = 0.5f, const float margin = 0.0f);
 
 void copy_prev_world_data();
 

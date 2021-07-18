@@ -1377,7 +1377,7 @@ static bool wall_adj_pnt_in_tri(const cxVec& pnt, const cxVec vtx[3], const cxVe
 
 #define SCN_GLB_MEM_CMN_LOCK 0
 
-bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, float radius, cxVec* pAdjPos, float wallSlopeLim) {
+bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, const float radius, cxVec* pAdjPos, const float wallSlopeLim) {
 	if (!pCol) return false;
 	bool res = false;
 	int ntri = pCol->mTriNum;
@@ -1562,6 +1562,12 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 											prevState = state;
 											sqDist = dist2;
 											apos = adj;
+											if (nxGeom::seg_tri_intersect_ccw_n(opos, apos, triVtx[0], triVtx[1], triVtx[2], triNrm, &adj)) {
+												apos = nxVec::lerp(opos, adj, 0.9f);
+												if (nxGeom::seg_tri_intersect_ccw_n(opos, npos, triVtx[0], triVtx[1], triVtx[2], triNrm, &adj)) {
+													apos = adj + (opos - adj).get_normalized()*radius;
+												}
+											}
 											adjTriIdx = i;
 										}
 									}
@@ -1628,7 +1634,7 @@ static bool sph_sph_sub(const cxSphere& movSph, const cxVec& vel, const cxSphere
 	return flg;
 }
 
-bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, float staticRadius, cxVec* pAdjPos, float reflectFactor, float margin) {
+bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, const float staticRadius, cxVec* pAdjPos, const float reflectFactor, const float margin) {
 	cxVec sepVec;
 	cxVec tstPos = newPos;
 	cxVec adjPos = tstPos;
@@ -1675,7 +1681,7 @@ static bool sph_cap_sub(const cxSphere& movSph, const cxVec& vel, const cxCapsul
 	return flg;
 }
 
-bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, float staticRadius, cxVec* pAdjPos, float reflectFactor, float margin) {
+bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, const float staticRadius, cxVec* pAdjPos, const float reflectFactor, const float margin) {
 	cxVec sepVec;
 	cxVec axisPnt;
 	cxVec tstPos = newPos;
