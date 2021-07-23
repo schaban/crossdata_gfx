@@ -241,6 +241,9 @@ static struct OGLSysGlb {
 		GLuint white;
 	} mDefTexs;
 
+	void (*mpfnGlFlush)();
+	void (*mpfnGlFinish)();
+
 	struct Exts {
 #if OGLSYS_ES
 		PFNGLGENQUERIESEXTPROC pfnGenQueries;
@@ -1513,6 +1516,11 @@ void OGLSysGlb::init_ogl() {
 	dummyglInit();
 #endif
 
+#if !defined(OGLSYS_WEB)
+	*(void**)&mpfnGlFinish = OGLSys::get_proc_addr("glFlush");
+	*(void**)&mpfnGlFinish = OGLSys::get_proc_addr("glFinish");
+#endif
+
 	dbg_msg("OGL version: %s\n", glGetString(GL_VERSION));
 	dbg_msg("OGL platform: %s, %s\n\n", glGetString(GL_VENDOR), glGetString(GL_RENDERER));
 
@@ -2235,6 +2243,18 @@ namespace OGLSys {
 
 	bool valid() {
 		return GLG.valid_ogl();
+	}
+
+	void flush() {
+		if (GLG.mpfnGlFlush) {
+			GLG.mpfnGlFlush();
+		}
+	}
+
+	void finish() {
+		if (GLG.mpfnGlFinish) {
+			GLG.mpfnGlFinish();
+		}
 	}
 
 	void* get_window() {

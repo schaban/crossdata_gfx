@@ -283,6 +283,9 @@ namespace OGLSys {
 	void loop(void (*pLoop)(void*), void* pLoopCtx = nullptr);
 	bool valid();
 
+	void flush();
+	void finish();
+
 	void* get_window();
 	void* get_display();
 	void* get_instance();
