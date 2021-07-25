@@ -12636,9 +12636,9 @@ void cxMotionWork::adjust_leg(const cxVec& effPos, const int inodeTop, const int
 	if (isExt) {
 		ik.mExtW = calc_node_world_mtx(inodeExt);
 		ik.mExtW.set_translation(effPos);
-		cxQuat extRot = nxQuat::from_mtx(ik.mExtW);
+		cxQuat endRot = nxQuat::from_mtx(ik.mEndW);
 		cxVec endOffs = pMdl->get_skel_local_offs(inodeExt);
-		ik.mEndW.set_translation(effPos - extRot.apply(endOffs));
+		ik.mEndW.set_translation(effPos - endRot.apply(endOffs));
 	} else {
 		ik.mExtW.identity();
 		ik.mEndW.set_translation(effPos);
