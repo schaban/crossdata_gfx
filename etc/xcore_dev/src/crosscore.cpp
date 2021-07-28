@@ -5041,6 +5041,35 @@ void cxColor::decode_bgr565(uint16_t bgr) {
 }
 
 
+xt_float3 sxToneMap::get_inv_white() const {
+	xt_float3 iw;
+	for (int i = 0; i < 3; ++i) {
+		iw[i] = nxCalc::rcp0(mLinWhite[i]);
+	}
+	return iw;
+}
+
+cxColor sxToneMap::apply(const cxColor& c) const {
+	cxColor res;
+	xt_float3 iw = get_inv_white();
+	for (int i = 0; i < 3; ++i) {
+		float cc = c.ch[i];
+		res.ch[i] = nxCalc::div0((cc * (1.0f + cc*iw[i])), 1.0f + cc);
+	}
+	for (int i = 0; i < 3; ++i) {
+		res.ch[i] *= mLinGain[i];
+	}
+	for (int i = 0; i < 3; ++i) {
+		res.ch[i] += mLinBias[i];
+	}
+	for (int i = 0; i < 3; ++i) {
+		res.ch[i] = nxCalc::max(res.ch[i], 0.0f);
+	}
+	res.a = c.a;
+	return res;
+}
+
+
 XD_NOINLINE float sxView::get_aspect() const {
 	float aspect = get_native_aspect();
 	if (mMode == Mode::ROT_L90 || mMode == Mode::ROT_R90) {

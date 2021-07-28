@@ -495,7 +495,7 @@ inline float tcos(float x) { return ::cosf(x); }
 template<typename T> inline T tpow(T x, T y) { return T(::pow((double)x, (double)y)); }
 inline float tpow(float x, float y) { return ::powf(x, y); }
 
-template<typename T> inline T ipow(T x, int n) {
+template<typename T> inline T ipow(const T x, const int n) {
 	T wx = x;
 	int wn = n;
 	if (n < 0) {
@@ -511,34 +511,34 @@ template<typename T> inline T ipow(T x, int n) {
 	return res;
 }
 
-inline float hypot(float x, float y) {
+inline float hypot(const float x, const float y) {
 	float m = max(::fabsf(x), ::fabsf(y));
 	float im = rcp0(m);
 	return ::sqrtf(sq(x*im) + sq(y*im)) * m;
 }
 
-inline double hypot(double x, double y) {
+inline double hypot(const double x, const double y) {
 	double m = max(::fabs(x), ::fabs(y));
 	double im = rcp0(m);
 	return ::sqrt(sq(x*im) + sq(y*im)) * m;
 }
 
-inline float cb_root(float x) {
+inline float cb_root(const float x) {
 	float a = ::fabsf(x);
 	float r = ::expf(::logf(a) * (1.0f / 3.0f));
 	return x < 0.0f ? -r : r;
 }
 
-inline float lerp(float a, float b, float t) { return a + (b - a)*t; }
+inline float lerp(const float a, const float b, const float t) { return a + (b - a)*t; }
 
-inline float sinc(float x) {
+inline float sinc(const float x) {
 	if (::fabsf(x) < 1.0e-4f) {
 		return 1.0f;
 	}
 	return (::sinf(x) / x);
 }
 
-template<typename T> inline T approach(const T& val, const T& dst, int t) {
+template<typename T> inline T approach(const T& val, const T& dst, const int t) {
 	float ft = float(t < 1 ? 1 : t);
 	return (val*(ft - 1.0f) + dst) * (1.0f / ft);
 }
@@ -3405,6 +3405,28 @@ inline cxColor scl_rgb(const cxColor& c, const cxColor& s) {
 
 } // nxColor
 
+
+struct sxToneMap {
+	xt_float3 mLinWhite;
+	xt_float3 mLinGain;
+	xt_float3 mLinBias;
+
+	void set_linear_white(const float val) { mLinWhite.fill(val); }
+	void set_linear_white_rgb(const float r, const float g, const float b) { mLinWhite.set(r, g, b); }
+	void set_linear_gain(const float val) { mLinGain.fill(val); }
+	void set_linear_gain_rgb(const float r, const float g, const float b) { mLinGain.set(r, g, b); }
+	void set_linear_bias(const float val) { mLinBias.fill(val); }
+	void set_linear_bias_rgb(const float r, const float g, const float b) { mLinBias.set(r, g, b); }
+
+	xt_float3 get_inv_white() const;
+	cxColor apply(const cxColor& c) const;
+
+	void reset() {
+		set_linear_white(1.0f);
+		set_linear_gain(1.0f);
+		set_linear_bias(0.0f);
+	}
+};
 
 struct sxView {
 	enum class Mode {
