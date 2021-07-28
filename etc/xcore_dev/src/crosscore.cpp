@@ -5082,6 +5082,16 @@ XD_NOINLINE float sxView::calc_fovx() const {
 	return 2.0f * ::atanf(::tanf(XD_DEG2RAD(mDegFOVY) * 0.5f) * get_aspect());
 }
 
+XD_NOINLINE cxVec sxView::get_uv_dir(const float u, const float v) {
+	float nu = nxCalc::fit(u, 0.0f, 1.0f, -1.0f, 1.0f);
+	float nv = nxCalc::fit(v, 0.0f, 1.0f, -1.0f, 1.0f);
+	cxVec dir(nu, nv, 1.0f);
+	dir = mInvProjMtx.calc_pnt(dir);
+	dir.normalize();
+	dir = mInvViewMtx.calc_vec(dir);
+	return dir;
+}
+
 XD_NOINLINE cxMtx sxView::get_mode_mtx() const {
 	cxMtx m;
 	switch (mMode) {
@@ -5130,14 +5140,20 @@ XD_NOINLINE void sxView::update() {
 	mFrustum.init(mInvViewMtx, fovy, aspect, mNear, mFar);
 }
 
-XD_NOINLINE cxVec sxView::get_uv_dir(const float u, const float v) {
-	float nu = nxCalc::fit(u, 0.0f, 1.0f, -1.0f, 1.0f);
-	float nv = nxCalc::fit(v, 0.0f, 1.0f, -1.0f, 1.0f);
-	cxVec dir(nu, nv, 1.0f);
-	dir = mInvProjMtx.calc_pnt(dir);
-	dir.normalize();
-	dir = mInvViewMtx.calc_vec(dir);
-	return dir;
+XD_NOINLINE bool sxView::ck_sphere_visibility(const cxSphere& sph, const bool exact) const {
+	bool vis = !mFrustum.cull(sph);
+	if (vis && exact) {
+		vis = mFrustum.overlaps(sph);
+	}
+	return vis;
+}
+
+XD_NOINLINE bool sxView::ck_box_visibility(const cxAABB& box, const bool exact) const {
+	bool vis = !mFrustum.cull(box);
+	if (vis && exact) {
+		vis = mFrustum.overlaps(box);
+	}
+	return vis;
 }
 
 

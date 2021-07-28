@@ -3486,6 +3486,9 @@ struct sxView {
 	void init(const int width = 800, const int height = 600);
 	void reset() { init(); }
 	void update();
+
+	bool ck_sphere_visibility(const cxSphere& sph, const bool exact = true) const;
+	bool ck_box_visibility(const cxAABB& box, const bool exact = true) const;
 };
 
 
