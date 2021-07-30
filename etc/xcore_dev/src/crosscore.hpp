@@ -3491,6 +3491,65 @@ struct sxView {
 	bool ck_box_visibility(const cxAABB& box, const bool exact = true) const;
 };
 
+struct sxHemisphereLight {
+	xt_float3 mUpper;
+	xt_float3 mLower;
+	xt_float3 mUp;
+	float mExp;
+	float mGain;
+
+	void set_upvec(const cxVec& v) {
+		cxVec n = v.get_normalized();
+		mUp.set(n.x, n.y, n.z);
+	}
+
+	void reset() {
+		mUpper.set(1.1f, 1.09f, 1.12f);
+		mLower.set(0.12f, 0.08f, 0.06f);
+		mUp.set(0.0f, 1.0f, 0.0f);
+		mExp = 1.0f;
+		mGain = 1.0f;
+	}
+
+	cxColor eval(const cxVec& v) const;
+};
+
+struct sxFog {
+	xt_float4 mColor;
+	xt_float4 mParam;
+
+	void set_rgb(const float r, const float g, const float b) {
+		mColor.x = r;
+		mColor.y = g;
+		mColor.z = b;
+	}
+
+	void set_density(const float a) {
+		mColor.w = nxCalc::max(a, 0.0f);
+	}
+
+	void set_range(const float start, const float end) {
+		mParam.x = start;
+		mParam.y = nxCalc::rcp0(end - start);
+	}
+
+	void set_curve(const float cp1, const float cp2) {
+		mParam.z = cp1;
+		mParam.w = cp2;
+	}
+
+	void set_linear() {
+		set_curve(1.0f / 3.0f, 2.0f / 3.0f);
+	}
+
+	void reset() {
+		set_rgb(1.0f, 1.0f, 1.0f);
+		set_density(0.0f);
+		set_range(10.0f, 1000.0f);
+		set_linear();
+	}
+};
+
 
 struct sxCompiledExpression;
 

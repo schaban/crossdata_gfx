@@ -5156,6 +5156,17 @@ XD_NOINLINE bool sxView::ck_box_visibility(const cxAABB& box, const bool exact) 
 	return vis;
 }
 
+XD_NOINLINE cxColor sxHemisphereLight::eval(const cxVec& v) const {
+	float val = (v.dot(cxVec(mUp.x, mUp.y, mUp.z)) + 1.0f) * 0.5f;
+	val = nxCalc::saturate(::powf(val, mExp) * mGain);
+	cxColor clr(
+		nxCalc::lerp(mLower.x, mUpper.x, val),
+		nxCalc::lerp(mLower.y, mUpper.y, val),
+		nxCalc::lerp(mLower.z, mUpper.z, val)
+		);
+	return clr;
+}
+
 
 namespace nxSH {
 
