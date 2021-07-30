@@ -275,7 +275,6 @@ namespace Draw {
 			float densBias;
 			float offsBias;
 			float wghtBias;
-			float objWghtBias;
 			float fadeStart;
 			float fadeEnd;
 
