@@ -1195,7 +1195,7 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 		}
 	} else {
 		bool recvFlg = pMtl->mFlags.shadowRecv && (s_shadowFBO != 0) && (s_shadowCastCnt > 0) && (pCtx->shadow.get_density() > 0.0f);
-		bool specFlg = pCtx->glb.useSpec && pCtx->spec.enabled && pMtl->mFlags.baseMapSpecAlpha;
+		bool specFlg = pCtx->glb.useSpec && pCtx->spec.mEnabled && pMtl->mFlags.baseMapSpecAlpha;
 		if (recvFlg) {
 			if (pWk->mBoundsValid && pWk->mpBatBBoxes) {
 				recvFlg = pCtx->ck_bbox_shadow_receive(pWk->mpBatBBoxes[ibat]);
@@ -1497,8 +1497,8 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 
 	pProg->use();
 
-	pProg->set_view_proj(isShadowCast ? pCtx->shadow.viewProjMtx : pCtx->view.viewProjMtx);
-	pProg->set_view_pos(pCtx->view.pos);
+	pProg->set_view_proj(isShadowCast ? pCtx->shadow.mViewProjMtx : pCtx->view.mViewProjMtx);
+	pProg->set_view_pos(pCtx->view.mPos);
 
 	if (HAS_PARAM(World)) {
 		xt_xmtx wm;
@@ -1550,24 +1550,24 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		pProg->set_pos_scale(posScale);
 	}
 
-	pProg->set_hemi_upper(pCtx->hemi.upper);
-	pProg->set_hemi_lower(pCtx->hemi.lower);
-	pProg->set_hemi_up(pCtx->hemi.up);
+	pProg->set_hemi_upper(pCtx->hemi.mUpper);
+	pProg->set_hemi_lower(pCtx->hemi.mLower);
+	pProg->set_hemi_up(pCtx->hemi.mUp);
 	if (HAS_PARAM(HemiParam)) {
 		xt_float3 hparam;
-		hparam.set(pCtx->hemi.exp, pCtx->hemi.gain, 0.0f);
+		hparam.set(pCtx->hemi.mExp, pCtx->hemi.mGain, 0.0f);
 		pProg->set_hemi_param(hparam);
 	}
 
-	pProg->set_spec_light_dir(pCtx->spec.dir);
+	pProg->set_spec_light_dir(pCtx->spec.mDir);
 	if (HAS_PARAM(SpecLightColor)) {
 		xt_float4 sclr;
-		::memcpy(sclr, pCtx->spec.clr, sizeof(xt_float3));
-		sclr.w = pCtx->spec.shadowing;
+		::memcpy(sclr, pCtx->spec.mClr, sizeof(xt_float3));
+		sclr.w = pCtx->spec.mShadowing;
 		pProg->set_spec_light_color(sclr);
 	}
 
-	pProg->set_shadow_mtx(pCtx->shadow.mtx);
+	pProg->set_shadow_mtx(pCtx->shadow.mMtx);
 
 	if (HAS_PARAM(ShadowSize)) {
 		float ss = float(s_shadowSize);
@@ -1584,10 +1584,10 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 			swght += pParam->shadowWeightBias;
 		}
 		if (swght > 0.0f) {
-			swght = nxCalc::max(swght + pCtx->shadow.wghtBias, 1.0f);
+			swght = nxCalc::max(swght + pCtx->shadow.mWghtBias, 1.0f);
 		}
 
-		float soffs = pMtl->mShadowOffs + pCtx->shadow.offsBias;
+		float soffs = pMtl->mShadowOffs + pCtx->shadow.mOffsBias;
 		if (pParam) {
 			soffs += pParam->shadowOffsBias;
 		}
@@ -1603,7 +1603,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 
 	if (HAS_PARAM(ShadowFade)) {
 		xt_float4 shadowFade;
-		shadowFade.set(pCtx->shadow.fadeStart, nxCalc::rcp0(pCtx->shadow.fadeEnd - pCtx->shadow.fadeStart), 0.0f, 0.0f);
+		shadowFade.set(pCtx->shadow.mFadeStart, nxCalc::rcp0(pCtx->shadow.mFadeEnd - pCtx->shadow.mFadeStart), 0.0f, 0.0f);
 		pProg->set_shadow_fade(shadowFade);
 	}
 
@@ -1645,24 +1645,14 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		pProg->set_alpha_ctrl(alphaCtrl);
 	}
 
-	pProg->set_fog_color(pCtx->fog.color);
-	pProg->set_fog_param(pCtx->fog.param);
+	pProg->set_fog_color(pCtx->fog.mColor);
+	pProg->set_fog_param(pCtx->fog.mParam);
 
-	if (HAS_PARAM(InvWhite)) {
-		xt_float3 invWhite;
-		invWhite.set(nxCalc::rcp0(pCtx->cc.linWhite.x), nxCalc::rcp0(pCtx->cc.linWhite.y), nxCalc::rcp0(pCtx->cc.linWhite.z));
-		pProg->set_inv_white(invWhite);
-	}
-
-	pProg->set_lclr_gain(pCtx->cc.linGain);
-	pProg->set_lclr_bias(pCtx->cc.linBias);
-	pProg->set_exposure(pCtx->cc.exposure);
-
-	if (HAS_PARAM(InvGamma)) {
-		xt_float3 invGamma;
-		invGamma.set(nxCalc::rcp0(pCtx->cc.gamma.x), nxCalc::rcp0(pCtx->cc.gamma.y), nxCalc::rcp0(pCtx->cc.gamma.z));
-		pProg->set_inv_gamma(invGamma);
-	}
+	pProg->set_inv_white(pCtx->cc.mToneMap.get_inv_white());
+	pProg->set_lclr_gain(pCtx->cc.mToneMap.mLinGain);
+	pProg->set_lclr_bias(pCtx->cc.mToneMap.mLinBias);
+	pProg->set_exposure(pCtx->cc.mExposure);
+	pProg->set_inv_gamma(pCtx->cc.get_inv_gamma());
 
 	if (pProg->mSmpLink.Base >= 0) {
 		GLuint htex = 0;

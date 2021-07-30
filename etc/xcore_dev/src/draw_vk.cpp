@@ -1315,7 +1315,7 @@ void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode,
 		0.0f,  0.0f, 1.0f, 0.0f,
 		0.0f,  0.0f, 0.0f, 1.0f,
 	};
-	mXformWk.viewProj = pCtx->view.viewProjMtx * nxMtx::from_mem(yflipMtx);
+	mXformWk.viewProj = pCtx->view.mViewProjMtx * nxMtx::from_mem(yflipMtx);
 	int xformsNum = 1;
 	if (pWk->mpSkinXforms) {
 		xformsNum = pMdl->mSknNum;

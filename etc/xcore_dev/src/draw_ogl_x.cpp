@@ -304,9 +304,7 @@ static void release_model(sxModelData* pMdl) {
 static void def_tex_params(const bool mipmapEnabled) {
 	if (s_useMipmaps && mipmapEnabled) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-#if !OGLSYS_ES
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -1);
-#endif
+		OGLSys::set_tex2d_lod_bias(-1);
 	} else {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	}
@@ -790,7 +788,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 
 	if (vtxJMap) {
 		if (s_gpLocViewProj >= 0) {
-			glUniformMatrix4fv(s_gpLocViewProj, 1, GL_FALSE, pCtx->view.viewProjMtx);
+			glUniformMatrix4fv(s_gpLocViewProj, 1, GL_FALSE, pCtx->view.mViewProjMtx);
 		}
 		if (s_gpLocXforms >= 0) {
 			xt_xmtx xforms[MAX_BAT_XFORMS];
@@ -816,7 +814,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 			glUniform4fv(s_gpLocXformMap, MAX_XFORMS / 4, xmap);
 		}
 	} else {
-		s_gpXform.viewProj = pCtx->view.viewProjMtx;
+		s_gpXform.viewProj = pCtx->view.mViewProjMtx;
 		int xformsNum = 1;
 		if (pWk->mpSkinXforms) {
 			xformsNum = pMdl->mSknNum;
@@ -852,7 +850,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		}
 	}
 
-	s_gbufParamsGPWPos.set("gpWPosOffs", pCtx->view.pos);
+	s_gbufParamsGPWPos.set("gpWPosOffs", pCtx->view.mPos);
 	s_gbufParamsGPWPos.send();
 	s_gbufParamsGPWPos.bind();
 
@@ -868,7 +866,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		}
 	}
 
-	bool specFlg = pCtx->glb.useSpec && pCtx->spec.enabled && pMtl->mFlags.baseMapSpecAlpha;
+	bool specFlg = pCtx->glb.useSpec && pCtx->spec.mEnabled && pMtl->mFlags.baseMapSpecAlpha;
 	float specScl = 0.0f;
 	if (specFlg) {
 		specScl = (pMtl->mSpecColor.x + pMtl->mSpecColor.y + pMtl->mSpecColor.z) / 3.0f;
@@ -1136,12 +1134,12 @@ static void end() {
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, s_gbPosTex);
 			glUniform1i(s_locSmpDispFog, 0);
-			s_dispFogParamsGPWPos.set("gpWPosOffs", pCtx->view.pos);
+			s_dispFogParamsGPWPos.set("gpWPosOffs", pCtx->view.mPos);
 			s_dispFogParamsGPWPos.bind();
 			s_dispFogParamsGPWPos.send();
-			s_dispFogParamsGPFog.set("gpFogViewPos", pCtx->view.pos);
-			s_dispFogParamsGPFog.set("gpFogColor", pCtx->fog.color);
-			s_dispFogParamsGPFog.set("gpFogParam", pCtx->fog.param);
+			s_dispFogParamsGPFog.set("gpFogViewPos", pCtx->view.mPos);
+			s_dispFogParamsGPFog.set("gpFogColor", pCtx->fog.mColor);
+			s_dispFogParamsGPFog.set("gpFogParam", pCtx->fog.mParam);
 			s_dispFogParamsGPFog.bind();
 			s_dispFogParamsGPFog.send();
 			glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -1159,11 +1157,11 @@ static void end() {
 			glBindTexture(GL_TEXTURE_2D, s_gbNrmTex);
 			glUniform1i(s_locSmpHemiNrm, 2);
 			if (pCtx) {
-				s_hemiParamsGPHemi.set("gpHemiUpper", pCtx->hemi.upper);
-				s_hemiParamsGPHemi.set("gpHemiLower", pCtx->hemi.lower);
-				s_hemiParamsGPHemi.set("gpHemiUp", pCtx->hemi.up);
-				s_hemiParamsGPHemi.set("gpHemiExp", pCtx->hemi.exp);
-				s_hemiParamsGPHemi.set("gpHemiGain", pCtx->hemi.gain);
+				s_hemiParamsGPHemi.set("gpHemiUpper", pCtx->hemi.mUpper);
+				s_hemiParamsGPHemi.set("gpHemiLower", pCtx->hemi.mLower);
+				s_hemiParamsGPHemi.set("gpHemiUp", pCtx->hemi.mUp);
+				s_hemiParamsGPHemi.set("gpHemiExp", pCtx->hemi.mExp);
+				s_hemiParamsGPHemi.set("gpHemiGain", pCtx->hemi.mGain);
 			} else {
 				s_hemiParamsGPHemi.set("gpHemiUpper", 1.0f);
 				s_hemiParamsGPHemi.set("gpHemiLower", 0.1f);
@@ -1188,11 +1186,11 @@ static void end() {
 			glBindTexture(GL_TEXTURE_2D, s_gbNrmTex);
 			glUniform1i(s_locSmpHemiCcNrm, 2);
 			if (pCtx) {
-				s_hemiccParamsGPHemi.set("gpHemiUpper", pCtx->hemi.upper);
-				s_hemiccParamsGPHemi.set("gpHemiLower", pCtx->hemi.lower);
-				s_hemiccParamsGPHemi.set("gpHemiUp", pCtx->hemi.up);
-				s_hemiccParamsGPHemi.set("gpHemiExp", pCtx->hemi.exp);
-				s_hemiccParamsGPHemi.set("gpHemiGain", pCtx->hemi.gain);
+				s_hemiccParamsGPHemi.set("gpHemiUpper", pCtx->hemi.mUpper);
+				s_hemiccParamsGPHemi.set("gpHemiLower", pCtx->hemi.mLower);
+				s_hemiccParamsGPHemi.set("gpHemiUp", pCtx->hemi.mUp);
+				s_hemiccParamsGPHemi.set("gpHemiExp", pCtx->hemi.mExp);
+				s_hemiccParamsGPHemi.set("gpHemiGain", pCtx->hemi.mGain);
 			} else {
 				s_hemiccParamsGPHemi.set("gpHemiUpper", 1.0f);
 				s_hemiccParamsGPHemi.set("gpHemiLower", 0.1f);
@@ -1201,11 +1199,11 @@ static void end() {
 				s_hemiccParamsGPHemi.set("gpHemiGain", 0.0f);
 			}
 			if (pCtx) {
-				s_hemiccParamsGPColor.set("gpInvWhite", nxCalc::rcp0(pCtx->cc.linWhite.x), nxCalc::rcp0(pCtx->cc.linWhite.y), nxCalc::rcp0(pCtx->cc.linWhite.z));
-				s_hemiccParamsGPColor.set("gpLClrGain", pCtx->cc.linGain);
-				s_hemiccParamsGPColor.set("gpLClrBias", pCtx->cc.linBias);
-				s_hemiccParamsGPColor.set("gpExposure", pCtx->cc.exposure);
-				s_hemiccParamsGPColor.set("gpInvGamma", nxCalc::rcp0(pCtx->cc.gamma.x), nxCalc::rcp0(pCtx->cc.gamma.y), nxCalc::rcp0(pCtx->cc.gamma.z));
+				s_hemiccParamsGPColor.set("gpInvWhite", pCtx->cc.mToneMap.get_inv_white());
+				s_hemiccParamsGPColor.set("gpLClrGain", pCtx->cc.mToneMap.mLinGain);
+				s_hemiccParamsGPColor.set("gpLClrBias", pCtx->cc.mToneMap.mLinBias);
+				s_hemiccParamsGPColor.set("gpExposure", pCtx->cc.mExposure);
+				s_hemiccParamsGPColor.set("gpInvGamma", pCtx->cc.get_inv_gamma());
 			} else {
 				s_hemiccParamsGPColor.set("gpInvWhite", 1.0f);
 				s_hemiccParamsGPColor.set("gpLClrGain", 2.0f);
@@ -1235,11 +1233,11 @@ static void end() {
 			glBindTexture(GL_TEXTURE_2D, s_gbPosTex);
 			glUniform1i(s_locSmpHemiFogCcPos, 3);
 			if (pCtx) {
-				s_hemifogccParamsGPHemi.set("gpHemiUpper", pCtx->hemi.upper);
-				s_hemifogccParamsGPHemi.set("gpHemiLower", pCtx->hemi.lower);
-				s_hemifogccParamsGPHemi.set("gpHemiUp", pCtx->hemi.up);
-				s_hemifogccParamsGPHemi.set("gpHemiExp", pCtx->hemi.exp);
-				s_hemifogccParamsGPHemi.set("gpHemiGain", pCtx->hemi.gain);
+				s_hemifogccParamsGPHemi.set("gpHemiUpper", pCtx->hemi.mUpper);
+				s_hemifogccParamsGPHemi.set("gpHemiLower", pCtx->hemi.mLower);
+				s_hemifogccParamsGPHemi.set("gpHemiUp", pCtx->hemi.mUp);
+				s_hemifogccParamsGPHemi.set("gpHemiExp", pCtx->hemi.mExp);
+				s_hemifogccParamsGPHemi.set("gpHemiGain", pCtx->hemi.mGain);
 			} else {
 				s_hemifogccParamsGPHemi.set("gpHemiUpper", 1.0f);
 				s_hemifogccParamsGPHemi.set("gpHemiLower", 0.1f);
@@ -1250,11 +1248,11 @@ static void end() {
 			s_hemifogccParamsGPHemi.bind();
 			s_hemifogccParamsGPHemi.send();
 			if (pCtx) {
-				s_hemifogccParamsGPColor.set("gpInvWhite", nxCalc::rcp0(pCtx->cc.linWhite.x), nxCalc::rcp0(pCtx->cc.linWhite.y), nxCalc::rcp0(pCtx->cc.linWhite.z));
-				s_hemifogccParamsGPColor.set("gpLClrGain", pCtx->cc.linGain);
-				s_hemifogccParamsGPColor.set("gpLClrBias", pCtx->cc.linBias);
-				s_hemifogccParamsGPColor.set("gpExposure", pCtx->cc.exposure);
-				s_hemifogccParamsGPColor.set("gpInvGamma", nxCalc::rcp0(pCtx->cc.gamma.x), nxCalc::rcp0(pCtx->cc.gamma.y), nxCalc::rcp0(pCtx->cc.gamma.z));
+				s_hemiccParamsGPColor.set("gpInvWhite", pCtx->cc.mToneMap.get_inv_white());
+				s_hemiccParamsGPColor.set("gpLClrGain", pCtx->cc.mToneMap.mLinGain);
+				s_hemiccParamsGPColor.set("gpLClrBias", pCtx->cc.mToneMap.mLinBias);
+				s_hemiccParamsGPColor.set("gpExposure", pCtx->cc.mExposure);
+				s_hemiccParamsGPColor.set("gpInvGamma", pCtx->cc.get_inv_gamma());
 			} else {
 				s_hemifogccParamsGPColor.set("gpInvWhite", 1.0f);
 				s_hemifogccParamsGPColor.set("gpLClrGain", 2.0f);
@@ -1264,12 +1262,12 @@ static void end() {
 			}
 			s_hemifogccParamsGPColor.bind();
 			s_hemifogccParamsGPColor.send();
-			s_hemifogccParamsGPWPos.set("gpWPosOffs", pCtx->view.pos);
+			s_hemifogccParamsGPWPos.set("gpWPosOffs", pCtx->view.mPos);
 			s_hemifogccParamsGPWPos.bind();
 			s_hemifogccParamsGPWPos.send();
-			s_hemifogccParamsGPFog.set("gpFogViewPos", pCtx->view.pos);
-			s_hemifogccParamsGPFog.set("gpFogColor", pCtx->fog.color);
-			s_hemifogccParamsGPFog.set("gpFogParam", pCtx->fog.param);
+			s_hemifogccParamsGPFog.set("gpFogViewPos", pCtx->view.mPos);
+			s_hemifogccParamsGPFog.set("gpFogColor", pCtx->fog.mColor);
+			s_hemifogccParamsGPFog.set("gpFogParam", pCtx->fog.mParam);
 			s_hemifogccParamsGPFog.bind();
 			s_hemifogccParamsGPFog.send();
 			glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -1302,5 +1300,4 @@ struct DrwInit {
 } s_drwInit;
 
 DRW_IMPL_END
-
 

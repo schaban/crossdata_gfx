@@ -637,80 +637,80 @@ uint64_t glb_rng_next() {
 static void update_view() {
 	if (s_viewUpdateFlg) {
 		if (s_pDraw) {
-			s_drwCtx.view.update(s_pDraw->get_screen_width(), s_pDraw->get_screen_height());
+			s_drwCtx.view.set_window(s_pDraw->get_screen_width(), s_pDraw->get_screen_height());
+			s_drwCtx.view.update();
 		}
 	}
 	s_viewUpdateFlg = false;
 }
 
 void set_view(const cxVec& pos, const cxVec& tgt, const cxVec& up) {
-	s_drwCtx.view.set_view(pos, tgt, up);
+	s_drwCtx.view.set_frame(pos, tgt, up);
 	s_viewUpdateFlg = true;
 	s_shadowUpdateFlg = true;
 }
 
 void set_view_range(const float znear, const float zfar) {
-	s_drwCtx.view.znear = znear;
-	s_drwCtx.view.zfar = zfar;
+	s_drwCtx.view.set_range(znear, zfar);
 	s_viewUpdateFlg = true;
 	s_shadowUpdateFlg = true;
 }
 
 void set_deg_FOVY(const float fovy) {
-	s_drwCtx.view.degFOVY = fovy;
+	s_drwCtx.view.set_deg_fovy(fovy);
 	s_viewUpdateFlg = true;
 	s_shadowUpdateFlg = true;
 }
 
 const cxFrustum* get_view_frustum_ptr() {
 	update_view();
-	return &s_drwCtx.view.frustum;
+	return &s_drwCtx.view.mFrustum;
 }
 
 cxMtx get_view_mtx() {
 	update_view();
-	return s_drwCtx.view.viewMtx;
+	return s_drwCtx.view.mViewMtx;
 }
 
 cxMtx get_view_proj_mtx() {
 	update_view();
-	return s_drwCtx.view.viewProjMtx;
+	return s_drwCtx.view.mViewProjMtx;
 }
 
 cxMtx get_proj_mtx() {
 	update_view();
-	return s_drwCtx.view.projMtx;
+	return s_drwCtx.view.mProjMtx;
 }
 
 cxMtx get_inv_view_mtx() {
 	update_view();
-	return s_drwCtx.view.invViewMtx;
+	return s_drwCtx.view.mInvViewMtx;
 }
 
 cxMtx get_inv_proj_mtx() {
 	update_view();
-	return s_drwCtx.view.invProjMtx;
+	return s_drwCtx.view.mInvProjMtx;
 }
 
 cxMtx get_inv_view_proj_mtx() {
 	update_view();
-	return s_drwCtx.view.invViewProjMtx;
+	return s_drwCtx.view.mInvViewProjMtx;
 }
 
 cxMtx get_view_mode_mtx() {
-	return s_drwCtx.view.get_rot_mode_mtx();
+	return s_drwCtx.view.get_mode_mtx();
 }
 
 cxVec get_view_pos() {
-	return s_drwCtx.view.pos;
+	return s_drwCtx.view.mPos;
 }
 
 cxVec get_view_tgt() {
-	return s_drwCtx.view.tgt;
+	return s_drwCtx.view.mTgt;
 }
 
 cxVec get_view_up() {
-	return s_drwCtx.view.up;
+	return s_drwCtx.view.mUp;
 }
 
 cxVec get_view_dir() {
@@ -718,15 +718,15 @@ cxVec get_view_dir() {
 }
 
 float get_view_near() {
-	return s_drwCtx.view.znear;
+	return s_drwCtx.view.mNear;
 }
 
 float get_view_far() {
-	return s_drwCtx.view.zfar;
+	return s_drwCtx.view.mFar;
 }
 
 bool is_rot_view() {
-	return s_drwCtx.view.rotMode != 0;
+	return s_drwCtx.view.mMode != sxView::Mode::STANDARD;
 }
 
 bool is_sphere_visible(const cxSphere& sph, const bool exact) {
@@ -751,16 +751,16 @@ void set_shadow_uniform(const bool flg) {
 }
 
 void set_shadow_density(const float dens) {
-	s_drwCtx.shadow.dens = dens;
+	s_drwCtx.shadow.mDens = dens;
 }
 
 void set_shadow_density_bias(const float bias) {
-	s_drwCtx.shadow.densBias = bias;
+	s_drwCtx.shadow.mDensBias = bias;
 }
 
 void set_shadow_fade(const float start, const float end) {
-	s_drwCtx.shadow.fadeStart = start;
-	s_drwCtx.shadow.fadeEnd = end;
+	s_drwCtx.shadow.mFadeStart = start;
+	s_drwCtx.shadow.mFadeEnd = end;
 }
 
 void set_shadow_proj_params(const float size, const float margin, const float dist) {
@@ -781,7 +781,7 @@ void set_shadow_dir_degrees(const float dx, const float dy) {
 }
 
 cxVec get_shadow_dir() {
-	return s_drwCtx.shadow.dir;
+	return s_drwCtx.shadow.mDir;
 }
 
 static void update_shadow_uni() {
@@ -790,11 +790,11 @@ static void update_shadow_uni() {
 	}
 	Draw::Context* pCtx = &s_drwCtx;
 	cxMtx view;
-	cxVec vpos = pCtx->view.pos;
-	cxVec vtgt = pCtx->view.tgt;
+	cxVec vpos = pCtx->view.mPos;
+	cxVec vtgt = pCtx->view.mTgt;
 	cxVec vvec = vpos - vtgt;
 	float ext = s_smapMargin;
-	cxVec dir = pCtx->shadow.dir.get_normalized();
+	cxVec dir = pCtx->shadow.mDir.get_normalized();
 	cxVec tgt = vpos - vvec;
 	cxVec pos = tgt - dir*ext;
 	cxVec up(0.0f, 1.0f, 0.0f);
@@ -806,7 +806,7 @@ static void update_shadow_uni() {
 	proj.m[1][1] = proj.m[0][0];
 	proj.m[2][2] = nxCalc::rcp0(1.0f - (ext + dist));
 	proj.m[3][2] = proj.m[2][2];
-	pCtx->shadow.viewProjMtx = view * proj;
+	pCtx->shadow.mViewProjMtx = view * proj;
 }
 
 static void update_shadow_persp() {
@@ -819,7 +819,7 @@ static void update_shadow_persp() {
 	cxMtx mtxInvProj = Scene::get_inv_proj_mtx();
 	cxMtx mtxViewProj = Scene::get_view_proj_mtx();
 	cxMtx mtxInvViewProj = Scene::get_inv_view_proj_mtx();
-	cxVec dir = pCtx->shadow.dir.get_normalized();
+	cxVec dir = pCtx->shadow.mDir.get_normalized();
 
 	if (is_rot_view()) {
 		cxMtx mm = get_view_mode_mtx().get_inverted();
@@ -941,7 +941,7 @@ static void update_shadow_persp() {
 	fm.m[3][2] = vt.z;
 	fm = cm * fm;
 
-	pCtx->shadow.viewProjMtx = vm * fm;
+	pCtx->shadow.mViewProjMtx = vm * fm;
 }
 
 static void update_shadow() {
@@ -952,7 +952,7 @@ static void update_shadow() {
 	}
 	if (s_shadowUpdateFlg) {
 		if (s_pDraw) {
-			s_drwCtx.shadow.mtx = s_drwCtx.shadow.viewProjMtx * s_pDraw->get_shadow_bias_mtx();
+			s_drwCtx.shadow.mMtx = s_drwCtx.shadow.mViewProjMtx * s_pDraw->get_shadow_bias_mtx();
 		}
 	}
 	s_shadowUpdateFlg = false;
@@ -960,15 +960,15 @@ static void update_shadow() {
 
 cxMtx get_shadow_view_proj_mtx() {
 	update_shadow();
-	return s_drwCtx.shadow.viewProjMtx;
+	return s_drwCtx.shadow.mViewProjMtx;
 }
 
 void set_hemi_upper(const float r, const float g, const float b) {
-	s_drwCtx.hemi.upper.set(r, g, b);
+	s_drwCtx.hemi.mUpper.set(r, g, b);
 }
 
 void set_hemi_lower(const float r, const float g, const float b) {
-	s_drwCtx.hemi.lower.set(r, g, b);
+	s_drwCtx.hemi.mLower.set(r, g, b);
 }
 
 void set_hemi_const(const float r, const float g, const float b) {
@@ -981,11 +981,11 @@ void set_hemi_const(const float val) {
 }
 
 void scl_hemi_upper(const float s) {
-	s_drwCtx.hemi.upper.scl(s);
+	s_drwCtx.hemi.mUpper.scl(s);
 }
 
 void scl_hemi_lower(const float s) {
-	s_drwCtx.hemi.lower.scl(s);
+	s_drwCtx.hemi.mLower.scl(s);
 }
 
 void set_hemi_up(const cxVec& v) {
@@ -993,11 +993,11 @@ void set_hemi_up(const cxVec& v) {
 }
 
 void set_hemi_exp(const float e) {
-	s_drwCtx.hemi.exp = e;
+	s_drwCtx.hemi.mExp = e;
 }
 
 void set_hemi_gain(const float g) {
-	s_drwCtx.hemi.gain = g;
+	s_drwCtx.hemi.mGain = g;
 }
 
 void reset_hemi() {
@@ -1017,7 +1017,7 @@ void set_spec_rgb(const float r, const float g, const float b) {
 }
 
 void set_spec_shadowing(const float s) {
-	s_drwCtx.spec.shadowing = nxCalc::saturate(s);
+	s_drwCtx.spec.mShadowing = nxCalc::saturate(s);
 }
 
 void set_fog_rgb(const float r, const float g, const float b) {
@@ -1870,15 +1870,15 @@ static void obj_bat_draw(ScnObj* pObj, const int ibat, const Draw::Mode mode) {
 	Scene::update_shadow();
 	Draw::Context* pCtx = &s_drwCtx;
 	if (s_pDraw) {
-		pCtx->view.rotMode = s_viewRot;
+		pCtx->view.mMode = (sxView::Mode)s_viewRot;
 		pCtx->glb.useBump = s_useBump;
 		pCtx->glb.useSpec = s_useSpec;
-		float sdens = pCtx->shadow.dens;
+		float sdens = pCtx->shadow.mDens;
 		if (!isShadowcast && pObj->mDisableShadowRecv) {
-			pCtx->shadow.dens = 0.0f;
+			pCtx->shadow.mDens = 0.0f;
 		}
 		s_pDraw->batch(pWk, ibat, mode, pCtx);
-		pCtx->shadow.dens = sdens;
+		pCtx->shadow.mDens = sdens;
 	}
 	if (!isShadowcast) {
 		if (pObj->mBatchPostDrawFunc) {
