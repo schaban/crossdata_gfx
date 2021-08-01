@@ -76,22 +76,22 @@ static GLuint load_shader(const char* pName) {
 #if OGLSYS_ES
 			sid = OGLSys::compile_shader_str(pSrc, srcSize, kind);
 #else
-			static const char* pVerStr;
+			static const char* pPreStr;
 #	if defined(OGLSYS_WEB)
 			if (kind == GL_VERTEX_SHADER) {
-				pVerStr = "#version 100\n#define WEBGL\n";
+				pPreStr = "#version 100\n#define WEBGL\n";
 			} else {
-				pVerStr = "#version 100\n";
+				pPreStr = "#version 100\n";
 			}
 #	else
-			pVerStr = "#version 120\n";
-#endif
-			size_t verSize = ::strlen(pVerStr);
-			size_t altSize = verSize + srcSize;
-			char* pAltSrc = (char*)nxCore::mem_alloc(altSize, "ver+glsl");
+			pPreStr = "#version 120\n";
+#	endif
+			size_t preSize = ::strlen(pPreStr);
+			size_t altSize = preSize + srcSize;
+			char* pAltSrc = (char*)nxCore::mem_alloc(altSize, "glsl:pre+src");
 			if (pAltSrc) {
-				::memcpy(pAltSrc, pVerStr, verSize);
-				::memcpy(pAltSrc + verSize, pSrc, srcSize);
+				::memcpy(pAltSrc, pPreStr, preSize);
+				::memcpy(pAltSrc + preSize, pSrc, srcSize);
 				sid = OGLSys::compile_shader_str(pAltSrc, altSize, kind);
 				nxCore::mem_free(pAltSrc);
 			}
