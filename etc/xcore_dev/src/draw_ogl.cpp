@@ -76,7 +76,7 @@ static GLuint load_shader(const char* pName) {
 #if OGLSYS_ES
 			sid = OGLSys::compile_shader_str(pSrc, srcSize, kind);
 #else
-			static const char* pPreStr;
+			const char* pPreStr;
 #	if defined(OGLSYS_WEB)
 			if (kind == GL_VERTEX_SHADER) {
 				pPreStr = "#version 100\n#define WEBGL\n";
