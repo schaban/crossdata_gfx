@@ -5849,6 +5849,157 @@ static uint32_t pk_encode(uint8_t* pBitCnt, uint8_t* pBitCode, const uint8_t* pX
 	return bitDst;
 }
 
+static uint32_t backref_encode(
+	uint8_t* pDst, const uint32_t dstSize,
+	const uint8_t* pSrc, const uint32_t srcSize,
+	uint32_t* pTbl, const uint32_t tblBits
+) {
+	if (!pTbl || tblBits > 23) return 0;
+	uint32_t tblSize = 1 << tblBits;
+	uint32_t tblMask = tblSize - 1;
+	int sh = nxCalc::max((24 - int(tblBits)), 1);
+	for (uint32_t i = 0; i < tblSize; ++i) {
+		pTbl[i] = 0;
+	}
+	const uint32_t storLim = 1 << 5;
+	uint32_t nstor = 0;
+	uint32_t isrc = 0;
+	uint32_t idst = 0;
+	uint32_t h = pSrc[0] << 8;
+	h |= pSrc[1];
+	pDst[idst++] = 0;
+	while (true) {
+		if (isrc >= srcSize - 2) break;
+		h <<= 8;
+		h |= pSrc[isrc + 2];
+		uint32_t idx = h >> sh;
+		if (sh >= 8) {
+			idx -= h;
+		} else {
+			idx += h;
+		}
+		idx &= tblMask;
+		uint32_t istor = pTbl[idx];
+		pTbl[idx] = isrc;
+		bool flg = (istor > 0) && (istor < isrc) && (isrc < srcSize - 4);
+		uint32_t offs = 0;
+		if (flg) {
+			offs = isrc - (istor + 1);
+			flg = offs < (1 << 13);
+		}
+		if (flg) {
+			flg = (::memcmp(&pSrc[isrc], &pSrc[istor], 3) == 0);
+		}
+		if (flg) {
+			if (nstor > 0) {
+				pDst[idst - (nstor + 1)] = nstor - 1;
+			} else {
+				--idst;
+			}
+			uint32_t iorg = 3;
+			uint32_t iend = nxCalc::min(srcSize - isrc - 2, 0x108U);
+			uint32_t rlen = 1;
+			for (uint32_t i = iorg; i < iend; ++i) {
+				if (pSrc[isrc + i] != pSrc[istor + i]) break;
+				++rlen;
+			}
+			if (rlen < 7) {
+				pDst[idst++] = uint8_t(((offs >> 8) & 0x1F) | (rlen << 5));
+				pDst[idst++] = uint8_t(offs & 0xFF);
+			} else {
+				pDst[idst++] = uint8_t(((offs >> 8) & 0x1F) | (7 << 5));
+				pDst[idst++] = uint8_t(offs & 0xFF);
+				pDst[idst++] = uint8_t((rlen - 7) & 0xFF);
+			}
+			nstor = 0;
+			++idst;
+			isrc += rlen + 1;
+			if (isrc >= srcSize - 3) {
+				++isrc;
+				break;
+			}
+			h = pSrc[isrc];
+			h <<= 8;
+			h |= pSrc[isrc + 1];
+			h <<= 8;
+			h |= pSrc[isrc + 2];
+			idx = h >> sh;
+			if (sh >= 8) {
+				idx -= h;
+			} else {
+				idx += h;
+			}
+			idx &= tblMask;
+			pTbl[idx] = isrc;
+			++isrc;
+		} else {
+			if (idst < dstSize && idst < srcSize) {
+				pDst[idst++] = pSrc[isrc++];
+				++nstor;
+				if (nstor >= storLim) {
+					pDst[idst - (nstor + 1)] = nstor - 1;
+					nstor = 0;
+					++idst;
+				}
+			} else {
+				return 0;
+			}
+		}
+	}
+	if (idst > dstSize - 3) {
+		return 0;
+	}
+	while (isrc < srcSize) {
+		pDst[idst++] = pSrc[isrc++];
+		++nstor;
+		if (nstor >= storLim) {
+			pDst[idst - (nstor + 1)] = nstor - 1;
+			nstor = 0;
+			++idst;
+		}
+	}
+	if (nstor > 0) {
+		pDst[idst - (nstor + 1)] = nstor - 1;
+	} else {
+		--idst;
+	}
+	return idst;
+}
+
+static uint32_t backref_decode(
+	uint8_t* pDst, const uint32_t dstSize,
+	const uint8_t* pSrc, const uint32_t srcSize
+) {
+	uint32_t isrc = 0;
+	uint32_t idst = 0;
+	while (true) {
+		if (isrc >= srcSize) break;
+		uint32_t dat = pSrc[isrc++];
+		uint32_t len = dat & 0x1F;
+		if (dat == len) {
+			++len;
+			if (idst + len > dstSize) return 0;
+			for (int32_t i = int32_t(len); --i >= 0;) {
+				pDst[idst++] = pSrc[isrc++];
+			}
+		} else {
+			uint32_t offs = (len << 8);
+			offs += pSrc[isrc++];
+			len = dat >> 5;
+			if (len == 7) {
+				len += pSrc[isrc++];
+			}
+			len += 2;
+			if (idst + len >= dstSize) return 0;
+			uint32_t iref = idst - offs - 1;
+			for (int32_t i = int32_t(len); --i >= 0;) {
+				pDst[idst++] = pDst[iref++];
+			}
+		}
+	}
+	return idst;
+}
+
 struct sxPkdWork {
 	uint8_t mDict[0x100];
 	uint8_t mXlat[0x100];
@@ -5951,32 +6102,61 @@ static sxPackedData* pkd1(const sxPkdWork& wk, const sxPkdWork& wk2) {
 	return pPkd;
 }
 
-sxPackedData* pack(const uint8_t* pSrc, uint32_t srcSize, uint32_t mode) {
+sxPackedData* pack(const uint8_t* pSrc, const uint32_t srcSize, const uint32_t mode) {
 	sxPackedData* pPkd = nullptr;
-	if (pSrc && srcSize > 0x10 && mode < 2) {
-		sxPkdWork wk;
-		wk.encode(pSrc, srcSize);
-		uint32_t pkdSize = wk.get_pkd_size();
-		if (pkdSize && pkdSize < srcSize) {
-			if (mode == 1) {
-				sxPkdWork wk2;
-				wk2.encode(wk.mpBitCnt, wk.mBitCntBytes);
-				uint32_t pkdSize2 = wk2.is_valid() ? wk2.get_pkd_size() + 4 + wk.mDictSize + wk.mBitCodeBytes : 0;
-				if (pkdSize2 && pkdSize2 < pkdSize) {
-					pPkd = pkd1(wk, wk2);
+	if (pSrc && srcSize > 0x10) {
+		if (mode < 2) {
+			sxPkdWork wk;
+			wk.encode(pSrc, srcSize);
+			uint32_t pkdSize = wk.get_pkd_size();
+			if (pkdSize && pkdSize < srcSize) {
+				if (mode == 1) {
+					sxPkdWork wk2;
+					wk2.encode(wk.mpBitCnt, wk.mBitCntBytes);
+					uint32_t pkdSize2 = wk2.is_valid() ? wk2.get_pkd_size() + 4 + wk.mDictSize + wk.mBitCodeBytes : 0;
+					if (pkdSize2 && pkdSize2 < pkdSize) {
+						pPkd = pkd1(wk, wk2);
+					} else {
+						wk2.reset();
+						pPkd = pkd0(wk);
+					}
 				} else {
-					wk2.reset();
 					pPkd = pkd0(wk);
 				}
-			} else {
-				pPkd = pkd0(wk);
+			}
+		} else if (mode == 2) {
+			uint32_t tblBits = 18;
+			uint32_t tblSize = uint32_t(size_t(1 << tblBits) * sizeof(uint32_t));
+			size_t tmemSize = size_t(double(srcSize) * 2.25);
+			uint8_t* pBref = (uint8_t*)nxCore::mem_alloc(tblSize + tmemSize, "xPkd:BackRef");
+			if (pBref) {
+				uint32_t* pTbl = (uint32_t*)pBref;
+				uint8_t* pDst = pBref + tblSize;
+				uint32_t brefSize = backref_encode(pDst, (uint32_t)tmemSize, pSrc, srcSize, pTbl, tblBits);
+				if (brefSize != 0 && brefSize < srcSize) {
+					sxPackedData* pTmpPkd = pack(pDst, brefSize, 0);
+					if (pTmpPkd) {
+						pPkd = (sxPackedData*)nxCore::mem_alloc(pTmpPkd->mPackSize + sizeof(uint32_t), "xPkd:BackPack");
+						if (pPkd) {
+							::memcpy(pPkd, pTmpPkd, sizeof(sxPackedData));
+							*((uint32_t*)(pPkd + 1)) = brefSize;
+							::memcpy(XD_INCR_PTR((pPkd + 1), sizeof(uint32_t)), pTmpPkd + 1, size_t(pTmpPkd->mPackSize) - sizeof(sxPackedData));
+							pPkd->mAttr &= 0xFFFFFF00;
+							pPkd->mAttr |= 2;
+							pPkd->mPackSize += uint32_t(sizeof(uint32_t));
+							pPkd->mRawSize = srcSize;
+						}
+						nxCore::mem_free(pTmpPkd);
+					}
+				}
+				nxCore::mem_free(pBref);
 			}
 		}
 	}
 	return pPkd;
 }
 
-static void pk_decode(uint8_t* pDst, uint32_t size, uint8_t* pDict, uint8_t* pBitCnt, uint8_t* pBitCodes) {
+static void pk_decode(uint8_t* pDst, const uint32_t size, uint8_t* pDict, uint8_t* pBitCnt, uint8_t* pBitCodes) {
 	uint32_t codeBitIdx = 0;
 	for (uint32_t i = 0; i < size; ++i) {
 		uint32_t cntBitIdx = i * 3;
@@ -6004,7 +6184,7 @@ static void pk_decode(uint8_t* pDst, uint32_t size, uint8_t* pDict, uint8_t* pBi
 	}
 }
 
-uint8_t* unpack(sxPackedData* pPkd, const char* pMemTag, uint8_t* pDstMem, uint32_t dstMemSize, size_t* pSize, bool recursive) {
+uint8_t* unpack(sxPackedData* pPkd, const char* pMemTag, uint8_t* pDstMem, const uint32_t dstMemSize, size_t* pSize, const bool recursive) {
 	uint8_t* pDst = nullptr;
 	if (pPkd && pPkd->mSig == sxPackedData::SIG) {
 		if (pDstMem && dstMemSize >= pPkd->mRawSize) {
@@ -6035,6 +6215,29 @@ uint8_t* unpack(sxPackedData* pPkd, const char* pMemTag, uint8_t* pDstMem, uint3
 					pk_decode(pCnt, cntSize, pDict2, pCnt2, pCode2);
 					pk_decode(pDst, pPkd->mRawSize, pDict, pCnt, pCode);
 					nxCore::mem_free(pCnt);
+				} else {
+					if (pDst != pDstMem) {
+						nxCore::mem_free(pDst);
+					}
+					pDst = nullptr;
+				}
+			} else if (mode == 2) {
+				uint32_t dictSize = ((pPkd->mAttr >> 8) & 0xFF) + 1;
+				uint8_t* pDict = (uint8_t*)(pPkd + 1) + sizeof(uint32_t);
+				uint8_t* pBitCnt = pDict + dictSize;
+				uint32_t brefSize = *((uint32_t*)(pPkd + 1));
+				uint8_t* pBitCodes = pBitCnt + pk_bit_cnt_to_bytes(brefSize * 3);
+				uint8_t* pBref = (uint8_t*)nxCore::mem_alloc(brefSize, "xPkd:BackRef");
+				if (pBref) {
+					pk_decode(pBref, brefSize, pDict, pBitCnt, pBitCodes);
+					uint32_t decodedSize = backref_decode(pDst, pPkd->mRawSize, pBref, brefSize);
+					if (decodedSize != pPkd->mRawSize) {
+						if (pDst != pDstMem) {
+							nxCore::mem_free(pDst);
+						}
+						pDst = nullptr;
+					}
+					nxCore::mem_free(pBref);
 				} else {
 					if (pDst != pDstMem) {
 						nxCore::mem_free(pDst);
