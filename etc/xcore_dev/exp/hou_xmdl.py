@@ -118,6 +118,11 @@ class MdlMaterial:
 					if prm:
 						self.shadowDensity = prm.evalAsFloat()
 						break
+				for prmName in ["dmd_diffrough"]:
+					prm = self.node.parm(prmName)
+					if prm:
+						self.setFlgDiffRoughness(prm.evalAsInt())
+						break
 
 				if self.baseMapPath:
 					tpath = None
@@ -213,6 +218,7 @@ class MdlMaterial:
 	def setFlgShadowRecv(self, flg): self.setFlg(7, flg)
 	def setFlgBaseMapSpecAlpha(self, flg): self.setFlg(8, flg)
 	def setFlgSortTris(self, flg): self.setFlg(9, flg)
+	def setFlgDiffRoughness(self, flg): self.setFlg(10, flg)
 
 	def getName(self):
 		if self.name: return self.name

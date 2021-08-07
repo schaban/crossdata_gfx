@@ -4779,6 +4779,7 @@ struct sxModelData : public sxData {
 			uint32_t shadowRecv : 1;
 			uint32_t baseMapSpecAlpha : 1;
 			uint32_t sortTris : 1;
+			uint32_t diffRoughness : 1;
 		};
 
 		struct BasePatternExt {
