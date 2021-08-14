@@ -67,10 +67,22 @@ static GLuint load_shader(const char* pName) {
 	GLuint sid = 0;
 	const char* pDataPath = s_pRsrcMgr ? s_pRsrcMgr->get_data_path() : nullptr;
 	if (pName) {
-		char path[1024];
-		XD_SPRINTF(XD_SPRINTF_BUF(path, sizeof(path)), "%s/ogl/%s", pDataPath ? pDataPath : ".", pName);
+		char path[256];
+		char* pPath = path;
+		size_t pathBufSize = sizeof(path);
+		size_t pathSize = (pDataPath ? ::strlen(pDataPath) : 1) + 5 + ::strlen(pName) + 1;
+		if (pathSize > pathBufSize) {
+			pPath = (char*)nxCore::mem_alloc(pathSize, "glsl_path");
+			pathBufSize = pathSize;
+		}
+		if (pPath) {
+			XD_SPRINTF(XD_SPRINTF_BUF(pPath, pathBufSize), "%s/ogl/%s", pDataPath ? pDataPath : ".", pName);
+		}
 		size_t srcSize = 0;
-		char* pSrc = (char*)nxCore::bin_load(path, &srcSize, false, true);
+		char* pSrc = nullptr;
+		if (pPath) {
+			pSrc = (char*)nxCore::bin_load(pPath, &srcSize, false, true);
+		}
 		if (pSrc) {
 			GLenum kind = nxCore::str_ends_with(pName, ".vert") ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
 #if OGLSYS_ES
@@ -97,6 +109,10 @@ static GLuint load_shader(const char* pName) {
 			}
 #endif
 			nxCore::bin_unload(pSrc);
+		}
+		if (pPath != path) {
+			nxCore::mem_free(pPath);
+			pPath = nullptr;
 		}
 	}
 	return sid;
@@ -866,55 +882,6 @@ static void batch_draw_exec(const sxModelData* pMdl, int ibat, int baseVtx = 0) 
 	}
 }
 
-static void set_def_framebuf(const bool useDepth = true) {
-	if (s_frameBufMode != 0) {
-		int w = OGLSys::get_width();
-		int h = OGLSys::get_height();
-		OGLSys::bind_def_framebuf();
-		glViewport(0, 0, w, h);
-		glScissor(0, 0, w, h);
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glDepthMask(GL_TRUE);
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-		s_frameBufMode = 0;
-	}
-}
-
-static void set_shadow_framebuf() {
-	if (s_shadowFBO) {
-		if (s_frameBufMode != 1) {
-			glBindFramebuffer(GL_FRAMEBUFFER, s_shadowFBO);
-			glViewport(0, 0, s_shadowSize, s_shadowSize);
-			glScissor(0, 0, s_shadowSize, s_shadowSize);
-			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-			if (s_shadowDepthBuf && s_shadowCastDepthTest) {
-				glDepthMask(GL_TRUE);
-				glEnable(GL_DEPTH_TEST);
-				glDepthFunc(GL_LEQUAL);
-			} else {
-				glDepthMask(GL_FALSE);
-				glDisable(GL_DEPTH_TEST);
-			}
-			s_frameBufMode = 1;
-		}
-	}
-}
-
-static void set_spr_framebuf() {
-	if (s_frameBufMode != 2) {
-		int w = OGLSys::get_width();
-		int h = OGLSys::get_height();
-		OGLSys::bind_def_framebuf();
-		glViewport(0, 0, w, h);
-		glScissor(0, 0, w, h);
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-		glDepthMask(GL_FALSE);
-		glDisable(GL_DEPTH_TEST);
-		s_frameBufMode = 2;
-	}
-}
-
 static bool s_nowSemi = false;
 
 static void gl_opaq() {
@@ -981,6 +948,65 @@ static void set_face_cull() {
 #else
 	gl_face_cull();
 #endif
+}
+
+
+static void reset_fb_render_states() {
+	gl_opaq();
+	s_nowSemi = false;
+	gl_face_cull();
+	s_nowDblSided = false;
+}
+
+static void set_def_framebuf(const bool useDepth = true) {
+	if (s_frameBufMode != 0) {
+		int w = OGLSys::get_width();
+		int h = OGLSys::get_height();
+		OGLSys::bind_def_framebuf();
+		glViewport(0, 0, w, h);
+		glScissor(0, 0, w, h);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glDepthMask(GL_TRUE);
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+		reset_fb_render_states();
+		s_frameBufMode = 0;
+	}
+}
+
+static void set_shadow_framebuf() {
+	if (s_shadowFBO) {
+		if (s_frameBufMode != 1) {
+			glBindFramebuffer(GL_FRAMEBUFFER, s_shadowFBO);
+			glViewport(0, 0, s_shadowSize, s_shadowSize);
+			glScissor(0, 0, s_shadowSize, s_shadowSize);
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+			if (s_shadowDepthBuf && s_shadowCastDepthTest) {
+				glDepthMask(GL_TRUE);
+				glEnable(GL_DEPTH_TEST);
+				glDepthFunc(GL_LEQUAL);
+			} else {
+				glDepthMask(GL_FALSE);
+				glDisable(GL_DEPTH_TEST);
+			}
+			reset_fb_render_states();
+			s_frameBufMode = 1;
+		}
+	}
+}
+
+static void set_spr_framebuf() {
+	if (s_frameBufMode != 2) {
+		int w = OGLSys::get_width();
+		int h = OGLSys::get_height();
+		OGLSys::bind_def_framebuf();
+		glViewport(0, 0, w, h);
+		glScissor(0, 0, w, h);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glDepthMask(GL_FALSE);
+		glDisable(GL_DEPTH_TEST);
+		s_frameBufMode = 2;
+	}
 }
 
 
@@ -1063,12 +1089,6 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 	s_shadowCastDepthTest = true;
 	s_frameBufMode = -1;
 	set_def_framebuf();
-
-	gl_opaq();
-	s_nowSemi = false;
-
-	gl_face_cull();
-	s_nowDblSided = false;
 
 	s_pNowProg = nullptr;
 
