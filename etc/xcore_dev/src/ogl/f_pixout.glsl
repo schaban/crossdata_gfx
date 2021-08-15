@@ -23,9 +23,12 @@ HALF vec4 exposure(HALF vec4 c) {
 }
 
 HALF vec3 toneMap(HALF vec3 c) {
-	c = (c * (1.0 + c*gpInvWhite)) / (1.0 + c);
-	c *= gpLClrGain;
-	c += gpLClrBias;
+	HALF vec3 invw = gpInvWhite;
+	HALF vec3 gain = gpLClrGain;
+	HALF vec3 bias = gpLClrBias;
+	c = (c * (1.0 + c*invw)) / (1.0 + c);
+	c *= gain;
+	c += bias;
 	c = max(c, 0.0);
 	return c;
 }
@@ -40,7 +43,8 @@ HALF vec4 applyCC(HALF vec4 clr) {
 
 	c = exposure(c);
 	c = max(c, 0.0);
-	c.rgb = pow(c.rgb, gpInvGamma);
+	HALF vec3 invg = gpInvGamma;
+	c.rgb = pow(c.rgb, invg);
 	return c;
 }
 

@@ -1,9 +1,9 @@
-void SH3(out float sh[8], vec3 v) {
-	float x = v.x;
-	float y = v.y;
-	float z = v.z;
-	float zz = z*z;
-	float tmp, s0 = y, s1, c0 = x, c1;
+void SH3(out HALF float sh[8], HALF vec3 v) {
+	HALF float x = v.x;
+	HALF float y = v.y;
+	HALF float z = v.z;
+	HALF float zz = z*z;
+	HALF float tmp, s0 = y, s1, c0 = x, c1;
 	sh[2-1] = z*0.4886025190353394;
 	sh[6-1] = zz*0.9461746811866760 + -0.3153915703296661;
 	tmp = -0.4886025190353394;
@@ -19,10 +19,10 @@ void SH3(out float sh[8], vec3 v) {
 	sh[8-1] = tmp * c1;
 }
 
-vec3 evalSH3(vec3 v, vec3 shc[9]) {
-	float vsh[8];
+vec3 evalSH3(HALF vec3 v, HALF vec3 shc[9]) {
+	HALF float vsh[8];
 	SH3(vsh, v);
-	vec3 c = shc[0];
+	HALF vec3 c = shc[0];
 	c += shc[1] * vsh[1-1];
 	c += shc[2] * vsh[2-1];
 	c += shc[3] * vsh[3-1];
@@ -34,6 +34,6 @@ vec3 evalSH3(vec3 v, vec3 shc[9]) {
 	return max(c, 0.0);
 }
 
-vec3 diffSH(vec3 nrm) {
+HALF vec3 diffSH(HALF vec3 nrm) {
 	return evalSH3(nrm, gpDiffSH);
 }

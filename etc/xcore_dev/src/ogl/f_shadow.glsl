@@ -1,16 +1,16 @@
-vec4 encodeShadowVal(float z) {
-	vec4 enc = fract(vec4(1.0, float(0x100), float(0x10000), float(0x1000000)) * z);
+FULL vec4 encodeShadowVal(FULL float z) {
+	FULL vec4 enc = fract(vec4(1.0, float(0x100), float(0x10000), float(0x1000000)) * z);
 	enc.xyz -= enc.yzw * (1.0 / float(0x100));
 	return enc;
 }
 
-FULL float decodeShadowVal(vec4 enc) {
+FULL float decodeShadowVal(FULL vec4 enc) {
 	return dot(enc, vec4(1.0, 1.0 / float(0x100), 1.0 / float(0x10000), 1.0 / float(0x1000000)));
 //	return dot(enc.xy, vec2(1.0, 1.0 / float(0x100)));
 }
 
 FULL float sampleShadowMap(vec2 uv) {
-	vec4 enc = texture2D(smpShadow, uv);
+	FULL vec4 enc = texture2D(smpShadow, uv);
 	return decodeShadowVal(enc);
 }
 
@@ -28,26 +28,29 @@ FULL float calcShadowVal1(FULL vec4 spos) {
 	return wght > 0.0 ? clamp((tpos.z - sz) * wght, 0.0, 1.0) : step(sz, tpos.z);
 }
 
-FULL float calcShadowVal2(FULL vec4 spos) {
+HALF float calcShadowVal2(FULL vec4 spos) {
 	FULL vec3 tpos = spos.xyz / spos.w;
-	FULL vec2 uv00 = tpos.xy;
-	FULL vec2 uv11 = tpos.xy + gpShadowSize.zw;
-	FULL float s00 = sampleShadowMap(vec2(uv00.x, uv00.y));
-	FULL float s01 = sampleShadowMap(vec2(uv00.x, uv11.y));
-	FULL float s10 = sampleShadowMap(vec2(uv11.x, uv00.y));
-	FULL float s11 = sampleShadowMap(vec2(uv11.x, uv11.y));
-	FULL vec4 sv = vec4(s00, s01, s10, s11);
+	HALF vec2 uv00 = tpos.xy;
+	HALF vec2 siwh = gpShadowSize.zw;
+	HALF vec2 uv11 = tpos.xy + siwh;
+	HALF float s00 = sampleShadowMap(vec2(uv00.x, uv00.y));
+	HALF float s01 = sampleShadowMap(vec2(uv00.x, uv11.y));
+	HALF float s10 = sampleShadowMap(vec2(uv11.x, uv00.y));
+	HALF float s11 = sampleShadowMap(vec2(uv11.x, uv11.y));
+	HALF vec4 sv = vec4(s00, s01, s10, s11);
+	HALF vec4 zv = tpos.zzzz;
 
-	FULL float offs = gpShadowCtrl.x;
-	FULL float wght = gpShadowCtrl.y;
+	HALF float offs = gpShadowCtrl.x;
+	HALF float wght = gpShadowCtrl.y;
 
 	sv += vec4(offs);
-	FULL vec4 z = wght > 0.0
-	              ? clamp((tpos.zzzz - sv) * wght, 0.0, 1.0)
-	              : step(sv, tpos.zzzz);
+	HALF vec4 z = wght > 0.0
+	              ? clamp((zv - sv) * wght, 0.0, 1.0)
+	              : step(sv, zv);
 
-	FULL vec2 t = fract(uv00 * gpShadowSize.xy);
-	FULL vec2 v = mix(z.xy, z.zw, t.x);
+	HALF vec2 swh = gpShadowSize.xy;
+	HALF vec2 t = fract(uv00 * swh);
+	HALF vec2 v = mix(z.xy, z.zw, t.x);
 	return mix(v.x, v.y, t.y);
 }
 
