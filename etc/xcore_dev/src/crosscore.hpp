@@ -347,6 +347,79 @@ inline void rng_seed(uint64_t seed) { rng_seed(nullptr, seed); }
 uint64_t rng_next(sxRNG* pState = nullptr);
 float rng_f01(sxRNG* pState = nullptr);
 
+template <typename PRIO_T, typename ITEM_T, const int N> class tStaticPrioList {
+protected:
+	int mCur;
+
+	int find_slot(const PRIO_T prio) const {
+		uint32_t cnt = mCur;
+		const Entry* pTop = mEntries;
+		const Entry* p = pTop;
+		while (cnt > 1) {
+			uint32_t imid = cnt / 2;
+			const Entry* pMid = &p[imid];
+			p = prio > pMid->prio ? p : pMid;
+			cnt -= imid;
+		}
+		return (int)(p - pTop) + ((p != pTop) & (p->prio < prio));
+	}
+
+public:
+	struct Entry {
+		PRIO_T prio;
+		ITEM_T item;
+	};
+
+	Entry mEntries[N];
+
+	tStaticPrioList() {
+		reset();
+	}
+
+	void reset() { mCur = 0; }
+
+	void fill(const PRIO_T prio, const ITEM_T item) {
+		for (int i = 0; i < N; ++i) {
+			mEntries[i].prio = prio;
+			mEntries[i].item = item;
+		}
+	}
+
+	int add(const PRIO_T prio, const ITEM_T item) {
+		if (mCur >= N) return -1;
+		Entry ent;
+		ent.prio = prio;
+		ent.item = item;
+		int idx = 0;
+		if (mCur > 0) {
+			idx = find_slot(prio);
+			if (idx == mCur - 1) {
+				if (prio > mEntries[idx].prio) {
+					mEntries[mCur] = mEntries[mCur - 1];
+					idx = mCur - 1;
+				} else {
+					idx = mCur;
+				}
+			} else {
+				int j;
+				if (prio > mEntries[idx].prio) {
+					--idx;
+				}
+				for (j = mCur; --j >= idx + 1;) {
+					mEntries[j + 1] = mEntries[j];
+				}
+				++idx;
+			}
+		}
+		mEntries[idx] = ent;
+		++mCur;
+		return idx;
+	}
+
+	int get_size() const { return N; }
+	int get_count() const { return mCur; }
+};
+
 } // nxCore
 
 
