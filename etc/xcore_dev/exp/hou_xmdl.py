@@ -470,7 +470,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 		self.useHalf = False
 		self.exportName = None
 
-	def build(self, sop, usePrimGroups = False, batPrefix = None, batJntsLimit = 16, skelRootPath = None):
+	def build(self, sop, usePrimGroups = False, batPrefix = None, batJntsLimit = 16, skelRootPath = None, alfAttrName = "SpecMask"):
 		self.bboxMin = [0.0 for i in xrange(3)]
 		self.bboxMax = [0.0 for i in xrange(3)]
 		xhou.PolModel.build(self, sop)
@@ -483,6 +483,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 		self.usePrimGroups = usePrimGroups
 		self.batPrefix = batPrefix
 		self.batJntsLimit = batJntsLimit
+		self.alfAttrName = alfAttrName
 		self.tlst = []
 		self.tdict = {}
 		self.initMtls()
@@ -867,7 +868,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 
 
 	def writeHalfVB(self, f):
-		attrs = MdlPntAttrs(self)
+		attrs = MdlPntAttrs(self, self.alfAttrName)
 		npnt = self.numPnt()
 		for ipnt in xrange(npnt):
 			pnt = self.pnts[ipnt]
@@ -897,7 +898,7 @@ class MdlExporter(xcore.BaseExporter, xhou.PolModel):
 				f.write(struct.pack("BBBB", jidx[0], jidx[1], jidx[2], jidx[3]))
 
 	def writeShortVB(self, f):
-		attrs = MdlPntAttrs(self)
+		attrs = MdlPntAttrs(self, self.alfAttrName)
 		cscl = 0x7FF
 		tscl = 0x7FF # up to 2K
 		if self.skinData:
