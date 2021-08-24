@@ -13760,10 +13760,20 @@ cxResourceManager::Pkg* cxResourceManager::load_pkg(const char* pName) {
 	if (!mpPkgMap) return nullptr;
 	if (!mpDataToPkgMap) return nullptr;
 	char path[1024];
-	XD_SPRINTF(XD_SPRINTF_BUF(path, sizeof(path)), "%s/%s/%s.fcat", mpDataPath, pName, pName);
-	sxData* pCatData = nxData::load(path);
+	char* pPath = path;
+	size_t pathBufSize = sizeof(path);
+	size_t pathSize = ::strlen(mpDataPath) + 1 + (::strlen(pName) + 1)*2 + 4 + 1;
+	if (pathSize > pathBufSize) {
+		pPath = (char*)nxCore::mem_alloc(pathSize, "RsrcMgr:path");
+		pathBufSize = pathSize;
+	}
+	XD_SPRINTF(XD_SPRINTF_BUF(pPath, pathBufSize), "%s/%s/%s.fcat", mpDataPath, pName, pName);
+	sxData* pCatData = nxData::load(pPath);
 	if (!pCatData) {
 		nxCore::dbg_msg("Can't find catalogue for pkg: '%s'\n", pName);
+		if (pPath != path) {
+			nxCore::mem_free(pPath);
+		}
 		return nullptr;
 	}
 	sxFileCatalogue* pCat = pCatData->as<sxFileCatalogue>();
@@ -13772,6 +13782,9 @@ cxResourceManager::Pkg* cxResourceManager::load_pkg(const char* pName) {
 	cxResourceManager::Pkg* pPkg = nullptr;
 	if (mpPkgMap->get(pPkgName, &pPkg)) {
 		nxData::unload(pCatData);
+		if (pPath != path) {
+			nxCore::mem_free(pPath);
+		}
 		nxCore::dbg_msg("Pkg \"%s\": already loaded.", pPkgName);
 		return pPkg;
 	}
@@ -13811,8 +13824,16 @@ cxResourceManager::Pkg* cxResourceManager::load_pkg(const char* pName) {
 				for (uint32_t i = 0; i < pCat->mFilesNum; ++i) {
 					const char* pItemName = pCat->get_item_name(i);
 					const char* pFileName = pCat->get_file_name(i);
-					XD_SPRINTF(XD_SPRINTF_BUF(path, sizeof(path)), "%s/%s/%s", mpDataPath, pName, pFileName);
-					sxData* pData = nxData::load(path);
+					pathSize = ::strlen(mpDataPath) + 1 + ::strlen(pName) + 1 + ::strlen(pFileName) + 1;
+					if (pathSize > pathBufSize) {
+						if (pPath != path) {
+							nxCore::mem_free(pPath);
+						}
+						pPath = (char*)nxCore::mem_alloc(pathSize, "RsrcMgr:path");
+						pathBufSize = pathSize;
+					}
+					XD_SPRINTF(XD_SPRINTF_BUF(pPath, pathBufSize), "%s/%s/%s", mpDataPath, pName, pFileName);
+					sxData* pData = nxData::load(pPath);
 					if (pData) {
 						Pkg::Entry* pEntry = pPkg->mpEntries->new_item();
 						if (pEntry) {
@@ -13907,6 +13928,9 @@ cxResourceManager::Pkg* cxResourceManager::load_pkg(const char* pName) {
 	} else {
 		nxData::unload(pCatData);
 		pCatData = nullptr;
+	}
+	if (pPath != path) {
+		nxCore::mem_free(pPath);
 	}
 	return pPkg;
 }
