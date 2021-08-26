@@ -4999,7 +4999,8 @@ struct sxModelData : public sxData {
 	const xt_xmtx* get_skel_xforms_ptr() const;
 	xt_xmtx get_skel_local_xform(const int inode) const;
 	xt_xmtx get_skel_inv_world_xform(const int inode) const;
-	xt_xmtx calc_skel_world_xform(const int inode, const xt_xmtx* pLocXforms, xt_xmtx* pParentXform = nullptr) const;
+	xt_xmtx calc_skel_node_world_xform(const int inode, const xt_xmtx* pLocXforms, xt_xmtx* pParentXform = nullptr) const;
+	xt_xmtx calc_skel_node_chain_xform(const int inode, const int itop, const xt_xmtx* pLocXforms) const;
 	cxVec get_skel_local_offs(const int inode) const;
 	const int32_t* get_skel_names_ptr() const;
 	const int32_t* get_skel_parents_ptr() const;
@@ -5226,6 +5227,7 @@ public:
 	uint8_t* mpBlendDisableBits;
 	cxVec mMoveRelPos;
 	cxQuat mMoveRelQuat;
+	float mEvalFrame;
 	float mFrame;
 	float mBlendDuration;
 	float mBlendCount;
@@ -5239,6 +5241,8 @@ public:
 	int find_node_id(const char* pName) const { return mpMdlData ? mpMdlData->find_skel_node_id(pName) : -1; }
 
 	void apply_motion(const sxMotionData* pMotData, const float frameAdd, float* pLoopFlg = nullptr);
+
+	xt_xmtx eval_skel_node_chain_xform(const sxMotionData* pMotData, const int inode, const int itop, const float frame);
 
 	void adjust_leg(const cxVec& effPos, const int inodeTop, const int inodeRot, const int inodeEnd, const int inodeExt);
 
@@ -5292,8 +5296,8 @@ public:
 	bool ck_skel_id(const int iskl) const { return mpData ? mpData->ck_skel_id(iskl) : false; }
 	int find_skel_node_id(const char* pName) const { return mpData ? mpData->find_skel_node_id(pName) : -1; }
 
-	xt_xmtx calc_skel_world_rest_xform(const int iskl) const { return mpData ? mpData->calc_skel_world_xform(iskl, nullptr) : nxMtx::xmtx_identity(); }
-	cxMtx calc_skel_world_rest_mtx(const int iskl) const { return nxMtx::mtx_from_xmtx(calc_skel_world_rest_xform(iskl)); }
+	xt_xmtx calc_skel_node_world_rest_xform(const int iskl) const { return mpData ? mpData->calc_skel_node_world_xform(iskl, nullptr) : nxMtx::xmtx_identity(); }
+	cxMtx calc_skel_node_world_rest_mtx(const int iskl) const { return nxMtx::mtx_from_xmtx(calc_skel_node_world_rest_xform(iskl)); }
 
 	int get_batches_num() const { return mpData ? mpData->mBatNum : 0; }
 	bool ck_batch_id(const int ibat) const { return mpData ? mpData->ck_batch_id(ibat) : false; }

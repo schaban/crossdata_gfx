@@ -2130,7 +2130,7 @@ void ScnObj::update_batch_vilibility(const int ibat) {
 }
 
 void ScnObj::move(const sxMotionData* pMot, const float frameAdd) {
-	exec_motion(pMot, frameAdd * s_speed);
+	exec_motion(pMot, frameAdd);
 	if (mBeforeBlendFunc) {
 		mBeforeBlendFunc(this);
 	}
@@ -2144,14 +2144,6 @@ void ScnObj::move(const sxMotionData* pMot, const float frameAdd) {
 	}
 	update_skin();
 	update_bounds();
-}
-
-int ScnObj::find_skel_id(const char* pName) const {
-	int id = -1;
-	if (mpMdlWk && mpMdlWk->mpData) {
-		id = mpMdlWk->mpData->find_skel_node_id(pName);
-	}
-	return id;
 }
 
 cxMtx ScnObj::get_skel_local_mtx(const int iskl) const {

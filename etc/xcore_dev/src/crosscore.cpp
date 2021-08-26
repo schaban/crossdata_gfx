@@ -11749,7 +11749,7 @@ xt_xmtx sxModelData::get_skel_inv_world_xform(const int inode) const {
 	return xm;
 }
 
-xt_xmtx sxModelData::calc_skel_world_xform(const int inode, const xt_xmtx* pLocXforms, xt_xmtx* pParentXform) const {
+xt_xmtx sxModelData::calc_skel_node_world_xform(const int inode, const xt_xmtx* pLocXforms, xt_xmtx* pParentXform) const {
 	xt_xmtx xm;
 	xm.identity();
 	xt_xmtx xmp;
@@ -11769,6 +11769,29 @@ xt_xmtx sxModelData::calc_skel_world_xform(const int inode, const xt_xmtx* pLocX
 	}
 	if (pParentXform) {
 		*pParentXform = xmp;
+	}
+	return xm;
+}
+
+xt_xmtx sxModelData::calc_skel_node_chain_xform(const int inode, const int itop, const xt_xmtx* pLocXforms) const {
+	xt_xmtx xm;
+	xm.identity();
+	if (has_skel() && ck_skel_id(inode)) {
+		const xt_xmtx* pL = pLocXforms ? pLocXforms : get_skel_xforms_ptr();
+		if (pL) {
+			if (inode != itop) {
+				const int32_t* pParents = get_skel_parents_ptr();
+				int idx = pParents[inode];
+				while (ck_skel_id(idx)) {
+					xm = nxMtx::xmtx_concat(xm, pL[idx]);
+					if (idx == itop) {
+						break;
+					}
+					idx = pParents[idx];
+				}
+			}
+			xm = nxMtx::xmtx_concat(pL[inode], xm);
+		}
 	}
 	return xm;
 }
@@ -12810,6 +12833,7 @@ int sxFileCatalogue::find_item_name_idx(const char* pName) const {
 
 void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameAdd, float* pLoopFlg) {
 	mpCurrentMotData = pMotData;
+	mEvalFrame = mFrame;
 	if (!pMotData) return;
 	if (!mpMdlData) return;
 	for (uint32_t i = 0; i < pMotData->mNodeNum; ++i) {
@@ -12820,12 +12844,12 @@ void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameA
 			xt_xmtx xform = mpXformsL[iskel];
 			cxVec pos = nxMtx::xmtx_get_pos(xform);
 			if (pMotNode->mTrkOffsT) {
-				pos = pMotData->eval_pos(i, mFrame);
+				pos = pMotData->eval_pos(i, mEvalFrame);
 				nxMtx::xmtx_set_pos(xform, pos);
 			}
 			cxQuat quat;
 			if (pMotNode->mTrkOffsQ) {
-				quat = pMotData->eval_quat(i, mFrame);
+				quat = pMotData->eval_quat(i, mEvalFrame);
 				xform = nxMtx::xmtx_from_quat_pos(quat, pos);
 			}
 			mpXformsL[iskel] = xform;
@@ -12833,8 +12857,8 @@ void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameA
 			if (iskel == mMoveId) {
 				if (pMotNode->mTrkOffsT) {
 					cxVec vmove = pos;
-					if (mFrame > 0.0f) {
-						float prevFrame = nxCalc::max(mFrame - frameAdd, 0.0f);
+					if (mEvalFrame > 0.0f) {
+						float prevFrame = nxCalc::max(mEvalFrame - frameAdd, 0.0f);
 						cxVec prevPos = pMotData->eval_pos(i, prevFrame);
 						vmove.sub(prevPos);
 					} else {
@@ -12846,8 +12870,8 @@ void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameA
 				}
 				if (pMotNode->mTrkOffsQ) {
 					cxQuat qmove = quat;
-					if (mFrame > 0.0f) {
-						float prevFrame = nxCalc::max(mFrame - frameAdd, 0.0f);
+					if (mEvalFrame > 0.0f) {
+						float prevFrame = nxCalc::max(mEvalFrame - frameAdd, 0.0f);
 						cxQuat prevQuat = pMotData->eval_quat(i, prevFrame);
 						qmove = prevQuat.get_inverted() * quat;
 					} else {
@@ -12876,6 +12900,58 @@ void cxMotionWork::apply_motion(const sxMotionData* pMotData, const float frameA
 	if (pLoopFlg) {
 		*pLoopFlg = loop;
 	}
+}
+
+xt_xmtx cxMotionWork::eval_skel_node_chain_xform(const sxMotionData* pMotData, const int inode, const int itop, const float frame) {
+	xt_xmtx xm;
+	xm.identity();
+	if (pMotData && mpMdlData && mpMdlData->ck_skel_id(inode)) {
+		xt_xmtx xform;
+		float evalFrm = nxCalc::clamp(frame, 0.0f, float(pMotData->mFrameNum - 1));
+		if (inode != itop) {
+			const int32_t* pParents = mpMdlData->get_skel_parents_ptr();
+			int idx = pParents[inode];
+			while (mpMdlData->ck_skel_id(idx)) {
+				const char* pName = mpMdlData->get_skel_name(idx);
+				int imot = pMotData->find_node_id(pName);
+				xform = mpXformsL[idx];
+				if (pMotData->ck_node_id(imot)) {
+					const sxMotionData::Node* pMotNode = pMotData->get_node(imot);
+					cxVec pos = nxMtx::xmtx_get_pos(xform);
+					if (pMotNode->mTrkOffsT) {
+						pos = pMotData->eval_pos(imot, evalFrm);
+						nxMtx::xmtx_set_pos(xform, pos);
+					}
+					if (pMotNode->mTrkOffsQ) {
+						cxQuat quat = pMotData->eval_quat(imot, evalFrm);
+						xform = nxMtx::xmtx_from_quat_pos(quat, pos);
+					}
+				}
+				xm = nxMtx::xmtx_concat(xm, xform);
+				if (idx == itop) {
+					break;
+				}
+				idx = pParents[idx];
+			}
+		}
+		const char* pName = mpMdlData->get_skel_name(inode);
+		int imot = pMotData->find_node_id(pName);
+		xform = mpXformsL[inode];
+		if (pMotData->ck_node_id(imot)) {
+			const sxMotionData::Node* pMotNode = pMotData->get_node(imot);
+			cxVec pos = nxMtx::xmtx_get_pos(xform);
+			if (pMotNode->mTrkOffsT) {
+				pos = pMotData->eval_pos(imot, evalFrm);
+				nxMtx::xmtx_set_pos(xform, pos);
+			}
+			if (pMotNode->mTrkOffsQ) {
+				cxQuat quat = pMotData->eval_quat(imot, evalFrm);
+				xform = nxMtx::xmtx_from_quat_pos(quat, pos);
+			}
+		}
+		xm = nxMtx::xmtx_concat(xform, xm);
+	}
+	return xm;
 }
 
 void cxMotionWork::adjust_leg(const cxVec& effPos, const int inodeTop, const int inodeRot, const int inodeEnd, const int inodeExt) {
@@ -12964,7 +13040,7 @@ xt_xmtx cxMotionWork::get_node_prev_world_xform(const int inode) const {
 xt_xmtx cxMotionWork::calc_node_world_xform(const int inode, xt_xmtx* pParentXform) const {
 	xt_xmtx wm;
 	if (mpMdlData) {
-		wm = mpMdlData->calc_skel_world_xform(inode, mpXformsL, pParentXform);
+		wm = mpMdlData->calc_skel_node_world_xform(inode, mpXformsL, pParentXform);
 	} else {
 		wm.identity();
 	}
