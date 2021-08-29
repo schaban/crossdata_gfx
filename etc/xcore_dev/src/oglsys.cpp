@@ -281,6 +281,11 @@ static struct OGLSysGlb {
 		bool idxUInt;
 		bool progBin;
 		bool discardFB;
+		bool mdi;
+		bool nvVBUM;
+		bool nvUBUM;
+		bool nvBindlessMDI;
+		bool nvCmdLst;
 	} mExts;
 
 	OGLSys::InputHandler mInpHandler;
@@ -496,7 +501,7 @@ static struct OGLSysGlb {
 			return ifmt;
 		}
 
-		void set_swap_interval(int i) {
+		void set_swap_interval(const int i) {
 			if (wglSwapIntervalEXT) {
 				wglSwapIntervalEXT(i);
 			}
@@ -1677,6 +1682,16 @@ void OGLSysGlb::handle_ogl_ext(const GLubyte* pStr, const int lenStr) {
 			mExts.progBin = true;
 		} else if (str_eq(buf, "GL_EXT_discard_framebuffer")) {
 			mExts.discardFB = true;
+		} else if (str_eq(buf, "GL_ARB_multi_draw_indirect")) {
+			mExts.mdi = true;
+		} else if (str_eq(buf, "GL_NV_vertex_buffer_unified_memory")) {
+			mExts.nvVBUM = true;
+		} else if (str_eq(buf, "GL_NV_uniform_buffer_unified_memory")) {
+			mExts.nvUBUM = true;
+		} else if (str_eq(buf, "GL_NV_bindless_multi_draw_indirect")) {
+			mExts.nvBindlessMDI = true;
+		} else if (str_eq(buf, "GL_NV_command_list")) {
+			mExts.nvCmdLst = true;
 		}
 	}
 }
@@ -2863,6 +2878,26 @@ namespace OGLSys {
 		}
 #endif
 		return res;
+	}
+
+	bool ext_ck_mdi() {
+		return GLG.mExts.mdi;
+	}
+
+	bool ext_ck_nv_vbum() {
+		return GLG.mExts.nvVBUM;
+	}
+
+	bool ext_ck_nv_ubum() {
+		return GLG.mExts.nvUBUM;
+	}
+
+	bool ext_ck_nv_bindless_mdi() {
+		return GLG.mExts.nvBindlessMDI;
+	}
+
+	bool ext_ck_nv_cmd_list() {
+		return GLG.mExts.nvCmdLst;
 	}
 
 

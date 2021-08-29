@@ -340,6 +340,11 @@ namespace OGLSys {
 	bool ext_ck_spv();
 	bool ext_ck_vao();
 	bool ext_ck_vtx_base();
+	bool ext_ck_mdi();
+	bool ext_ck_nv_vbum();
+	bool ext_ck_nv_ubum();
+	bool ext_ck_nv_bindless_mdi();
+	bool ext_ck_nv_cmd_list();
 
 	bool get_key_state(const char code);
 	bool get_key_state(const char* pName);
