@@ -28,7 +28,7 @@ static GLuint s_shadowTex = 0;
 static GLuint s_shadowDepthBuf = 0;
 static bool s_shadowCastDepthTest = true;
 
-static int s_frameBufMode = 0; // 0: def, 1: shadow, 2: sprites
+static int s_frameBufMode = 0; // 0: def, 1: shadow, 2: screen
 static int s_batDrwCnt = 0;
 static int s_shadowCastCnt = 0;
 
@@ -995,7 +995,7 @@ static void set_shadow_framebuf() {
 	}
 }
 
-static void set_quad_framebuf() {
+static void set_screen_framebuf() {
 	if (s_frameBufMode != 2) {
 		int w = OGLSys::get_width();
 		int h = OGLSys::get_height();
@@ -1765,7 +1765,7 @@ void quad(Draw::Quad* pQuad) {
 	if (!htex) {
 		htex = OGLSys::get_white_tex();
 	}
-	set_quad_framebuf();
+	set_screen_framebuf();
 	set_semi();
 	set_face_cull();
 	GPUProg* pProg = &s_prg_quad_quad;
