@@ -49,14 +49,18 @@ HALF float calcSpecLightVal(vec3 pos, HALF vec3 nrm, HALF float rough, HALF floa
 	return calcSpecLightValGGX(pos, nrm, rough, fresnel);
 }
 
-vec3 calcSpec(vec3 pos, HALF vec3 nrm, HALF float rough, HALF float fresnel) {
-	return gpSpecLightColor.rgb * calcSpecLightVal(pos, nrm, rough, fresnel);
+HALF vec3 calcSpec(vec3 pos, HALF vec3 nrm, HALF float rough, HALF float fresnel) {
+	HALF vec3 specLClr = gpSpecLightColor.rgb;
+	return specLClr * calcSpecLightVal(pos, nrm, rough, fresnel);
 }
 
-vec3 calcBasicSpecWithBaseMask(vec4 baseClr, vec3 nrm) {
-	float rough = gpSurfParam.x;
-	float fresnel = gpSurfParam.y;
-	vec3 spec = calcSpec(pixPos, nrm, rough, fresnel);
+vec3 calcBasicSpecWithBaseMask(HALF vec4 baseClr, HALF vec3 nrm) {
+	HALF float rough = gpSurfParam.x;
+	HALF float fresnel = gpSurfParam.y;
+	HALF vec3 spec = calcSpec(pixPos, nrm, rough, fresnel);
 	spec *= baseClr.a;
-	return spec * gpSpecColor;
+	HALF float vcSpecMask = pixClr.a;
+	spec *= vcSpecMask;
+	HALF vec3 mtlSpecClr = gpSpecColor;
+	return spec * mtlSpecClr;
 }

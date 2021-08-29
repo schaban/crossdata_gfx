@@ -7,10 +7,11 @@ HALF float ease(HALF vec2 cp, HALF float t) {
 }
 
 HALF float fog() {
-	float d = distance(pixPos, gpViewPos);
-	float start = gpFogParam.x;
-	float falloff = gpFogParam.y;
-	HALF float t = max(0.0, min((d - start) * falloff, 1.0));
+	FULL float d = distance(pixPos, gpViewPos);
+	HALF float start = gpFogParam.x;
+	HALF float falloff = gpFogParam.y;
+	HALF float hd = d;
+	HALF float t = max(0.0, min((hd - start) * falloff, 1.0));
 	return ease(gpFogParam.zw, t);
 }
 
@@ -48,30 +49,27 @@ HALF vec4 applyCC(HALF vec4 clr) {
 	return c;
 }
 
-vec4 calcFinalColorOpaq(vec4 c) {
+HALF vec4 calcFinalColorOpaq(HALF vec4 c) {
 	c = applyCC(c);
 	c.a = 1.0;
 	return c;
 }
 
-vec4 calcFinalColorSemi(vec4 c) {
+HALF vec4 calcFinalColorSemi(HALF vec4 c) {
 	c = applyCC(c);
-	c.a *= pixClr.a;
 	return c;
 }
 
-vec4 calcFinalColorLimit(vec4 c) {
+HALF vec4 calcFinalColorLimit(HALF vec4 c) {
 	c = applyCC(c);
-	c.a *= pixClr.a;
-	float lim = gpAlphaCtrl.x;
+	HALF float lim = gpAlphaCtrl.x;
 	c.a = lim < 0.0 ? c.a : c.a < lim ? 0.0 : 1.0;
 	return c;
 }
 
-vec4 calcFinalColorDiscard(vec4 c) {
+HALF vec4 calcFinalColorDiscard(HALF vec4 c) {
 	c = applyCC(c);
-	c.a *= pixClr.a;
-	float lim = gpAlphaCtrl.x;
+	HALF float lim = gpAlphaCtrl.x;
 	if (c.a < lim) discard;
 	return c;
 }

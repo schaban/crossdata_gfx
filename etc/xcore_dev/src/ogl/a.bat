@@ -127,5 +127,5 @@ call :frag cast_opaq.frag f_shadow.glsl+cast_opaq.frag
 call :frag cast_semi.frag f_shadow.glsl+cast_semi.frag
 
 
-call :vert vtx_sprite sprite.vert sprite.vert
-call :frag sprite.frag sprite.frag
+call :vert vtx_quad quad.vert quad.vert
+call :frag quad.frag quad.frag

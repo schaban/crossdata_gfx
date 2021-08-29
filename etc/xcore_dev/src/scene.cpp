@@ -49,7 +49,7 @@ static bool s_useShadowCastCull = true;
 
 static float s_refScrW = -1.0f;
 static float s_refScrH = -1.0f;
-static xt_float3 s_sprGamma;
+static xt_float3 s_quadGamma;
 
 static uint64_t s_frameCnt = 0;
 
@@ -207,7 +207,7 @@ void init(const ScnCfg& cfg) {
 		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
 	}
 
-	set_spr_gamma(2.2f);
+	set_quad_gamma(2.2f);
 
 	nxCore::dbg_msg("draw ifc: %s\n", get_draw_ifc_name());
 
@@ -1112,6 +1112,9 @@ ScnObj* add_obj(sxModelData* pMdl, const char* pName) {
 				pObj->mpMotWk = cxMotionWork::create(pMdl);
 				pObj->mJob.mFunc = obj_exec_job;
 				pObj->mJob.mpData = pObj;
+				if (pMdl->has_skel() && pObj->mpMotWk) {
+					pObj->mpMotWk->disable_node_blending(pObj->mpMotWk->mMoveId);
+				}
 				Draw::MdlParam* pMdlParam = get_obj_mdl_params(*pObj);
 				if (pMdlParam) {
 					pMdlParam->reset();
@@ -1279,46 +1282,46 @@ void set_ref_scr_size(const float w, const float h) {
 	s_refScrH = h;
 }
 
-void set_spr_gamma(const float gval) {
-	s_sprGamma.fill(Draw::clip_gamma(gval));
+void set_quad_gamma(const float gval) {
+	s_quadGamma.fill(Draw::clip_gamma(gval));
 }
 
-void set_spr_gamma_rgb(const float r, const float g, const float b) {
-	s_sprGamma.set(Draw::clip_gamma(r), Draw::clip_gamma(g), Draw::clip_gamma(b));
+void set_quad_gamma_rgb(const float r, const float g, const float b) {
+	s_quadGamma.set(Draw::clip_gamma(r), Draw::clip_gamma(g), Draw::clip_gamma(b));
 }
 
-void set_spr_defaults(Draw::Sprite* pSpr) {
-	if (!pSpr) return;
-	::memset(pSpr, 0, sizeof(Draw::Sprite));
+void set_quad_defaults(Draw::Quad* pQuad) {
+	if (!pQuad) return;
+	::memset(pQuad, 0, sizeof(Draw::Quad));
 	if (s_refScrW < 0.0f || s_refScrH < 0.0f) {
 		if (s_pDraw) {
-			pSpr->refWidth = float(s_pDraw->get_screen_width());
-			pSpr->refHeight = float(s_pDraw->get_screen_height());
+			pQuad->refWidth = float(s_pDraw->get_screen_width());
+			pQuad->refHeight = float(s_pDraw->get_screen_height());
 		} else {
-			pSpr->refWidth = 0.0f;
-			pSpr->refHeight = 0.0f;
+			pQuad->refWidth = 0.0f;
+			pQuad->refHeight = 0.0f;
 		}
 	} else {
-		pSpr->refWidth = s_refScrW;
-		pSpr->refHeight = s_refScrH;
+		pQuad->refWidth = s_refScrW;
+		pQuad->refHeight = s_refScrH;
 	}
-	pSpr->gamma = s_sprGamma;
-	pSpr->color.set(1.0f);
+	pQuad->gamma = s_quadGamma;
+	pQuad->color.set(1.0f);
 }
 
-void sprite(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex, cxColor* pClrs) {
+void quad(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex, cxColor* pClrs) {
 	if (!s_pDraw) return;
-	if (!s_pDraw->sprite) return;
-	Draw::Sprite spr;
-	set_spr_defaults(&spr);
+	if (!s_pDraw->quad) return;
+	Draw::Quad quad;
+	set_quad_defaults(&quad);
 	for (int i = 0; i < 4; ++i) {
-		spr.pos[i] = pos[i];
-		spr.tex[i] = tex[i];
+		quad.pos[i] = pos[i];
+		quad.tex[i] = tex[i];
 	}
-	spr.color = clr;
-	spr.pTex = pTex;
-	spr.pClrs = pClrs;
-	s_pDraw->sprite(&spr);
+	quad.color = clr;
+	quad.pTex = pTex;
+	quad.pClrs = pClrs;
+	s_pDraw->quad(&quad);
 }
 
 

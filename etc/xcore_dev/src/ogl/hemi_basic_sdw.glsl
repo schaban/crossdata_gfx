@@ -1,8 +1,9 @@
 vec4 hemiBasicShadow() {
-	vec4 clr = getBaseMap(pixTex);
-	clr.rgb *= pixClr.rgb;
+	HALF vec4 clr = getBaseMap(pixTex);
+	HALF vec3 vc = pixClr.rgb;
+	clr.rgb *= vc;
 	clr.rgb *= calcHemi(pixNrm);
-	float sdw = calcShadowVal();
+	HALF float sdw = calcShadowVal();
 	clr.rgb = mix(clr.rgb, vec3(0.0), sdw * getShadowDensity());
 	return clr;
 }

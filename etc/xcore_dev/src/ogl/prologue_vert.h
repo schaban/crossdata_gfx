@@ -7,3 +7,4 @@ precision highp float;
 #	define FULL
 #endif
 
+#define VTX_SHADER

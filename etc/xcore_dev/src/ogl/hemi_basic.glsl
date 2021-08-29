@@ -1,6 +1,7 @@
 vec4 hemiBasic() {
-	vec4 clr = getBaseMap(pixTex);
-	clr.rgb *= pixClr.rgb;
+	HALF vec4 clr = getBaseMap(pixTex);
+	HALF vec3 vc = pixClr.rgb;
+	clr.rgb *= vc;
 	clr.rgb *= calcHemi(pixNrm);
 	return clr;
 }

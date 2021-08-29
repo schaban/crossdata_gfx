@@ -9,7 +9,12 @@ uniform vec4 gpWorld[3];
 
 uniform mat4 gpViewProj;
 
-uniform vec4 gpSprVtxPos[2];
-uniform vec4 gpSprVtxTex[2];
-uniform vec4 gpSprVtxClr[4];
+uniform vec3 gpVtxHemiUp;
+uniform vec3 gpVtxHemiUpper;
+uniform vec3 gpVtxHemiLower;
+uniform vec3 gpVtxHemiParam; // exp, gain
+
+uniform vec4 gpQuadVtxPos[2];
+uniform vec4 gpQuadVtxTex[2];
+uniform vec4 gpQuadVtxClr[4];
 

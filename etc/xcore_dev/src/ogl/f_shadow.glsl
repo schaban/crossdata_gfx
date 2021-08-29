@@ -14,7 +14,7 @@ FULL float sampleShadowMap(vec2 uv) {
 	return decodeShadowVal(enc);
 }
 
-float getShadowDensity() {
+HALF float getShadowDensity() {
 	return gpShadowCtrl.z;
 }
 

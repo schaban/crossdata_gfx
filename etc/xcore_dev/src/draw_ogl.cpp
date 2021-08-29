@@ -32,8 +32,8 @@ static int s_frameBufMode = 0; // 0: def, 1: shadow, 2: sprites
 static int s_batDrwCnt = 0;
 static int s_shadowCastCnt = 0;
 
-static GLuint s_sprVBO = 0;
-static GLuint s_sprIBO = 0;
+static GLuint s_quadVBO = 0;
+static GLuint s_quadIBO = 0;
 
 
 static void def_tex_lod_bias() {
@@ -191,9 +191,9 @@ struct ParamLink {
 	GLint LClrBias;
 	GLint Exposure;
 	GLint InvGamma;
-	GLint SprVtxPos;
-	GLint SprVtxTex;
-	GLint SprVtxClr;
+	GLint QuadVtxPos;
+	GLint QuadVtxTex;
+	GLint QuadVtxClr;
 
 	void reset() { ::memset(this, 0xFF, sizeof(*this)); }
 };
@@ -236,7 +236,7 @@ enum VtxFmt {
 	VtxFmt_rigid1,
 	VtxFmt_skin0,
 	VtxFmt_skin1,
-	VtxFmt_sprite
+	VtxFmt_quad
 };
 
 struct GPUProg {
@@ -407,9 +407,9 @@ struct GPUProg {
 			PARAM_LINK(LClrBias);
 			PARAM_LINK(Exposure);
 			PARAM_LINK(InvGamma);
-			PARAM_LINK(SprVtxPos);
-			PARAM_LINK(SprVtxTex);
-			PARAM_LINK(SprVtxClr);
+			PARAM_LINK(QuadVtxPos);
+			PARAM_LINK(QuadVtxTex);
+			PARAM_LINK(QuadVtxClr);
 
 			SMP_LINK(Base);
 			SMP_LINK(Bump);
@@ -607,7 +607,7 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			case VtxFmt_skin1: stride = sizeof(sxModelData::VtxSkinShort); break;
 			case VtxFmt_rigid0: stride = sizeof(sxModelData::VtxRigidHalf); break;
 			case VtxFmt_rigid1: stride = sizeof(sxModelData::VtxRigidShort); break;
-			case VtxFmt_sprite: stride = sizeof(float); break;
+			case VtxFmt_quad: stride = sizeof(float); break;
 			default: break;
 		}
 	}
@@ -709,7 +709,7 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			}
 			break;
 
-		case VtxFmt_sprite:
+		case VtxFmt_quad:
 			if (mVtxLink.Id >= 0) {
 				glEnableVertexAttribArray(mVtxLink.Id);
 				glVertexAttribPointer(mVtxLink.Id, 1, GL_FLOAT, GL_FALSE, stride, (const void*)(top));
@@ -995,7 +995,7 @@ static void set_shadow_framebuf() {
 	}
 }
 
-static void set_spr_framebuf() {
+static void set_quad_framebuf() {
 	if (s_frameBufMode != 2) {
 		int w = OGLSys::get_width();
 		int h = OGLSys::get_height();
@@ -1005,6 +1005,7 @@ static void set_spr_framebuf() {
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glDepthMask(GL_FALSE);
 		glDisable(GL_DEPTH_TEST);
+		reset_fb_render_states();
 		s_frameBufMode = 2;
 	}
 }
@@ -1035,16 +1036,16 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 
 	nxCore::dbg_msg("GPU progs: %d/%d\n", prgOK, prgCnt);
 
-	glGenBuffers(1, &s_sprVBO);
-	glGenBuffers(1, &s_sprIBO);
-	if (s_sprVBO && s_sprIBO) {
-		static GLfloat sprVBData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
-		static uint16_t sprIBData[] = { 0, 1, 3, 2 };
-		glBindBuffer(GL_ARRAY_BUFFER, s_sprVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(sprVBData), sprVBData, GL_STATIC_DRAW);
+	glGenBuffers(1, &s_quadVBO);
+	glGenBuffers(1, &s_quadIBO);
+	if (s_quadVBO && s_quadIBO) {
+		static GLfloat quadVBData[] = { 0.0f, 1.0f, 2.0f, 3.0f };
+		static uint16_t quadIBData[] = { 0, 1, 3, 2 };
+		glBindBuffer(GL_ARRAY_BUFFER, s_quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVBData), quadVBData, GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_sprIBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sprIBData), sprIBData, GL_STATIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_quadIBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(quadIBData), quadIBData, GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 
@@ -1113,13 +1114,13 @@ static void reset() {
 		s_shadowFBO = 0;
 	}
 
-	if (s_sprIBO) {
-		glDeleteBuffers(1, &s_sprIBO);
-		s_sprIBO = 0;
+	if (s_quadIBO) {
+		glDeleteBuffers(1, &s_quadIBO);
+		s_quadIBO = 0;
 	}
-	if (s_sprVBO) {
-		glDeleteBuffers(1, &s_sprVBO);
-		s_sprVBO = 0;
+	if (s_quadVBO) {
+		glDeleteBuffers(1, &s_quadVBO);
+		s_quadVBO = 0;
 	}
 
 #define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.reset();
@@ -1757,27 +1758,27 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	}
 }
 
-void sprite(Draw::Sprite* pSpr) {
-	if (!pSpr) return;
-	if (pSpr->color.a == 0.0f) return;
-	GLuint htex = get_tex_handle(pSpr->pTex);
+void quad(Draw::Quad* pQuad) {
+	if (!pQuad) return;
+	if (pQuad->color.a == 0.0f) return;
+	GLuint htex = get_tex_handle(pQuad->pTex);
 	if (!htex) {
 		htex = OGLSys::get_white_tex();
 	}
-	set_spr_framebuf();
+	set_quad_framebuf();
 	set_semi();
 	set_face_cull();
-	GPUProg* pProg = &s_prg_sprite_sprite;
+	GPUProg* pProg = &s_prg_quad_quad;
 	pProg->use();
 	xt_float4 pos[2];
-	float* pPosSrc = pSpr->pos[0];
+	float* pPosSrc = pQuad->pos[0];
 	float* pPosDst = pos[0];
 	for (int i = 0; i < 8; ++i) {
 		pPosDst[i] = pPosSrc[i] + 0.5f;
 	}
 	float scl[2];
-	scl[0] = nxCalc::rcp0(pSpr->refWidth);
-	scl[1] = nxCalc::rcp0(pSpr->refHeight);
+	scl[0] = nxCalc::rcp0(pQuad->refWidth);
+	scl[1] = nxCalc::rcp0(pQuad->refHeight);
 	for (int i = 0; i < 8; ++i) {
 		pPosDst[i] *= scl[i & 1];
 	}
@@ -1793,9 +1794,9 @@ void sprite(Draw::Sprite* pSpr) {
 	}
 	cxColor clr[4];
 	float* pClrDst = clr[0].ch;
-	float* pClr = pSpr->color.ch;
-	if (pSpr->pClrs) {
-		float* pClrSrc = pSpr->pClrs[0].ch;
+	float* pClr = pQuad->color.ch;
+	if (pQuad->pClrs) {
+		float* pClrSrc = pQuad->pClrs[0].ch;
 		for (int i = 0; i < 4; ++i) {
 			for (int j = 0; j < 4; ++j) {
 				*pClrDst++ = pClrSrc[j] * pClr[j];
@@ -1809,18 +1810,18 @@ void sprite(Draw::Sprite* pSpr) {
 			}
 		}
 	}
-	if (HAS_PARAM(SprVtxPos)) {
-		glUniform4fv(pProg->mParamLink.SprVtxPos, 2, pos[0]);
+	if (HAS_PARAM(QuadVtxPos)) {
+		glUniform4fv(pProg->mParamLink.QuadVtxPos, 2, pos[0]);
 	}
-	if (HAS_PARAM(SprVtxTex)) {
-		glUniform4fv(pProg->mParamLink.SprVtxTex, 2, pSpr->tex[0]);
+	if (HAS_PARAM(QuadVtxTex)) {
+		glUniform4fv(pProg->mParamLink.QuadVtxTex, 2, pQuad->tex[0]);
 	}
-	if (HAS_PARAM(SprVtxClr)) {
-		glUniform4fv(pProg->mParamLink.SprVtxClr, 4, clr[0].ch);
+	if (HAS_PARAM(QuadVtxClr)) {
+		glUniform4fv(pProg->mParamLink.QuadVtxClr, 4, clr[0].ch);
 	}
 	if (HAS_PARAM(InvGamma)) {
 		xt_float3 invGamma;
-		invGamma.set(nxCalc::rcp0(pSpr->gamma.x), nxCalc::rcp0(pSpr->gamma.y), nxCalc::rcp0(pSpr->gamma.z));
+		invGamma.set(nxCalc::rcp0(pQuad->gamma.x), nxCalc::rcp0(pQuad->gamma.y), nxCalc::rcp0(pQuad->gamma.z));
 		pProg->set_inv_gamma(invGamma);
 	}
 	glActiveTexture(GL_TEXTURE0 + Draw::TEXUNIT_Base);
@@ -1828,9 +1829,9 @@ void sprite(Draw::Sprite* pSpr) {
 	if (pProg->mVAO) {
 		OGLSys::bind_vao(pProg->mVAO);
 	}
-	glBindBuffer(GL_ARRAY_BUFFER, s_sprVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, s_quadVBO);
 	pProg->enable_attrs(0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_sprIBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_quadIBO);
 	glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (const void*)0);
 	if (pProg->mVAO) {
 		OGLSys::bind_vao(0);
@@ -1854,7 +1855,7 @@ struct DrwInit {
 		s_ifc.begin = begin;
 		s_ifc.end = end;
 		s_ifc.batch = batch;
-		s_ifc.sprite = sprite;
+		s_ifc.quad = quad;
 		Draw::register_ifc_impl(&s_ifc);
 	}
 } s_drwInit;

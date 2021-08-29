@@ -210,7 +210,7 @@ namespace Draw {
 
 	};
 
-	struct Sprite {
+	struct Quad {
 		xt_float2 pos[4];
 		xt_float2 tex[4];
 		cxColor color;
@@ -248,7 +248,7 @@ namespace Draw {
 
 		void (*batch)(cxModelWork* pWk, const int ibat, const Mode mode, const Context* pCtx);
 
-		void (*sprite)(Sprite* pSpr);
+		void (*quad)(Quad* pQuad);
 	};
 
 	int32_t register_ifc_impl(Ifc* pIfc);

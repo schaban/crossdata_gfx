@@ -195,4 +195,4 @@ GPU_PROG(rigid1, cast_semi)
 
 
 // etc
-GPU_PROG(sprite, sprite)
+GPU_PROG(quad, quad)
