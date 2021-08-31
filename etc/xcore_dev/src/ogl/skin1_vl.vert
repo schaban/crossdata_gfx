@@ -10,5 +10,6 @@ void main() {
 	const float cscl = 1.0 / float(0x7FF);
 	const float tscl = 1.0 / float(0x7FF);
 	calcVtxOut(wm, vpos, vnrm, vtxTex, vtxClr, tscl, cscl, pixPos, pixNrm, pixTex, pixClr);
+	pixClr.rgb *= calcHemi(pixNrm);
 	calcGLPos(pixPos);
 }

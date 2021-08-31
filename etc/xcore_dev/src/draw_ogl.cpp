@@ -15,6 +15,8 @@ DRW_IMPL_BEGIN
 
 static bool s_useMipmaps = true;
 
+static bool s_useVtxLighting = false;
+
 static cxResourceManager* s_pRsrcMgr = nullptr;
 
 struct GPUProg;
@@ -173,6 +175,10 @@ struct ParamLink {
 	GLint HemiParam;
 	GLint SpecLightDir;
 	GLint SpecLightColor;
+	GLint VtxHemiUp;
+	GLint VtxHemiUpper;
+	GLint VtxHemiLower;
+	GLint VtxHemiParam;
 	GLint ShadowMtx;
 	GLint ShadowSize;
 	GLint ShadowCtrl;
@@ -236,7 +242,12 @@ enum VtxFmt {
 	VtxFmt_rigid1,
 	VtxFmt_skin0,
 	VtxFmt_skin1,
-	VtxFmt_quad
+	VtxFmt_quad,
+
+	VtxFmt_rigid0_vl = VtxFmt_rigid0,
+	VtxFmt_rigid1_vl = VtxFmt_rigid1,
+	VtxFmt_skin0_vl = VtxFmt_skin0,
+	VtxFmt_skin1_vl = VtxFmt_skin1
 };
 
 struct GPUProg {
@@ -297,6 +308,11 @@ struct GPUProg {
 		CachedParam<xt_float3> mSpecLightDir;
 		CachedParam<xt_float4> mSpecLightColor;
 
+		CachedParam<xt_float3> mVtxHemiUpper;
+		CachedParam<xt_float3> mVtxHemiLower;
+		CachedParam<xt_float3> mVtxHemiUp;
+		CachedParam<xt_float3> mVtxHemiParam;
+
 		CachedParam<xt_float3> mBaseColor;
 		CachedParam<xt_float3> mSpecColor;
 		CachedParam<xt_float4> mSurfParam;
@@ -333,6 +349,10 @@ struct GPUProg {
 			mHemiParam.reset();
 			mSpecLightDir.reset();
 			mSpecLightColor.reset();
+			mVtxHemiUpper.reset();
+			mVtxHemiLower.reset();
+			mVtxHemiUp.reset();
+			mVtxHemiParam.reset();
 			mBaseColor.reset();
 			mSpecColor.reset();
 			mSurfParam.reset();
@@ -389,6 +409,10 @@ struct GPUProg {
 			PARAM_LINK(HemiParam);
 			PARAM_LINK(SpecLightDir);
 			PARAM_LINK(SpecLightColor);
+			PARAM_LINK(VtxHemiUp);
+			PARAM_LINK(VtxHemiUpper);
+			PARAM_LINK(VtxHemiLower);
+			PARAM_LINK(VtxHemiParam);
 			PARAM_LINK(ShadowMtx);
 			PARAM_LINK(ShadowSize);
 			PARAM_LINK(ShadowCtrl);
@@ -517,6 +541,22 @@ struct GPUProg {
 
 	void set_spec_light_color(const xt_float4& c) {
 		mCache.mSpecLightColor.set(mParamLink.SpecLightColor, c);
+	}
+
+	void set_vtx_hemi_upper(const xt_float3& hupr) {
+		mCache.mVtxHemiUpper.set(mParamLink.VtxHemiUpper, hupr);
+	}
+
+	void set_vtx_hemi_lower(const xt_float3& hlwr) {
+		mCache.mVtxHemiLower.set(mParamLink.VtxHemiLower, hlwr);
+	}
+
+	void set_vtx_hemi_up(const xt_float3& upvec) {
+		mCache.mVtxHemiUp.set(mParamLink.VtxHemiUp, upvec);
+	}
+
+	void set_vtx_hemi_param(const xt_float3& hprm) {
+		mCache.mVtxHemiParam.set(mParamLink.VtxHemiParam, hprm);
 	}
 
 	void set_base_color(const xt_float3& c) {
@@ -1024,6 +1064,8 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 	rsrcGfxIfc.releaseModel = release_model;
 	s_pRsrcMgr->set_gfx_ifc(rsrcGfxIfc);
 
+	s_useVtxLighting = nxApp::get_bool_opt("vl", false);
+
 #define GPU_SHADER(_name, _kind) s_sdr_##_name##_##_kind = load_shader(#_name "." #_kind);
 #include "ogl/shaders.inc"
 #undef GPU_SHADER
@@ -1223,7 +1265,7 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 			}
 		}
 		bool bumpFlg = false;
-		if (pCtx->glb.useBump && OGLSys::ext_ck_derivatives()) {
+		if (!s_useVtxLighting && pCtx->glb.useBump && OGLSys::ext_ck_derivatives()) {
 			if (pMtl->mBumpScale > 0.0f) {
 				int tid = pMtl->mBumpTexId;
 				if (tid >= 0) {
@@ -1241,8 +1283,25 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 			}
 		}
 		if ((!pMtl->mFlags.alpha) || (mode == Draw::DRWMODE_DISCARD && !pMtl->mFlags.forceBlend)) {
+			// opaq or discard
 			if (pMdl->half_encoding()) {
-				if (bumpFlg) {
+				// fmt0: half
+				if (s_useVtxLighting) {
+					// fmt0 vl
+					if (pMdl->has_skin()) {
+						if (pMtl->mFlags.alpha) {
+							pProg = recvFlg ? &s_prg_skin0_vl_unlit_discard_sdw : &s_prg_skin0_vl_unlit_discard;
+						} else {
+							pProg = recvFlg ? &s_prg_skin0_vl_unlit_opaq_sdw : &s_prg_skin0_vl_unlit_opaq;
+						}
+					} else {
+						if (pMtl->mFlags.alpha) {
+							pProg = recvFlg ? &s_prg_rigid0_vl_unlit_discard_sdw : &s_prg_rigid0_vl_unlit_discard;
+						} else {
+							pProg = recvFlg ? &s_prg_rigid0_vl_unlit_opaq_sdw : &s_prg_rigid0_vl_unlit_opaq;
+						}
+					}
+				} else if (bumpFlg) {
 					// fmt0 bump
 					if (specFlg) {
 						if (pMdl->has_skin()) {
@@ -1306,7 +1365,23 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 					}
 				}
 			} else {
-				if (bumpFlg) {
+				// fmt1: short
+				if (s_useVtxLighting) {
+					// fmt1 vl
+					if (pMdl->has_skin()) {
+						if (pMtl->mFlags.alpha) {
+							pProg = recvFlg ? &s_prg_skin1_vl_unlit_discard_sdw : &s_prg_skin1_vl_unlit_discard;
+						} else {
+							pProg = recvFlg ? &s_prg_skin1_vl_unlit_opaq_sdw : &s_prg_skin1_vl_unlit_opaq;
+						}
+					} else {
+						if (pMtl->mFlags.alpha) {
+							pProg = recvFlg ? &s_prg_rigid1_vl_unlit_discard_sdw : &s_prg_rigid1_vl_unlit_discard;
+						} else {
+							pProg = recvFlg ? &s_prg_rigid1_vl_unlit_opaq_sdw : &s_prg_rigid1_vl_unlit_opaq;
+						}
+					}
+				}  else if (bumpFlg) {
 					// fmt1 bump
 					if (specFlg) {
 						if (pMdl->has_skin()) {
@@ -1371,8 +1446,43 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 				}
 			}
 		} else {
-			if (pMtl->mFlags.alpha) {
+			// blending
+			if (s_useVtxLighting) {
+				// vertex lighting
 				if (pMdl->half_encoding()) {
+					// fmt0: half
+					if (pMtl->is_cutout()) {
+						if (pMdl->has_skin()) {
+							pProg = recvFlg ? &s_prg_skin0_vl_unlit_limit_sdw : &s_prg_skin0_vl_unlit_limit;
+						} else {
+							pProg = recvFlg ? &s_prg_rigid0_vl_unlit_limit_sdw : &s_prg_rigid0_vl_unlit_limit;
+						}
+					} else {
+						if (pMdl->has_skin()) {
+							pProg = recvFlg ? &s_prg_skin0_vl_unlit_semi_sdw : &s_prg_skin0_vl_unlit_semi;
+						} else {
+							pProg = recvFlg ? &s_prg_rigid0_vl_unlit_semi_sdw : &s_prg_rigid0_vl_unlit_semi;
+						}
+					}
+				} else {
+					// fmt1: short
+					if (pMtl->is_cutout()) {
+						if (pMdl->has_skin()) {
+							pProg = recvFlg ? &s_prg_skin1_vl_unlit_limit_sdw : &s_prg_skin1_vl_unlit_limit;
+						} else {
+							pProg = recvFlg ? &s_prg_rigid1_vl_unlit_limit_sdw : &s_prg_rigid1_vl_unlit_limit;
+						}
+					} else {
+						if (pMdl->has_skin()) {
+							pProg = recvFlg ? &s_prg_skin1_vl_unlit_semi_sdw : &s_prg_skin1_vl_unlit_semi;
+						} else {
+							pProg = recvFlg ? &s_prg_rigid1_vl_unlit_semi_sdw : &s_prg_rigid1_vl_unlit_semi;
+						}
+					}
+				}
+			} else {
+				if (pMdl->half_encoding()) {
+					// fmt0: half
 					if (specFlg) {
 						if (pMtl->is_cutout()) {
 							if (pMdl->has_skin()) {
@@ -1403,8 +1513,9 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 						}
 					}
 				} else {
+					// fmt1: short
 					if (specFlg) {
-						if (pMtl->mAlphaLim > 0.0f) {
+						if (pMtl->is_cutout()) {
 							if (pMdl->has_skin()) {
 								pProg = recvFlg ? &s_prg_skin1_hemi_spec_limit_sdw : &s_prg_skin1_hemi_spec_limit;
 							} else {
@@ -1418,7 +1529,7 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 							}
 						}
 					} else {
-						if (pMtl->mAlphaLim > 0.0f) {
+						if (pMtl->is_cutout()) {
 							if (pMdl->has_skin()) {
 								pProg = recvFlg ? &s_prg_skin1_hemi_limit_sdw : &s_prg_skin1_hemi_limit;
 							} else {
@@ -1430,36 +1541,6 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 							} else {
 								pProg = recvFlg ? &s_prg_rigid1_hemi_semi_sdw : &s_prg_rigid1_hemi_semi;
 							}
-						}
-					}
-				}
-			} else {
-				if (specFlg) {
-					if (pMdl->half_encoding()) {
-						if (pMdl->has_skin()) {
-							pProg = recvFlg ? &s_prg_skin0_hemi_spec_opaq_sdw : &s_prg_skin0_hemi_spec_opaq;
-						} else {
-							pProg = recvFlg ? &s_prg_rigid0_hemi_spec_opaq_sdw : &s_prg_rigid0_hemi_spec_opaq;
-						}
-					} else {
-						if (pMdl->has_skin()) {
-							pProg = recvFlg ? &s_prg_skin1_hemi_spec_opaq_sdw : &s_prg_skin1_hemi_spec_opaq;
-						} else {
-							pProg = recvFlg ? &s_prg_rigid1_hemi_spec_opaq_sdw : &s_prg_rigid1_hemi_spec_opaq;
-						}
-					}
-				} else {
-					if (pMdl->half_encoding()) {
-						if (pMdl->has_skin()) {
-							pProg = recvFlg ? &s_prg_skin0_hemi_opaq_sdw : &s_prg_skin0_hemi_opaq;
-						} else {
-							pProg = recvFlg ? &s_prg_rigid0_hemi_opaq_sdw : &s_prg_rigid0_hemi_opaq;
-						}
-					} else {
-						if (pMdl->has_skin()) {
-							pProg = recvFlg ? &s_prg_skin1_hemi_opaq_sdw : &s_prg_skin1_hemi_opaq;
-						} else {
-							pProg = recvFlg ? &s_prg_rigid1_hemi_opaq_sdw : &s_prg_rigid1_hemi_opaq;
 						}
 					}
 				}
@@ -1586,6 +1667,15 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		::memcpy(sclr, pCtx->spec.mClr, sizeof(xt_float3));
 		sclr.w = pCtx->spec.mShadowing;
 		pProg->set_spec_light_color(sclr);
+	}
+
+	pProg->set_vtx_hemi_upper(pCtx->hemi.mUpper);
+	pProg->set_vtx_hemi_lower(pCtx->hemi.mLower);
+	pProg->set_vtx_hemi_up(pCtx->hemi.mUp);
+	if (HAS_PARAM(VtxHemiParam)) {
+		xt_float3 hparam;
+		hparam.set(pCtx->hemi.mExp, pCtx->hemi.mGain, 0.0f);
+		pProg->set_vtx_hemi_param(hparam);
 	}
 
 	pProg->set_shadow_mtx(pCtx->shadow.mMtx);

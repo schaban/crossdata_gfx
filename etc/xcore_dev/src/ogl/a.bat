@@ -43,12 +43,25 @@ goto :EOF
 :start
 echo /* */ > %SHADERS%
 
+
 call :vert vtx_skin0 skin0.vert f_skin.glsl+skin0.vert
 call :vert vtx_rigid0 rigid0.vert rigid0.vert
 
 call :vert vtx_skin1 skin1.vert f_skin.glsl+skin1.vert
 call :vert vtx_rigid1 rigid1.vert rigid1.vert
 
+
+rem vertex hemi lighting
+
+call :vert vtx_skin0 skin0_vl.vert f_skin.glsl+f_hemi.glsl+skin0_vl.vert
+call :vert vtx_rigid0 rigid0_vl.vert f_hemi.glsl+rigid0_vl.vert
+
+call :vert vtx_skin1 skin1_vl.vert f_skin.glsl+f_hemi.glsl+skin1_vl.vert
+call :vert vtx_rigid1 rigid1_vl.vert f_hemi.glsl+rigid1_vl.vert
+
+
+
+rem hemi light
 
 call :frag hemi_opaq.frag f_hemi.glsl+hemi_basic.glsl+hemi_opaq.frag
 call :frag hemi_semi.frag f_hemi.glsl+hemi_basic.glsl+hemi_semi.frag
@@ -112,6 +125,8 @@ call :frag hemi_spec_bump_pat_limit_sdw.frag f_shadow.glsl+f_hemi.glsl+f_spec.gl
 call :frag hemi_spec_bump_pat_discard_sdw.frag f_shadow.glsl+f_hemi.glsl+f_spec.glsl+f_bump.glsl+hemi_spec_bump_pat_sdw.glsl+hemi_spec_bump_pat_discard_sdw.frag prologue_frag_bump.h
 
 
+rem SH3 lighting
+
 call :frag sh_opaq.frag f_sh.glsl+sh_basic.glsl+sh_opaq.frag
 call :frag sh_semi.frag f_sh.glsl+sh_basic.glsl+sh_semi.frag
 call :frag sh_limit.frag f_sh.glsl+sh_basic.glsl+sh_limit.frag
@@ -123,9 +138,25 @@ call :frag sh_limit_sdw.frag f_shadow.glsl+f_sh.glsl+sh_basic_sdw.glsl+sh_limit_
 call :frag sh_discard_sdw.frag f_shadow.glsl+f_sh.glsl+sh_basic_sdw.glsl+sh_discard_sdw.frag
 
 
+rem no lighting
+
+call :frag unlit_opaq.frag unlit.glsl+unlit_opaq.frag
+call :frag unlit_semi.frag unlit.glsl+unlit_semi.frag
+call :frag unlit_limit.frag unlit.glsl+unlit_limit.frag
+call :frag unlit_discard.frag unlit.glsl+unlit_discard.frag
+
+call :frag unlit_opaq_sdw.frag f_shadow.glsl+unlit_sdw.glsl+unlit_opaq_sdw.frag
+call :frag unlit_semi_sdw.frag f_shadow.glsl+unlit_sdw.glsl+unlit_semi_sdw.frag
+call :frag unlit_limit_sdw.frag f_shadow.glsl+unlit_sdw.glsl+unlit_limit_sdw.frag
+call :frag unlit_discard_sdw.frag f_shadow.glsl+unlit_sdw.glsl+unlit_discard_sdw.frag
+
+
+
+rem shadow cast
 call :frag cast_opaq.frag f_shadow.glsl+cast_opaq.frag
 call :frag cast_semi.frag f_shadow.glsl+cast_semi.frag
 
 
+rem screen
 call :vert vtx_quad quad.vert quad.vert
 call :frag quad.frag quad.frag
