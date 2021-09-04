@@ -140,6 +140,7 @@ enum KBD_CTRL {
 	KBD_CTRL_LCTRL,
 	KBD_CTRL_RSHIFT,
 	KBD_CTRL_RCTRL,
+	KBD_CTRL_ENTER,
 	_KBD_CTRL_NUM_
 };
 
@@ -763,6 +764,10 @@ static void web_kbd(const SDL_Event& evt) {
 			pState = GLG.mKbdState.ctrl;
 			idx = KBD_CTRL_RCTRL;
 			break;
+		case SDLK_RETURN:
+			pState = GLG.mKbdState.ctrl;
+			idx = KBD_CTRL_ENTER;
+			break;
 		default:
 			break;
 	}
@@ -984,6 +989,10 @@ static bool wnd_kbd_msg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 					case VK_RCONTROL:
 						pState = GLG.mKbdState.ctrl;
 						idx = KBD_CTRL_RCTRL;
+						break;
+					case VK_RETURN:
+						pState = GLG.mKbdState.ctrl;
+						idx = KBD_CTRL_ENTER;
 						break;
 				}
 			}
@@ -2214,6 +2223,10 @@ namespace OGLSys {
 									pKbdState = GLG.mKbdState.ctrl;
 									kbdIdx = KBD_CTRL_RCTRL;
 									break;
+								case 13:
+									pKbdState = GLG.mKbdState.ctrl;
+									kbdIdx = KBD_CTRL_ENTER;
+									break;
 
 								case 20:
 									pKbdState = GLG.mKbdState.punct;
@@ -2974,6 +2987,9 @@ namespace OGLSys {
 			} else if (strcmp(pName, "RCTRL") == 0) {
 				pState = GLG.mKbdState.ctrl;
 				idx = KBD_CTRL_RCTRL;
+			} else if (strcmp(pName, "ENTER") == 0) {
+				pState = GLG.mKbdState.ctrl;
+				idx = KBD_CTRL_ENTER;
 			}
 		}
 		if (ppState) {
