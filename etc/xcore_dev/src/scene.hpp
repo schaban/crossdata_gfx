@@ -218,6 +218,16 @@ void release_all_gfx();
 void unload_pkg(Pkg* pPkg);
 void unload_all_pkgs();
 
+sxData* load_data_file(const char* pRelPath);
+void unload_data_file(sxData* pData);
+sxImageData* load_img(const char* pRelPath);
+sxTextureData* load_tex(const char* pRelPath);
+sxGeometryData* load_geo(const char* pRelPath);
+sxRigData* load_rig(const char* pRelPath);
+sxKeyframesData* load_kfr(const char* pRelPath);
+sxValuesData* load_vals(const char* pRelPath);
+sxExprLibData* load_expr_lib(const char* pRelPath);
+
 void frame_begin(const cxColor& clearColor = cxColor(0.0f, 0.0f, 0.0f, 1.0f));
 void frame_end();
 uint64_t get_frame_count();
@@ -269,7 +279,8 @@ cxVec get_view_dir();
 cxVec get_view_up();
 float get_view_near();
 float get_view_far();
-
+int get_screen_width();
+int get_screen_height();
 bool is_rot_view();
 
 bool is_sphere_visible(const cxSphere& sph, const bool exact = true);
@@ -338,6 +349,8 @@ cxVec get_obj_world_pos(const char* pName);
 cxVec get_obj_center_pos(const char* pName);
 
 void set_ref_scr_size(const float w, const float h);
+float get_ref_scr_width();
+float get_ref_scr_height();
 void set_quad_gamma(const float gval);
 void set_quad_gamma_rgb(const float r, const float g, const float b);
 void quad(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex = nullptr, cxColor* pClrs = nullptr);
@@ -353,6 +366,8 @@ void copy_prev_world_data();
 void exec();
 void visibility();
 void draw(bool discard = true);
+
+void print(const float x, const float y, const cxColor& clr, const char* pStr);
 
 float speed();
 

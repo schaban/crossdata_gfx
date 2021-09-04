@@ -6,6 +6,8 @@ static Draw::Ifc* s_pDraw = nullptr;
 
 static cxResourceManager* s_pRsrcMgr = nullptr;
 
+static sxTextureData* s_pScrCommonTex = nullptr;
+
 static cxBrigade* s_pBgd = nullptr;
 static sxJobQueue* s_pJobQue = nullptr;
 static cxHeap* s_pGlobalHeap = nullptr;
@@ -203,6 +205,8 @@ void init(const ScnCfg& cfg) {
 
 	s_speed = nxApp::get_float_opt("speed", 1.0f);
 
+	s_pScrCommonTex = load_tex("etc/scr_common_BASE.xtex");
+
 	if (s_pDraw) {
 		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
 	}
@@ -220,6 +224,11 @@ void init(const ScnCfg& cfg) {
 
 void reset() {
 	if (!s_scnInitFlg) return;
+
+	if (s_pScrCommonTex) {
+		unload_data_file(s_pScrCommonTex);
+		s_pScrCommonTex = nullptr;
+	}
 
 	if (s_pBgd) {
 		cxBrigade::destroy(s_pBgd);
@@ -353,6 +362,119 @@ void unload_all_pkgs() {
 	if (s_pRsrcMgr) {
 		s_pRsrcMgr->unload_all();
 	}
+}
+
+sxData* load_data_file(const char* pRelPath) {
+	sxData* pData = nullptr;
+	if (pRelPath) {
+		const char* pDataPath = s_pRsrcMgr ? s_pRsrcMgr->get_data_path() : ".";
+		char path[512];
+		char* pPath = path;
+		size_t bufSize = sizeof(path);
+		size_t pathSize = ::strlen(pDataPath) + 1 + ::strlen(pRelPath) + 1;
+		if (pathSize > bufSize) {
+			pPath = (char*)nxCore::mem_alloc(pathSize, "Scn:data_path");
+			bufSize = pathSize;
+		}
+		if (pPath) {
+			XD_SPRINTF(XD_SPRINTF_BUF(pPath, bufSize), "%s/%s", pDataPath, pRelPath);
+		}
+		pData = nxData::load(pPath);
+		if (pPath != path) {
+			nxCore::mem_free(pPath);
+		}
+	}
+	return pData;
+}
+
+void unload_data_file(sxData* pData) {
+	if (pData) {
+		nxData::unload(pData);
+	}
+}
+
+sxImageData* load_img(const char* pRelPath) {
+	sxImageData* pImg = nullptr;
+	sxData* pData = load_data_file(pRelPath);
+	if (pData) {
+		pImg = pData->as<sxImageData>();
+		if (!pImg) {
+			unload_data_file(pData);
+		}
+	}
+	return pImg;
+}
+
+sxTextureData* load_tex(const char* pRelPath) {
+	sxTextureData* pTex = nullptr;
+	sxData* pData = load_data_file(pRelPath);
+	if (pData) {
+		pTex = pData->as<sxTextureData>();
+		if (!pTex) {
+			unload_data_file(pData);
+		}
+	}
+	return pTex;
+}
+
+sxGeometryData* load_geo(const char* pRelPath) {
+	sxGeometryData* pGeo = nullptr;
+	sxData* pData = load_data_file(pRelPath);
+	if (pData) {
+		pGeo = pData->as<sxGeometryData>();
+		if (!pGeo) {
+			unload_data_file(pData);
+		}
+	}
+	return pGeo;
+}
+
+sxRigData* load_rig(const char* pRelPath) {
+	sxRigData* pRig = nullptr;
+	sxData* pData = load_data_file(pRelPath);
+	if (pData) {
+		pRig = pData->as<sxRigData>();
+		if (!pRig) {
+			unload_data_file(pData);
+		}
+	}
+	return pRig;
+}
+
+sxKeyframesData* load_kfr(const char* pRelPath) {
+	sxKeyframesData* pKfr = nullptr;
+	sxData* pData = load_data_file(pRelPath);
+	if (pData) {
+		pKfr = pData->as<sxKeyframesData>();
+		if (!pKfr) {
+			unload_data_file(pData);
+		}
+	}
+	return pKfr;
+}
+
+sxValuesData* load_vals(const char* pRelPath) {
+	sxValuesData* pVals = nullptr;
+	sxData* pData = load_data_file(pRelPath);
+	if (pData) {
+		pVals = pData->as<sxValuesData>();
+		if (!pVals) {
+			unload_data_file(pData);
+		}
+	}
+	return pVals;
+}
+
+sxExprLibData* load_expr_lib(const char* pRelPath) {
+	sxExprLibData* pExprLib = nullptr;
+	sxData* pData = load_data_file(pRelPath);
+	if (pData) {
+		pExprLib = pData->as<sxExprLibData>();
+		if (!pExprLib) {
+			unload_data_file(pData);
+		}
+	}
+	return pExprLib;
 }
 
 
@@ -723,6 +845,22 @@ float get_view_near() {
 
 float get_view_far() {
 	return s_drwCtx.view.mFar;
+}
+
+int get_screen_width() {
+	int w = 0;
+	if (s_pDraw) {
+		w = s_pDraw->get_screen_width();
+	}
+	return w;
+}
+
+int get_screen_height() {
+	int h = 0;
+	if (s_pDraw) {
+		h = s_pDraw->get_screen_height();
+	}
+	return h;
 }
 
 bool is_rot_view() {
@@ -1282,6 +1420,20 @@ void set_ref_scr_size(const float w, const float h) {
 	s_refScrH = h;
 }
 
+float get_ref_scr_width() {
+	if (s_refScrW > 0) {
+		return s_refScrW;
+	}
+	return float(get_screen_width());
+}
+
+float get_ref_scr_height() {
+	if (s_refScrH > 0) {
+		return s_refScrH;
+	}
+	return float(get_screen_height());
+}
+
 void set_quad_gamma(const float gval) {
 	s_quadGamma.fill(Draw::clip_gamma(gval));
 }
@@ -1837,6 +1989,40 @@ void draw(bool discard) {
 		if (pObj) {
 			pObj->draw_semi(discard);
 		}
+	}
+}
+
+void print(const float x, const float y, const cxColor& clr, const char* pStr) {
+	if (!pStr) return;
+	sxTextureData* pTex = s_pScrCommonTex;
+	if (!pTex) return;
+	const float fontW = 8.0f;
+	const float fontH = 14.0f;
+	float sclU = nxCalc::rcp0(float(pTex->mWidth) - 1.0f);
+	float sclV = nxCalc::rcp0(float(pTex->mHeight) - 1.0f);
+	float sx = x;
+	xt_float2 vpos[4];
+	xt_float2 vtex[4];
+	float v0 = sclV * 0.5f;
+	float v1 = (fontH - 1.0f) * sclV;
+	size_t strLen = ::strlen(pStr);
+	for (size_t i = 0; i < strLen; ++i) {
+		int cc = pStr[i];
+		if (cc > ' ') {
+			cc -= '!';
+			vpos[0].set(sx, y);
+			vpos[1].set(sx + fontW - 1.0f, y);
+			vpos[2].set(sx + fontW - 1.0f, y + fontH - 1.0f);
+			vpos[3].set(sx, y + fontH - 1.0f);
+			float u0 = (float(cc) * fontW) * sclU;
+			float u1 = (float(cc) * fontW + (fontW - 1.0f)) * sclU;
+			vtex[0].set(u0, v0);
+			vtex[1].set(u1, v0);
+			vtex[2].set(u1, v1);
+			vtex[3].set(u0, v1);
+			Scene::quad(vpos, vtex, clr, pTex);
+		}
+		sx += fontW;
 	}
 }
 
