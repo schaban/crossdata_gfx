@@ -10694,6 +10694,28 @@ enum class exExprFunc {
 };
 
 
+bool sxCompiledExpression::String::eq(const char* pStr) const {
+	bool res = false;
+	if (pStr) {
+		size_t len = ::strlen(pStr);
+		if (len == mLen) {
+			res = ::memcmp(mpChars, pStr, len) == 0;
+		}
+	}
+	return res;
+}
+
+bool sxCompiledExpression::String::starts_with(const char* pStr) const {
+	bool res = false;
+	if (pStr) {
+		size_t len = ::strlen(pStr);
+		if (len <= mLen) {
+			res = ::memcmp(mpChars, pStr, len) == 0;
+		}
+	}
+	return res;
+}
+
 void sxCompiledExpression::Stack::alloc(int n) {
 	free();
 	if (n < 1) return;

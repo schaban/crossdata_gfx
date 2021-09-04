@@ -4625,6 +4625,8 @@ struct sxCompiledExpression {
 		uint32_t mLen;
 
 		bool is_valid() const { return mpChars != nullptr; }
+		bool eq(const char* pStr) const;
+		bool starts_with(const char* pStr) const;
 	};
 
 	template<typename T> struct TagsT {
@@ -4685,7 +4687,7 @@ struct sxCompiledExpression {
 	class ExecIfc {
 	public:
 		virtual Stack* get_stack() { return nullptr; }
-		virtual void set_result(float val) {}
+		virtual void set_result(const float val) {}
 		virtual float ch(const String& path) { return 0.0f; }
 		virtual float detail(const String& path, const String& attrName, int idx) { return 0.0f; }
 		virtual float var(const String& name) { return 0.0f; }
