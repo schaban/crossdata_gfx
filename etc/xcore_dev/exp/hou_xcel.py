@@ -77,14 +77,24 @@ class ExprLibExporter(xcore.BaseExporter):
 			bw.patch(patchTop + i*4, bw.getPos() - top)
 			entry.write(bw)
 			if 0:
-				core.dbgmsg(">>>> " + entry.nodeName + ":" + entry.chanName)
+				xcore.dbgmsg(">>>> " + entry.nodeName + ":" + entry.chanName)
 				entry.compiled.disasm()
+
+
+def exprLibDisasm(lib):
+	if not lib: return
+	for i, entry in enumerate(lib.exprLst):
+		xcore.dbgmsg("["+str(i)+"] >>>> " + entry.nodeName + ":" + entry.chanName)
+		entry.compiled.disasm()
+
+def getDefExprExclList():
+	return ["cubic()", "linear()", "qlinear()", "constant()", "bezier()"]
 
 def getExprLibFromHrc(rootPath="/obj/root"):
 	lib = None
 	hrc = xhou.NodeList()
 	hrc.hrcBuild(rootPath)
-	excl = ["cubic()", "linear()", "qlinear()", "constant()", "bezier()"]
+	excl = getDefExprExclList()
 	lst = []
 	for node in hrc.nodes:
 		for parm in node.parms():
@@ -109,3 +119,22 @@ def expExprLibFromHrc(outPath, rootPath="/obj/root"):
 	lib = getExprLibFromHrc(rootPath)
 	lib.save(outPath)
 
+def getNodeExprLib(node, excl = None):
+	if not node: return
+	lst = []
+	for parm in node.parms():
+		try: expr = parm.expression()
+		except: expr = None
+		if expr and (not excl or not expr in excl):
+			nodeName = node.name()
+			nodePath = None
+			fullPath = node.path()
+			sep = fullPath.rfind("/")
+			if sep >= 0: nodePath = fullPath[:sep]
+			chanName = parm.name()
+			ent = ExprEntry(expr, nodeName, nodePath, chanName)
+			lst.append(ent)
+	if len(lst) > 0:
+		lib = ExprLibExporter()
+		lib.setLst(lst)
+	return lib
