@@ -1733,6 +1733,9 @@ void OGLSysParamsBuf::init(GLuint progId, const GLchar* pName, GLuint binding, c
 #else
 	mBlockIdx = glGetUniformBlockIndex(mProgId, pName);
 #endif
+	if (mBlockIdx == GL_INVALID_INDEX) {
+		return;
+	}
 	glGenBuffers(1, &mBufHandle);
 	mBindingIdx = binding;
 #if OGLSYS_ES
