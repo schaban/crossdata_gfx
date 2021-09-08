@@ -88,6 +88,10 @@ class ParamInfo:
 					str = xhou.texPathToName(str)
 			self.type = ValType.STRING
 			self.valId = strLst.add(str)
+		elif t == hou.parmTemplateType.Folder:
+			if prm.parmTemplate().folderType() == hou.folderType.MultiparmBlock:
+				self.type = ValType.INT
+				self.valId = prm.evalAsInt()
 
 	def write(self, bw):
 		self.xval.writeStrId16(bw, self.nameId)
