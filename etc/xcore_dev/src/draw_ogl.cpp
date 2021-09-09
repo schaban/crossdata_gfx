@@ -37,6 +37,10 @@ static int s_shadowCastCnt = 0;
 static GLuint s_quadVBO = 0;
 static GLuint s_quadIBO = 0;
 
+static Draw::Font* s_pFont = nullptr;
+static GLuint s_fontVBO = 0;
+static GLuint s_fontIBO = 0;
+
 
 static void def_tex_lod_bias() {
 	static bool flg = false;
@@ -200,6 +204,8 @@ struct ParamLink {
 	GLint QuadVtxPos;
 	GLint QuadVtxTex;
 	GLint QuadVtxClr;
+	GLint FontXform;
+	GLint FontColor;
 
 	void reset() { ::memset(this, 0xFF, sizeof(*this)); }
 };
@@ -243,6 +249,7 @@ enum VtxFmt {
 	VtxFmt_skin0,
 	VtxFmt_skin1,
 	VtxFmt_quad,
+	VtxFmt_font,
 
 	VtxFmt_rigid0_vl = VtxFmt_rigid0,
 	VtxFmt_rigid1_vl = VtxFmt_rigid1,
@@ -434,6 +441,8 @@ struct GPUProg {
 			PARAM_LINK(QuadVtxPos);
 			PARAM_LINK(QuadVtxTex);
 			PARAM_LINK(QuadVtxClr);
+			PARAM_LINK(FontXform);
+			PARAM_LINK(FontColor);
 
 			SMP_LINK(Base);
 			SMP_LINK(Bump);
@@ -648,6 +657,7 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			case VtxFmt_rigid0: stride = sizeof(sxModelData::VtxRigidHalf); break;
 			case VtxFmt_rigid1: stride = sizeof(sxModelData::VtxRigidShort); break;
 			case VtxFmt_quad: stride = sizeof(float); break;
+			case VtxFmt_font: stride = sizeof(xt_float2); break;
 			default: break;
 		}
 	}
@@ -753,6 +763,13 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			if (mVtxLink.Id >= 0) {
 				glEnableVertexAttribArray(mVtxLink.Id);
 				glVertexAttribPointer(mVtxLink.Id, 1, GL_FLOAT, GL_FALSE, stride, (const void*)(top));
+			}
+			break;
+
+		case VtxFmt_font:
+			if (mVtxLink.Pos >= 0) {
+				glEnableVertexAttribArray(mVtxLink.Pos);
+				glVertexAttribPointer(mVtxLink.Pos, 2, GL_FLOAT, GL_FALSE, stride, (const void*)(top));
 			}
 			break;
 
@@ -988,7 +1005,7 @@ static void set_face_cull() {
 #else
 	gl_face_cull();
 #endif
-}
+	}
 
 
 static void reset_fb_render_states() {
@@ -1051,7 +1068,7 @@ static void set_screen_framebuf() {
 }
 
 
-static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
+static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont) {
 	if (s_drwInitFlg) return;
 
 	if (!pRsrcMgr) return;
@@ -1133,6 +1150,20 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
 	s_frameBufMode = -1;
 	set_def_framebuf();
 
+	s_pFont = pFont;
+	if (pFont) {
+		glGenBuffers(1, &s_fontVBO);
+		glGenBuffers(1, &s_fontIBO);
+		if (s_fontVBO && s_fontIBO) {
+			glBindBuffer(GL_ARRAY_BUFFER, s_fontVBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(xt_float2) * pFont->numPnts, pFont->pPnts, GL_STATIC_DRAW);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_fontIBO);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint16_t) * pFont->numTris * 3, pFont->pTris, GL_STATIC_DRAW);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		}
+	}
+
 	s_pNowProg = nullptr;
 
 	s_drwInitFlg = true;
@@ -1164,6 +1195,17 @@ static void reset() {
 		glDeleteBuffers(1, &s_quadVBO);
 		s_quadVBO = 0;
 	}
+
+	if (s_fontIBO) {
+		glDeleteBuffers(1, &s_fontIBO);
+		s_fontIBO = 0;
+	}
+	if (s_fontVBO) {
+		glDeleteBuffers(1, &s_fontVBO);
+		s_fontVBO = 0;
+	}
+
+	s_pFont = nullptr;
 
 #define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.reset();
 #include "ogl/progs.inc"
@@ -1381,7 +1423,7 @@ static GPUProg* prog_sel(const cxModelWork* pWk, const int ibat, const sxModelDa
 							pProg = recvFlg ? &s_prg_rigid1_vl_unlit_opaq_sdw : &s_prg_rigid1_vl_unlit_opaq;
 						}
 					}
-				}  else if (bumpFlg) {
+				} else if (bumpFlg) {
 					// fmt1 bump
 					if (specFlg) {
 						if (pMdl->has_skin()) {
@@ -1850,7 +1892,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 
 void quad(Draw::Quad* pQuad) {
 	if (!pQuad) return;
-	if (pQuad->color.a == 0.0f) return;
+	if (pQuad->color.a <= 0.0f) return;
 	GLuint htex = get_tex_handle(pQuad->pTex);
 	if (!htex) {
 		htex = OGLSys::get_white_tex();
@@ -1858,6 +1900,7 @@ void quad(Draw::Quad* pQuad) {
 	set_screen_framebuf();
 	set_semi();
 	set_face_cull();
+	OGLSys::enable_msaa(false);
 	GPUProg* pProg = &s_prg_quad_quad;
 	pProg->use();
 	xt_float4 pos[2];
@@ -1873,7 +1916,7 @@ void quad(Draw::Quad* pQuad) {
 		pPosDst[i] *= scl[i & 1];
 	}
 	for (int i = 0; i < 4; ++i) {
-		int idx = i*2 + 1;
+		int idx = i * 2 + 1;
 		pPosDst[idx] = 1.0f - pPosDst[idx];
 	}
 	for (int i = 0; i < 8; ++i) {
@@ -1930,6 +1973,44 @@ void quad(Draw::Quad* pQuad) {
 	}
 }
 
+void symbol(const int sym, const float ox, const float oy, const float sx, const float sy, const cxColor clr) {
+	Draw::Font* pFont = s_pFont;
+	if (!pFont) return;
+	if (clr.a <= 0.0f) return;
+	if (!(s_fontVBO && s_fontIBO)) return;
+	if (uint32_t(sym) >= uint32_t(pFont->numSyms)) return;
+	Draw::Font::Sym* pSym = &pFont->pSyms[sym];
+	set_screen_framebuf();
+	if (clr.a < 1.0f) {
+		set_semi();
+	} else {
+		set_opaq();
+	}
+	set_face_cull();
+	OGLSys::enable_msaa(true);
+	GPUProg* pProg = &s_prg_font_font;
+	pProg->use();
+	if (HAS_PARAM(FontXform)) {
+		xt_float4 fontXform;
+		fontXform.set(ox*2.0f - 1.0f, oy*2.0f - 1.0f, sx * 2.0f, sy * 2.0f);
+		glUniform4fv(pProg->mParamLink.FontXform, 1, fontXform);
+	}
+	if (HAS_PARAM(FontColor)) {
+		xt_float4 fontClr;
+		fontClr.set(clr.r, clr.g, clr.b, clr.a);
+		glUniform4fv(pProg->mParamLink.FontColor, 1, fontClr);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, s_fontVBO);
+	pProg->enable_attrs(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_fontIBO);
+	glDrawElements(GL_TRIANGLES, pSym->numTris * 3, GL_UNSIGNED_SHORT, (const void*)(pSym->idxOrg * sizeof(uint16_t)));
+	if (pProg->mVAO) {
+		OGLSys::bind_vao(0);
+	} else {
+		pProg->disable_attrs();
+	}
+}
+
 static Draw::Ifc s_ifc;
 
 struct DrwInit {
@@ -1946,6 +2027,7 @@ struct DrwInit {
 		s_ifc.end = end;
 		s_ifc.batch = batch;
 		s_ifc.quad = quad;
+		s_ifc.symbol = symbol;
 		Draw::register_ifc_impl(&s_ifc);
 	}
 } s_drwInit;

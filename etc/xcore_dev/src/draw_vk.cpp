@@ -1361,7 +1361,7 @@ void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode,
 	vkCmdEndRenderPass(mpSwapChainCmdBufs[mSwapChainIdx]);
 }
 
-static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
+static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont) {
 	::memset(&VKG, 0, sizeof(VKG));
 	VKG.init_alloc_cb();
 	VKG.mpAllocator = s_useAllocCB ? &VKG.mAllocCB : nullptr;

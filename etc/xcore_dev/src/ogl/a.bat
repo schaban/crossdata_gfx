@@ -160,3 +160,7 @@ call :frag cast_semi.frag f_shadow.glsl+cast_semi.frag
 rem screen
 call :vert vtx_quad quad.vert quad.vert
 call :frag quad.frag quad.frag
+
+rem font
+call :vert vtx_font font.vert font.vert
+call :frag font.frag font.frag

@@ -355,6 +355,14 @@ void set_quad_gamma(const float gval);
 void set_quad_gamma_rgb(const float r, const float g, const float b);
 void quad(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex = nullptr, cxColor* pClrs = nullptr);
 
+void set_font_size(const float w, const float h);
+void set_font_symbol_spacing(const float val);
+void set_font_space_width(const float val);
+float get_font_width();
+float get_font_height();
+void symbol(const int sym, const float ox, const float oy, const cxColor clr = cxColor(1.0f), const cxColor* pOutClr = nullptr);
+void symbol_str(const char* pStr, const float ox, const float oy, const cxColor clr = cxColor(1.0f));
+
 float get_ground_height(sxCollisionData* pCol, const cxVec pos, const float offsTop = 1.8f, const float offsBtm = 0.5f);
 bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, const float radius, cxVec* pAdjPos, const float wallSlopeLim = 0.7f);
 

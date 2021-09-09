@@ -5,7 +5,6 @@
 #define DRW_IMPL_BEGIN namespace {
 #define DRW_IMPL_END }
 
-
 namespace Draw {
 
 	enum Mode {
@@ -22,6 +21,20 @@ namespace Draw {
 		TEXUNIT_BumpPat,
 		TEXUNIT_Shadow,
 		TEXUNIT_COUNT
+	};
+
+	struct Font {
+		struct Sym {
+			xt_float2 size;
+			int idxOrg;
+			int numTris;
+		};
+		int numSyms;
+		int numPnts;
+		int numTris;
+		xt_float2* pPnts;
+		uint16_t* pTris;
+		Sym* pSyms;
 	};
 
 	inline float clip_gamma(const float gamma) { return nxCalc::max(gamma, 0.01f); }
@@ -235,7 +248,7 @@ namespace Draw {
 			bool needOGLContext;
 		} info;
 
-		void (*init)(int shadowSize, cxResourceManager* pRsrcMgr);
+		void (*init)(int shadowSize, cxResourceManager* pRsrcMgr, Font* pFont);
 		void (*reset)();
 
 		int (*get_screen_width)();
@@ -247,8 +260,8 @@ namespace Draw {
 		void (*end)();
 
 		void (*batch)(cxModelWork* pWk, const int ibat, const Mode mode, const Context* pCtx);
-
 		void (*quad)(Quad* pQuad);
+		void (*symbol)(const int sym, const float ox, const float oy, const float sx, const float sy, const cxColor clr);
 	};
 
 	int32_t register_ifc_impl(Ifc* pIfc);

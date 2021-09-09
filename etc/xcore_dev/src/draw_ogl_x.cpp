@@ -465,7 +465,7 @@ static void init_gpu_prog() {
 		static const GLchar* fldNamesGPDispClr[] = {
 			"gpDiffColorScl"
 		};
-		s_dispClrParams.init(s_pidDispClr, "GPDispClr", 0, fldNamesGPDispClr, XD_ARY_LEN(fldNamesGPDispClr));
+		s_dispClrParams.init(s_pidDispClr, "GPDispDiff", 0, fldNamesGPDispClr, XD_ARY_LEN(fldNamesGPDispClr));
 	}
 	GLuint sidFragDispNrm = load_shader("disp_nrm.frag");
 	s_pidDispNrm = link_prog(sidVertFSTri, sidFragDispNrm);
@@ -607,7 +607,7 @@ static void init_imgbuf() {
 	OGLSys::bind_def_framebuf();
 }
 
-static void init(int shadowSize, cxResourceManager* pRsrcMgr) {
+static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont) {
 	s_pRsrcMgr = pRsrcMgr;
 	if (!pRsrcMgr) return;
 
@@ -1248,11 +1248,11 @@ static void end() {
 			s_hemifogccParamsGPHemi.bind();
 			s_hemifogccParamsGPHemi.send();
 			if (pCtx) {
-				s_hemiccParamsGPColor.set("gpInvWhite", pCtx->cc.mToneMap.get_inv_white());
-				s_hemiccParamsGPColor.set("gpLClrGain", pCtx->cc.mToneMap.mLinGain);
-				s_hemiccParamsGPColor.set("gpLClrBias", pCtx->cc.mToneMap.mLinBias);
-				s_hemiccParamsGPColor.set("gpExposure", pCtx->cc.mExposure);
-				s_hemiccParamsGPColor.set("gpInvGamma", pCtx->cc.get_inv_gamma());
+				s_hemifogccParamsGPColor.set("gpInvWhite", pCtx->cc.mToneMap.get_inv_white());
+				s_hemifogccParamsGPColor.set("gpLClrGain", pCtx->cc.mToneMap.mLinGain);
+				s_hemifogccParamsGPColor.set("gpLClrBias", pCtx->cc.mToneMap.mLinBias);
+				s_hemifogccParamsGPColor.set("gpExposure", pCtx->cc.mExposure);
+				s_hemifogccParamsGPColor.set("gpInvGamma", pCtx->cc.get_inv_gamma());
 			} else {
 				s_hemifogccParamsGPColor.set("gpInvWhite", 1.0f);
 				s_hemifogccParamsGPColor.set("gpLClrGain", 2.0f);

@@ -6,6 +6,8 @@ static Draw::Ifc* s_pDraw = nullptr;
 
 static cxResourceManager* s_pRsrcMgr = nullptr;
 
+static sxGeometryData* s_pFontGeo = nullptr;
+
 static sxTextureData* s_pScrCommonTex = nullptr;
 
 static cxBrigade* s_pBgd = nullptr;
@@ -53,6 +55,11 @@ static float s_refScrW = -1.0f;
 static float s_refScrH = -1.0f;
 static xt_float3 s_quadGamma;
 
+static float s_fontW = -1.0f;
+static float s_fontH = -1.0f;
+static float s_fontSymSpacing = 0.05f;
+static float s_fontSpaceWidth = 0.25f;
+
 static uint64_t s_frameCnt = 0;
 
 static uint32_t s_sleepMillis = 0;
@@ -60,6 +67,8 @@ static uint32_t s_sleepMillis = 0;
 static bool s_printMemInfo = false;
 static bool s_printBatteryInfo = false;
 static int s_thermalZones[2];
+
+static Draw::Font s_font = {};
 
 void ScnCfg::set_defaults() {
 	pAppPath = "";
@@ -147,8 +156,88 @@ void create_global_locks() {
 	s_pGlbMemLock = nxSys::lock_create();
 }
 
+static void init_font(sxGeometryData* pFontGeo) {
+	Draw::Font* pFont = &s_font;
+	::memset(pFont, 0, sizeof(Draw::Font));
+	if (!pFontGeo) return;
+	int npnt = pFontGeo->get_pnt_num();
+	if (!pFontGeo->is_all_tris() || npnt > 0xFFFF) {
+		nxCore::dbg_msg("Scn:Font - invalid topology\n");
+		return;
+	}
+	if (npnt > 0xFFFF) {
+		nxCore::dbg_msg("Scn:Font - too many points\n");
+		return;
+	}
+	static const char* pSymPrefix = "sym_";
+	int ngrp = pFontGeo->get_pol_grp_num();
+	int nsym = 0;
+	for (int i = 0; i < ngrp; ++i) {
+		const char* pGrpName = pFontGeo->get_pol_grp(i).get_name();
+		if (pGrpName && nxCore::str_starts_with(pGrpName, pSymPrefix)) {
+			++nsym;
+		}
+	}
+	if (nsym < 1) {
+		return;
+	}
+	char grpName[128];
+	int ntri = 0;
+	for (int i = 0; i < nsym; ++i) {
+		XD_SPRINTF(XD_SPRINTF_BUF(grpName, sizeof(grpName)), "%s%d", pSymPrefix, i);
+		sxGeometryData::Group grp = pFontGeo->find_pol_grp(grpName);
+		if (grp.is_valid()) {
+			ntri += int(grp.get_idx_num());
+		}
+	}
+	pFont->numSyms = nsym;
+	pFont->numPnts = npnt;
+	pFont->numTris = ntri;
+	pFont->pSyms = nxCore::tMem<Draw::Font::Sym>::alloc(pFont->numSyms, "Scn:Font:Syms");
+	pFont->pPnts = nxCore::tMem<xt_float2>::alloc(pFont->numPnts, "Scn:Font:Pnts");
+	pFont->pTris = nxCore::tMem<uint16_t>::alloc(pFont->numTris * 3, "Scn:Font:Tris");
+	if (pFont->pPnts) {
+		for (int i = 0; i < npnt; ++i) {
+			cxVec pnt = pFontGeo->get_pnt(i);
+			pFont->pPnts[i].set(pnt.x, pnt.y);
+		}
+	}
+	int idxOrg = 0;
+	uint16_t* pIdx = pFont->pTris;
+	if (pFont->pSyms) {
+		for (int i = 0; i < nsym; ++i) {
+			XD_SPRINTF(XD_SPRINTF_BUF(grpName, sizeof(grpName)), "%s%d", pSymPrefix, i);
+			sxGeometryData::Group grp = pFontGeo->find_pol_grp(grpName);
+			if (grp.is_valid()) {
+				int numSymTris = int(grp.get_idx_num());
+				cxAABB bbox = grp.get_bbox();
+				cxVec size = bbox.get_size_vec();
+				pFont->pSyms[i].size.set(size.x, size.y);
+				pFont->pSyms[i].idxOrg = idxOrg;
+				pFont->pSyms[i].numTris = numSymTris;
+				if (pIdx) {
+					for (int j = 0; j < numSymTris; ++j) {
+						int ipol = grp.get_idx(j);
+						sxGeometryData::Polygon pol = pFontGeo->get_pol(ipol);
+						for (int k = 0; k < 3; ++k) {
+							int ipnt = pol.get_vtx_pnt_id(k);
+							*pIdx++ = ipnt;
+						}
+					}
+				}
+				idxOrg += numSymTris * 3;
+			}
+		}
+	}
+}
+
+
 void init(const ScnCfg& cfg) {
 	if (s_scnInitFlg) return;
+
+	s_refScrW = -1.0f;
+	s_refScrH = -1.0f;
+	set_font_size(32.0f, 32.0f);
 
 	s_printMemInfo = nxApp::get_bool_opt("meminfo");
 	s_printBatteryInfo = nxApp::get_bool_opt("battery");
@@ -205,10 +294,13 @@ void init(const ScnCfg& cfg) {
 
 	s_speed = nxApp::get_float_opt("speed", 1.0f);
 
+	s_pFontGeo = load_geo("etc/font.xgeo");
+	init_font(s_pFontGeo);
+
 	s_pScrCommonTex = load_tex("etc/scr_common_BASE.xtex");
 
 	if (s_pDraw) {
-		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr);
+		s_pDraw->init(cfg.shadowMapSize, s_pRsrcMgr, &s_font);
 	}
 
 	set_quad_gamma(2.2f);
@@ -225,9 +317,31 @@ void init(const ScnCfg& cfg) {
 void reset() {
 	if (!s_scnInitFlg) return;
 
+	Draw::Font* pFont = &s_font;
+	if (pFont->numTris > 0) {
+		nxCore::tMem<uint16_t>::free(pFont->pTris, pFont->numTris * 3);
+		pFont->pTris = nullptr;
+		pFont->numTris = 0;
+	}
+	if (pFont->numPnts > 0) {
+		nxCore::tMem<xt_float2>::free(pFont->pPnts, pFont->numPnts);
+		pFont->pPnts = nullptr;
+		pFont->numPnts = 0;
+	}
+	if (pFont->numSyms > 0) {
+		nxCore::tMem<Draw::Font::Sym>::free(pFont->pSyms, pFont->numSyms);
+		pFont->pSyms = nullptr;
+		pFont->numSyms = 0;
+	}
+
 	if (s_pScrCommonTex) {
 		unload_data_file(s_pScrCommonTex);
 		s_pScrCommonTex = nullptr;
+	}
+
+	if (s_pFontGeo) {
+		unload_data_file(s_pFontGeo);
+		s_pFontGeo = nullptr;
 	}
 
 	if (s_pBgd) {
@@ -1474,6 +1588,91 @@ void quad(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxT
 	quad.pTex = pTex;
 	quad.pClrs = pClrs;
 	s_pDraw->quad(&quad);
+}
+
+void set_font_size(const float w, const float h) {
+	s_fontW = w;
+	s_fontH = h;
+}
+
+void set_font_symbol_spacing(const float val) {
+	s_fontSymSpacing = val;
+}
+
+void set_font_space_width(const float val) {
+	s_fontSpaceWidth = val;
+}
+
+float get_font_width() {
+	if (s_fontW > 0.0f) {
+		return s_fontW;
+	}
+	return 1.0f;
+}
+
+float get_font_height() {
+	if (s_fontH > 0.0f) {
+		return s_fontH;
+	}
+	return 1.0f;
+}
+
+void symbol(const int sym, const float ox, const float oy, const cxColor clr, const cxColor* pOutClr) {
+	if (!s_pDraw) return;
+	if (!s_pDraw->symbol) return;
+	Draw::Font* pFont = &s_font;
+	if (uint32_t(sym) >= uint32_t(pFont->numSyms)) return;
+	float scrW = float(get_screen_width());
+	float scrH = float(get_screen_height());
+	float refScrW = get_ref_scr_width();
+	float refScrH = get_ref_scr_height();
+	float scrSX = nxCalc::div0(scrW, refScrW);
+	float scrSY = nxCalc::div0(scrH, refScrH);
+	float drwOX = nxCalc::div0(ox*scrSX, scrW);
+	float drwOY = nxCalc::div0(oy*scrSY, scrH);
+	float fontW = get_font_width();
+	float fontH = get_font_height();
+	float drwSX = nxCalc::div0(fontW*scrSX, scrW);
+	float drwSY = nxCalc::div0(fontH*scrSY, scrH);
+	if (pOutClr) {
+		s_pDraw->symbol(sym, drwOX - nxCalc::rcp0(scrW), drwOY - nxCalc::rcp0(scrH), nxCalc::div0((fontW + 2.0f)*scrSX, scrW), nxCalc::div0((fontH + 2.0f)*scrSY, scrH), *pOutClr);
+	}
+	s_pDraw->symbol(sym, drwOX, drwOY, drwSX, drwSY, clr);
+}
+
+void symbol_str(const char* pStr, const float ox, const float oy, const cxColor clr) {
+	if (!pStr) return;
+	if (!s_pDraw) return;
+	if (!s_pDraw->symbol) return;
+	Draw::Font* pFont = &s_font;
+	float scrW = float(get_screen_width());
+	float scrH = float(get_screen_height());
+	float refScrW = get_ref_scr_width();
+	float refScrH = get_ref_scr_height();
+	float scrSX = nxCalc::div0(scrW, refScrW);
+	float scrSY = nxCalc::div0(scrH, refScrH);
+	float drwOX = nxCalc::div0(ox*scrSX, scrW);
+	float drwOY = nxCalc::div0(oy*scrSY, scrH);
+	float fontW = get_font_width();
+	float fontH = get_font_height();
+	float drwSX = nxCalc::div0(fontW*scrSX, scrW);
+	float drwSY = nxCalc::div0(fontH*scrSY, scrH);
+	float symSpc = s_fontSymSpacing;
+	float spcWidth = s_fontSpaceWidth;
+	while (true) {
+		int chr = *pStr++;
+		if (chr == 0) break;
+		if (chr <= ' ') {
+			drwOX += spcWidth * drwSX;
+		} else {
+			int sym = chr - '!';
+			if (uint32_t(sym) >= uint32_t(pFont->numSyms)) return;
+			Draw::Font::Sym* pSym = &pFont->pSyms[sym];
+			//s_pDraw->symbol(sym, drwOX - nxCalc::rcp0(scrW), drwOY - nxCalc::rcp0(scrH), nxCalc::div0((fontW+2.0f)*scrSX, scrW), nxCalc::div0((fontH+2.0f)*scrSY, scrH), cxColor(clr.r, clr.g, clr.b, 0.1f));
+			s_pDraw->symbol(sym, drwOX, drwOY, drwSX, drwSY, clr);
+			drwOX += (pSym->size.x + symSpc)*drwSX;
+		}
+	}
 }
 
 
