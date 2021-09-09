@@ -4235,7 +4235,11 @@ struct sxGeometryData : public sxData {
 	int get_pnt_wgt_num(int pntIdx) const;
 	int get_pnt_skin_jnt(int pntIdx, int wgtIdx) const;
 	float get_pnt_skin_wgt(int pntIdx, int wgtIdx) const;
+	int find_pnt_grp_idx(const char* pName, const char* pPath = nullptr) const;
+	int find_pol_grp_idx(const char* pName, const char* pPath = nullptr) const;
 	int find_mtl_grp_idx(const char* pName, const char* pPath = nullptr) const;
+	Group find_pnt_grp(const char* pName, const char* pPath = nullptr) const { return get_pnt_grp(find_pnt_grp_idx(pName, pPath)); }
+	Group find_pol_grp(const char* pName, const char* pPath = nullptr) const { return get_pol_grp(find_pol_grp_idx(pName, pPath)); }
 	Group find_mtl_grp(const char* pName, const char* pPath = nullptr) const { return get_mtl_grp(find_mtl_grp_idx(pName, pPath)); }
 	GrpInfo* get_mtl_info(int idx) const;
 	Group get_mtl_grp(int idx) const;

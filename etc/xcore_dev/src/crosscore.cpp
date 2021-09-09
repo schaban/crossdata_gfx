@@ -8029,6 +8029,80 @@ float sxGeometryData::get_pnt_skin_wgt(int pntIdx, int wgtIdx) const {
 	return w;
 }
 
+int sxGeometryData::find_pnt_grp_idx(const char* pName, const char* pPath) const {
+	int idx = -1;
+	sxStrList* pStrLst = get_str_list();
+	int ngrp = (int)mPntGrpNum;
+	if (ngrp && mPntGrpOffs && pStrLst) {
+		int nameId = pStrLst->find_str(pName);
+		if (nameId >= 0) {
+			uint32_t* pOffs = reinterpret_cast<uint32_t*>(XD_INCR_PTR(this, mPntGrpOffs));
+			if (pPath) {
+				int pathId = pStrLst->find_str(pPath);
+				if (pathId >= 0) {
+					for (int i = 0; i < ngrp; ++i) {
+						if (pOffs[i]) {
+							GrpInfo* pInfo = reinterpret_cast<GrpInfo*>(XD_INCR_PTR(this, pOffs[i]));
+							if (pInfo->mNameId == nameId && pInfo->mPathId == pathId) {
+								idx = i;
+								break;
+							}
+						}
+					}
+				}
+			} else {
+				for (int i = 0; i < ngrp; ++i) {
+					if (pOffs[i]) {
+						GrpInfo* pInfo = reinterpret_cast<GrpInfo*>(XD_INCR_PTR(this, pOffs[i]));
+						if (pInfo->mNameId == nameId) {
+							idx = i;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	return idx;
+}
+
+int sxGeometryData::find_pol_grp_idx(const char* pName, const char* pPath) const {
+	int idx = -1;
+	sxStrList* pStrLst = get_str_list();
+	int ngrp = (int)mPolGrpNum;
+	if (ngrp && mPolGrpOffs && pStrLst) {
+		int nameId = pStrLst->find_str(pName);
+		if (nameId >= 0) {
+			uint32_t* pOffs = reinterpret_cast<uint32_t*>(XD_INCR_PTR(this, mPolGrpOffs));
+			if (pPath) {
+				int pathId = pStrLst->find_str(pPath);
+				if (pathId >= 0) {
+					for (int i = 0; i < ngrp; ++i) {
+						if (pOffs[i]) {
+							GrpInfo* pInfo = reinterpret_cast<GrpInfo*>(XD_INCR_PTR(this, pOffs[i]));
+							if (pInfo->mNameId == nameId && pInfo->mPathId == pathId) {
+								idx = i;
+								break;
+							}
+						}
+					}
+				}
+			} else {
+				for (int i = 0; i < ngrp; ++i) {
+					if (pOffs[i]) {
+						GrpInfo* pInfo = reinterpret_cast<GrpInfo*>(XD_INCR_PTR(this, pOffs[i]));
+						if (pInfo->mNameId == nameId) {
+							idx = i;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	return idx;
+}
+
 int sxGeometryData::find_mtl_grp_idx(const char* pName, const char* pPath) const {
 	int idx = -1;
 	sxStrList* pStrLst = get_str_list();
