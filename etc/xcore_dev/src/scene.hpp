@@ -51,6 +51,7 @@ public:
 	DrawCallbackFunc mPostOpaqFunc;
 	BatchCallbackFunc mBatchPreDrawFunc;
 	BatchCallbackFunc mBatchPostDrawFunc;
+	sxValuesData* mpVals;
 	sxJob* mpBatJobs;
 	Priority mPriority;
 	uint32_t mTag;
@@ -217,6 +218,7 @@ void prepare_all_gfx();
 void release_all_gfx();
 void unload_pkg(Pkg* pPkg);
 void unload_all_pkgs();
+void release_texture(sxTextureData* pTex);
 
 sxData* load_data_file(const char* pRelPath);
 void unload_data_file(sxData* pData);

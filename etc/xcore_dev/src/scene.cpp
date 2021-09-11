@@ -335,6 +335,7 @@ void reset() {
 	}
 
 	if (s_pScrCommonTex) {
+		release_texture(s_pScrCommonTex);
 		unload_data_file(s_pScrCommonTex);
 		s_pScrCommonTex = nullptr;
 	}
@@ -475,6 +476,15 @@ void unload_pkg(Pkg* pPkg) {
 void unload_all_pkgs() {
 	if (s_pRsrcMgr) {
 		s_pRsrcMgr->unload_all();
+	}
+}
+
+void release_texture(sxTextureData* pTex) {
+	if (pTex && s_pRsrcMgr) {
+		cxResourceManager::GfxIfc gfxIfc = s_pRsrcMgr->get_gfx_ifc();
+		if (gfxIfc.releaseTexture) {
+			gfxIfc.releaseTexture(pTex);
+		}
 	}
 }
 
