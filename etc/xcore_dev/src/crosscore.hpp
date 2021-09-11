@@ -6311,6 +6311,7 @@ public:
 	void release_pkg_gfx(Pkg* pPkg);
 	void prepare_all_gfx();
 	void release_all_gfx();
+	GfxIfc get_gfx_ifc() const { return mGfxIfc; }
 
 	static cxResourceManager* create(const char* pAppPath, const char* pRelDataDir);
 	static void destroy(cxResourceManager* pMgr);
