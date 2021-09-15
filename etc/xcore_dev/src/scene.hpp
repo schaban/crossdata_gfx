@@ -15,6 +15,9 @@ struct ScnCfg {
 	void set_defaults();
 };
 
+#define SCN_OBJ_SPARE_VARS_NUM 16
+#define SCN_OBJ_SPARE_PTRS_NUM 8
+
 struct ScnObj {
 public:
 	typedef void (*XformFunc)(ScnObj*);
@@ -62,9 +65,9 @@ public:
 	float mObjAdjRadius;
 	int mRoutine[4];
 	int mCounter[4];
-	int32_t mIntWk[16];
-	float mFltWk[16];
-	void* mPtrWk[4];
+	int32_t mIntWk[SCN_OBJ_SPARE_VARS_NUM];
+	float mFltWk[SCN_OBJ_SPARE_VARS_NUM];
+	void* mPtrWk[SCN_OBJ_SPARE_PTRS_NUM];
 
 	bool ck_name(const char* pName) const { return nxCore::str_eq(mpName, pName); }
 
@@ -101,10 +104,14 @@ public:
 	bool ck_flt_wk_idx(const int idx) { return idx >= 0 && idx < XD_ARY_LEN(mFltWk); }
 	bool ck_ptr_wk_idx(const int idx) { return idx >= 0 && idx < XD_ARY_LEN(mPtrWk); }
 
-	void set_ptr_wk(const int idx, void* p) {
+	void set_vptr_wk(const int idx, void* p) {
 		if (ck_ptr_wk_idx(idx)) {
 			mPtrWk[idx] = p;
 		}
+	}
+
+	template<typename T> void set_ptr_wk(const int idx, T* p) {
+		set_vptr_wk(idx, (void*)p);
 	}
 
 	template<typename T> T* get_ptr_wk(const int idx) {
