@@ -10964,7 +10964,7 @@ void sxCompiledExpression::exec(ExecIfc& ifc) const {
 			pStk->push_str(pCode->mInfo);
 			break;
 		case eOp::VAR:
-			get_str(pStk->pop_str(), &str1);
+			get_str(pCode->mInfo, &str1);
 			pStk->push_num(ifc.var(str1));
 			break;
 		case eOp::CMP:
