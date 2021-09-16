@@ -294,7 +294,15 @@ void init(const ScnCfg& cfg) {
 
 	s_speed = nxApp::get_float_opt("speed", 1.0f);
 
-	s_pFontGeo = load_geo("etc/font.xgeo");
+	const char* pStdFontPath = "etc/font.xgeo";
+	const char* pFontPath = nxApp::get_opt("font");
+	if (!pFontPath) {
+		pFontPath = pStdFontPath;
+	}
+	s_pFontGeo = load_geo(pFontPath);
+	if (!s_pFontGeo) {
+		s_pFontGeo = load_geo(pStdFontPath);
+	}
 	init_font(s_pFontGeo);
 
 	s_pScrCommonTex = load_tex("etc/scr_common_BASE.xtex");
