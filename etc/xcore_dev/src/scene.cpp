@@ -139,6 +139,12 @@ static void obj_dtor(ScnObj* pObj) {
 	if (pObj->mDelFunc) {
 		pObj->mDelFunc(pObj);
 	}
+	if (pObj->mpMdlWk && s_pRsrcMgr) {
+		cxResourceManager::GfxIfc gfxIfc = s_pRsrcMgr->get_gfx_ifc();
+		if (gfxIfc.releaseModelWork) {
+			gfxIfc.releaseModelWork(pObj->mpMdlWk);
+		}
+	}
 	nxCore::mem_free((void*)pObj->mpName);
 	pObj->mpName = nullptr;
 	cxMotionWork::destroy(pObj->mpMotWk);
@@ -378,12 +384,12 @@ void reset() {
 	free_local_heaps();
 	free_global_heap();
 
+	del_all_objs();
 	release_all_gfx();
+	unload_all_pkgs();
 	if (s_pDraw) {
 		s_pDraw->reset();
 	}
-	del_all_objs();
-	unload_all_pkgs();
 
 	ObjList::destroy(s_pObjList);
 	s_pObjList = nullptr;
@@ -1394,6 +1400,12 @@ ScnObj* add_obj(sxModelData* pMdl, const char* pName) {
 					for (int i = 0; i < nbat; ++i) {
 						pObj->mpBatJobs[i].mpData = pObj;
 						pObj->mpBatJobs[i].mParam = i;
+					}
+				}
+				if (pObj->mpMdlWk && s_pRsrcMgr) {
+					cxResourceManager::GfxIfc gfxIfc = s_pRsrcMgr->get_gfx_ifc();
+					if (gfxIfc.prepareModelWork) {
+						//gfxIfc.prepareModelWork(pObj->mpMdlWk);
 					}
 				}
 				s_pObjMap->put(pObj->mpName, pObj);

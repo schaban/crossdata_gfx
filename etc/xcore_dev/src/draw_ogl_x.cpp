@@ -8,6 +8,8 @@ DRW_IMPL_BEGIN
 
 static bool s_useMipmaps = true;
 
+static bool s_useSharedXformBuf = true;
+
 static bool s_useFSTriVB = true;
 static GLuint s_fsTriVBO = 0;
 
@@ -154,7 +156,7 @@ static GLuint s_gbDepthBuf = 0;
 static GLuint s_imgbufDiv2 = 0;
 static GLuint s_ibDiv2Tex = 0;
 
-struct MdlGPUWk {
+struct MdlGPURsrc {
 	xt_xmtx xforms[MAX_XFORMS];
 	size_t xformMtxSize;
 	sxModelData* pMdl;
@@ -168,23 +170,32 @@ struct MdlGPUWk {
 	GPUParamsBuf* pParamsGPMaterial;
 };
 
-typedef cxPlexList<MdlGPUWk> MdlGPUWkList;
+struct MdlGPUWk {
+	cxModelWork* pMdlWk;
+	GPXform gpXform;
+	GLuint bufGPXform;
+	bool xformUpdateFlg;
+};
 
+typedef cxPlexList<MdlGPURsrc> MdlGPURsrcList;
+static MdlGPURsrcList* s_pMdlGPURsrcList = nullptr;
+
+typedef cxPlexList<MdlGPUWk> MdlGPUWkList;
 static MdlGPUWkList* s_pMdlGPUWkList = nullptr;
 
 static void prepare_model(sxModelData* pMdl) {
-	if (!s_pMdlGPUWkList) return;
+	if (!s_pMdlGPURsrcList) return;
 	if (!pMdl) return;
-	MdlGPUWk** ppGPUWk = pMdl->get_gpu_wk<MdlGPUWk*>();
-	if (*ppGPUWk) return;
-	MdlGPUWk* pGPUWk = s_pMdlGPUWkList->new_item();
-	if (!pGPUWk) return;
-	*ppGPUWk = pGPUWk;
-	pGPUWk->pMdl = pMdl;
+	MdlGPURsrc** ppGPURsrc = pMdl->get_gpu_wk<MdlGPURsrc*>();
+	if (*ppGPURsrc) return;
+	MdlGPURsrc* pGPURsrc = s_pMdlGPURsrcList->new_item();
+	if (!pGPURsrc) return;
+	*ppGPURsrc = pGPURsrc;
+	pGPURsrc->pMdl = pMdl;
 	size_t vsize = pMdl->get_vtx_size();
 	if (vsize > 0) {
-		glGenBuffers(1, &pGPUWk->bufVB);
-		if (pGPUWk->bufVB) {
+		glGenBuffers(1, &pGPURsrc->bufVB);
+		if (pGPURsrc->bufVB) {
 			int npnt = pMdl->mPntNum;
 			GPUVtx* pVtx = nxCore::tMem<GPUVtx>::alloc(npnt, "VtxTemp");
 			if (pVtx) {
@@ -208,7 +219,7 @@ static void prepare_model(sxModelData* pMdl) {
 						pVtx[i].idx.scl(3);
 					}
 				}
-				glBindBuffer(GL_ARRAY_BUFFER, pGPUWk->bufVB);
+				glBindBuffer(GL_ARRAY_BUFFER, pGPURsrc->bufVB);
 				glBufferData(GL_ARRAY_BUFFER, npnt * sizeof(GPUVtx), pVtx, GL_STATIC_DRAW);
 				glBindBuffer(GL_ARRAY_BUFFER, 0);
 				nxCore::tMem<GPUVtx>::free(pVtx);
@@ -218,9 +229,9 @@ static void prepare_model(sxModelData* pMdl) {
 	if (pMdl->mIdx16Num > 0) {
 		const uint16_t* pIdxData = pMdl->get_idx16_top();
 		if (pIdxData) {
-			glGenBuffers(1, &pGPUWk->bufIB16);
-			if (pGPUWk->bufIB16) {
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pGPUWk->bufIB16);
+			glGenBuffers(1, &pGPURsrc->bufIB16);
+			if (pGPURsrc->bufIB16) {
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pGPURsrc->bufIB16);
 				glBufferData(GL_ELEMENT_ARRAY_BUFFER, pMdl->mIdx16Num * sizeof(uint16_t), pIdxData, GL_STATIC_DRAW);
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 			}
@@ -229,17 +240,17 @@ static void prepare_model(sxModelData* pMdl) {
 	if (pMdl->mIdx32Num > 0) {
 		const uint32_t* pIdxData = pMdl->get_idx32_top();
 		if (pIdxData) {
-			glGenBuffers(1, &pGPUWk->bufIB32);
-			if (pGPUWk->bufIB32) {
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pGPUWk->bufIB32);
+			glGenBuffers(1, &pGPURsrc->bufIB32);
+			if (pGPURsrc->bufIB32) {
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pGPURsrc->bufIB32);
 				glBufferData(GL_ELEMENT_ARRAY_BUFFER, pMdl->mIdx32Num * sizeof(uint32_t), pIdxData, GL_STATIC_DRAW);
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 			}
 		}
 	}
-	glGenBuffers(1, &pGPUWk->bufGPXform);
-	if (pGPUWk->bufGPXform) {
-		glBindBuffer(GL_UNIFORM_BUFFER, pGPUWk->bufGPXform);
+	glGenBuffers(1, &pGPURsrc->bufGPXform);
+	if (pGPURsrc->bufGPXform) {
+		glBindBuffer(GL_UNIFORM_BUFFER, pGPURsrc->bufGPXform);
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(GPXform), nullptr, GL_DYNAMIC_DRAW);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	}
@@ -247,58 +258,59 @@ static void prepare_model(sxModelData* pMdl) {
 	static const GLchar* fldNamesGPModel[] = {
 		"gpRdrMask"
 	};
-	pGPUWk->paramsGPModel.init(s_pidGBuf, "GPModel", gpBindingModel, fldNamesGPModel, XD_ARY_LEN(fldNamesGPModel));
+	pGPURsrc->paramsGPModel.init(s_pidGBuf, "GPModel", gpBindingModel, fldNamesGPModel, XD_ARY_LEN(fldNamesGPModel));
 
-	pGPUWk->nmtl = pMdl->mMtlNum;
+	pGPURsrc->nmtl = pMdl->mMtlNum;
 	static const GLchar* fldNamesGPMaterial[] = {
 			"gpBaseColor",
 			"gpBumpParam",
 			"gpAlphaLim",
 			"gpSpecScl"
 	};
-	pGPUWk->pParamsGPMaterial = nxCore::tMem<GPUParamsBuf>::alloc(pGPUWk->nmtl, "GPMaterial");
-	if (pGPUWk->pParamsGPMaterial) {
-		for (int i = 0; i < pGPUWk->nmtl; ++i) {
-			pGPUWk->pParamsGPMaterial[i].init(s_pidGBuf, "GPMaterial", gpBindingMaterial, fldNamesGPMaterial, XD_ARY_LEN(fldNamesGPMaterial));
+	pGPURsrc->pParamsGPMaterial = nxCore::tMem<GPUParamsBuf>::alloc(pGPURsrc->nmtl, "GPMaterial");
+	if (pGPURsrc->pParamsGPMaterial) {
+		for (int i = 0; i < pGPURsrc->nmtl; ++i) {
+			pGPURsrc->pParamsGPMaterial[i].init(s_pidGBuf, "GPMaterial", gpBindingMaterial, fldNamesGPMaterial, XD_ARY_LEN(fldNamesGPMaterial));
 		}
 	}
 }
 
 static void release_model(sxModelData* pMdl) {
 	if (!pMdl) return;
-	MdlGPUWk** ppGPUWk = pMdl->get_gpu_wk<MdlGPUWk*>();
-	if (!*ppGPUWk) return;
-	MdlGPUWk* pGPUWk = *ppGPUWk;
-	if (pGPUWk->bufVB) {
-		glDeleteBuffers(1, &pGPUWk->bufVB);
-		pGPUWk->bufVB = 0;
+	MdlGPURsrc** ppGPURsrc = pMdl->get_gpu_wk<MdlGPURsrc*>();
+	if (!*ppGPURsrc) return;
+	MdlGPURsrc* pGPURsrc = *ppGPURsrc;
+	if (!pGPURsrc) return;
+	if (pGPURsrc->bufVB) {
+		glDeleteBuffers(1, &pGPURsrc->bufVB);
+		pGPURsrc->bufVB = 0;
 	}
-	if (pGPUWk->bufIB16) {
-		glDeleteBuffers(1, &pGPUWk->bufIB16);
-		pGPUWk->bufIB16 = 0;
+	if (pGPURsrc->bufIB16) {
+		glDeleteBuffers(1, &pGPURsrc->bufIB16);
+		pGPURsrc->bufIB16 = 0;
 	}
-	if (pGPUWk->bufIB32) {
-		glDeleteBuffers(1, &pGPUWk->bufIB32);
-		pGPUWk->bufIB32 = 0;
+	if (pGPURsrc->bufIB32) {
+		glDeleteBuffers(1, &pGPURsrc->bufIB32);
+		pGPURsrc->bufIB32 = 0;
 	}
-	if (pGPUWk->bufGPXform) {
-		glDeleteBuffers(1, &pGPUWk->bufGPXform);
-		pGPUWk->bufGPXform = 0;
+	if (pGPURsrc->bufGPXform) {
+		glDeleteBuffers(1, &pGPURsrc->bufGPXform);
+		pGPURsrc->bufGPXform = 0;
 	}
 	s_gbufParamsGPWPos.reset();
-	pGPUWk->paramsGPModel.reset();
-	if (pGPUWk->pParamsGPMaterial) {
-		for (int i = 0; i < pGPUWk->nmtl; ++i) {
-			pGPUWk->pParamsGPMaterial[i].reset();
+	pGPURsrc->paramsGPModel.reset();
+	if (pGPURsrc->pParamsGPMaterial) {
+		for (int i = 0; i < pGPURsrc->nmtl; ++i) {
+			pGPURsrc->pParamsGPMaterial[i].reset();
 		}
-		nxCore::tMem<GPUParamsBuf>::free(pGPUWk->pParamsGPMaterial);
-		pGPUWk->pParamsGPMaterial = nullptr;
+		nxCore::tMem<GPUParamsBuf>::free(pGPURsrc->pParamsGPMaterial);
+		pGPURsrc->pParamsGPMaterial = nullptr;
 	}
 	pMdl->clear_tex_wk();
-	if (s_pMdlGPUWkList) {
-		s_pMdlGPUWkList->remove(pGPUWk);
+	if (s_pMdlGPURsrcList) {
+		s_pMdlGPURsrcList->remove(pGPURsrc);
 	}
-	*ppGPUWk = nullptr;
+	*ppGPURsrc = nullptr;
 }
 
 static void def_tex_params(const bool mipmapEnabled) {
@@ -357,6 +369,47 @@ static GLuint get_tex_handle(sxTextureData* pTex) {
 	return pHandle ? *pHandle : 0;
 }
 
+static void prepare_model_work(cxModelWork* pWk) {
+	if (!pWk) return;
+	if (pWk->mpGPUWk) return;
+	if (!s_pMdlGPUWkList) return;
+	MdlGPUWk* pGPUWk = s_pMdlGPUWkList->new_item();
+	pWk->mpGPUWk = pGPUWk;
+	if (pGPUWk) {
+		::memset(pGPUWk, 0, sizeof(MdlGPUWk));
+		pGPUWk->pMdlWk = pWk;
+		if (!s_useSharedXformBuf) {
+			glGenBuffers(1, &pGPUWk->bufGPXform);
+			if (pGPUWk->bufGPXform) {
+				glBindBuffer(GL_UNIFORM_BUFFER, pGPUWk->bufGPXform);
+				glBufferData(GL_UNIFORM_BUFFER, sizeof(GPXform), nullptr, GL_DYNAMIC_DRAW);
+				glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			}
+		}
+	}
+}
+
+static void release_model_work(cxModelWork* pWk) {
+	if (!pWk) return;
+	MdlGPUWk* pGPUWk = (MdlGPUWk*)pWk->mpGPUWk;
+	if (!pGPUWk) return;
+	if (!s_pMdlGPUWkList) return;
+	if (pGPUWk->bufGPXform) {
+		glDeleteBuffers(1, &pGPUWk->bufGPXform);
+		pGPUWk->bufGPXform = 0;
+	}
+	s_pMdlGPUWkList->remove(pGPUWk);
+	pWk->mpGPUWk = nullptr;
+}
+
+static MdlGPUWk* get_mdl_gpu_wk(cxModelWork* pWk) {
+	MdlGPUWk* pGPUWk = nullptr;
+	if (pWk && pWk->mpGPUWk) {
+		pGPUWk = (MdlGPUWk*)pWk->mpGPUWk;
+	}
+	return pGPUWk;
+}
+
 static GLuint load_shader(const char* pName) {
 	GLuint sid = 0;
 	const char* pDataPath = s_pRsrcMgr ? s_pRsrcMgr->get_data_path() : nullptr;
@@ -381,7 +434,11 @@ static void init_rsrc_mgr() {
 	rsrcGfxIfc.releaseTexture = release_texture;
 	rsrcGfxIfc.prepareModel = prepare_model;
 	rsrcGfxIfc.releaseModel = release_model;
-	s_pRsrcMgr->set_gfx_ifc(rsrcGfxIfc);
+	rsrcGfxIfc.prepareModelWork = prepare_model_work;
+	rsrcGfxIfc.releaseModelWork = release_model_work;
+	if (s_pRsrcMgr) {
+		s_pRsrcMgr->set_gfx_ifc(rsrcGfxIfc);
+	}
 }
 
 static GLuint link_prog(GLuint sidVert, GLuint sidFrag) {
@@ -613,7 +670,8 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont)
 
 	s_GPUInfo.init();
 
-	s_pMdlGPUWkList = MdlGPUWkList::create("MdlGPUWkList");
+	s_pMdlGPURsrcList = MdlGPURsrcList::create("MdlGPURsrcList", false, false);
+	s_pMdlGPUWkList = MdlGPUWkList::create("MdlGPUWkList", false, false);
 
 	if (s_useFSTriVB) {
 		glGenBuffers(1, &s_fsTriVBO);
@@ -696,6 +754,8 @@ static void reset() {
 	s_hemifogccParamsGPWPos.reset();
 	s_hemifogccParamsGPFog.reset();
 	s_hemifogccParamsGPColor.reset();
+	MdlGPURsrcList::destroy(s_pMdlGPURsrcList);
+	s_pMdlGPURsrcList = nullptr;
 	MdlGPUWkList::destroy(s_pMdlGPUWkList);
 	s_pMdlGPUWkList = nullptr;
 	reset_gbuf();
@@ -751,14 +811,18 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	if (!pMtl) return;
 
 	prepare_model(pMdl);
+	prepare_model_work(pWk);
 
-	MdlGPUWk** ppGPUWk = pMdl->get_gpu_wk<MdlGPUWk*>();
-	if (!*ppGPUWk) return;
-	MdlGPUWk* pGPUWk = *ppGPUWk;
-	GLuint bufVB = pGPUWk->bufVB;
+	MdlGPURsrc** ppGPURsrc = pMdl->get_gpu_wk<MdlGPURsrc*>();
+	if (!*ppGPURsrc) return;
+	MdlGPURsrc* pGPURsrc = *ppGPURsrc;
+	if (!pGPURsrc) return;
+	GLuint bufVB = pGPURsrc->bufVB;
 	if (!bufVB) return;
-	GLuint bufIB16 = pGPUWk->bufIB16;
-	GLuint bufIB32 = pGPUWk->bufIB32;
+	GLuint bufIB16 = pGPURsrc->bufIB16;
+	GLuint bufIB32 = pGPURsrc->bufIB32;
+
+	MdlGPUWk* pGPUWk = get_mdl_gpu_wk(pWk);
 
 	bool vtxJMap = s_GPUInfo.need_jnt_map();
 
@@ -813,6 +877,29 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 			glUniform4fv(s_gpLocXforms, MAX_XFORMS * 3, xforms[0]);
 			glUniform4fv(s_gpLocXformMap, MAX_XFORMS / 4, xmap);
 		}
+	} else if (pGPUWk && pGPUWk->bufGPXform && pGPUWk->xformUpdateFlg) {
+		int xformsNum = 1;
+		pGPUWk->gpXform.viewProj = pCtx->view.mViewProjMtx;
+		if (pWk->mpSkinXforms) {
+			xformsNum = pMdl->mSknNum;
+			if (xformsNum > MAX_XFORMS) xformsNum = MAX_XFORMS;
+			::memcpy(pGPUWk->gpXform.xforms, pWk->mpSkinXforms, xformsNum * sizeof(xt_xmtx));
+		} else if (pWk->mpWorldXform) {
+			pGPUWk->gpXform.xforms[0] = *pWk->mpWorldXform;
+		} else {
+			pGPUWk->gpXform.xforms[0].identity();
+		}
+		size_t xformMtxSize = sizeof(xt_xmtx) * xformsNum;
+		size_t xformSize = sizeof(xt_mtx) + xformMtxSize;
+		glBindBuffer(GL_UNIFORM_BUFFER, pGPUWk->bufGPXform);
+		void* pXformDst = glMapBufferRange(GL_UNIFORM_BUFFER, 0, xformSize, GL_MAP_WRITE_BIT);
+		if (pXformDst) {
+			::memcpy(pXformDst, &pGPUWk->gpXform, xformSize);
+		}
+		glUnmapBuffer(GL_UNIFORM_BUFFER);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		glBindBufferBase(GL_UNIFORM_BUFFER, gpBindingXform, pGPUWk->bufGPXform);
+		pGPUWk->xformUpdateFlg = false;
 	} else {
 		s_gpXform.viewProj = pCtx->view.mViewProjMtx;
 		int xformsNum = 1;
@@ -828,25 +915,25 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 
 		size_t xformMtxSize = sizeof(xt_xmtx) * xformsNum;
 		size_t xformSize = sizeof(xt_mtx) + xformMtxSize;
-		glBindBufferBase(GL_UNIFORM_BUFFER, gpBindingXform, pGPUWk->bufGPXform);
-		bool xformsUpdate = pGPUWk->xformUpdateFlg;
+		glBindBufferBase(GL_UNIFORM_BUFFER, gpBindingXform, pGPURsrc->bufGPXform);
+		bool xformsUpdate = pGPURsrc->xformUpdateFlg;
 		if (!xformsUpdate) {
-			xformsUpdate = xformMtxSize != pGPUWk->xformMtxSize;
+			xformsUpdate = xformMtxSize != pGPURsrc->xformMtxSize;
 			if (!xformsUpdate) {
-				xformsUpdate = (::memcmp(&s_gpXform.xforms, pGPUWk->xforms, xformMtxSize) != 0);
+				xformsUpdate = (::memcmp(&s_gpXform.xforms, pGPURsrc->xforms, xformMtxSize) != 0);
 			}
 		}
 		if (xformsUpdate) {
-			pGPUWk->xformMtxSize = xformMtxSize;
-			::memcpy(pGPUWk->xforms, &s_gpXform.xforms, xformMtxSize);
-			glBindBuffer(GL_UNIFORM_BUFFER, pGPUWk->bufGPXform);
+			pGPURsrc->xformMtxSize = xformMtxSize;
+			::memcpy(pGPURsrc->xforms, &s_gpXform.xforms, xformMtxSize);
+			glBindBuffer(GL_UNIFORM_BUFFER, pGPURsrc->bufGPXform);
 			void* pXformDst = glMapBufferRange(GL_UNIFORM_BUFFER, 0, xformSize, GL_MAP_WRITE_BIT);
 			if (pXformDst) {
 				::memcpy(pXformDst, &s_gpXform, xformSize);
 			}
 			glUnmapBuffer(GL_UNIFORM_BUFFER);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-			pGPUWk->xformUpdateFlg = false;
+			pGPURsrc->xformUpdateFlg = false;
 		}
 	}
 
@@ -854,9 +941,9 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	s_gbufParamsGPWPos.send();
 	s_gbufParamsGPWPos.bind();
 
-	pGPUWk->paramsGPModel.set("gpRdrMask", pWk->mRenderMask);
-	pGPUWk->paramsGPModel.send();
-	pGPUWk->paramsGPModel.bind();
+	pGPURsrc->paramsGPModel.set("gpRdrMask", pWk->mRenderMask);
+	pGPURsrc->paramsGPModel.send();
+	pGPURsrc->paramsGPModel.bind();
 
 	float alphaLim = 0.0f;
 	if (pMtl->mFlags.alpha) {
@@ -897,7 +984,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 		}
 	}
 
-	GPUParamsBuf* pGPMaterial = &pGPUWk->pParamsGPMaterial[pBat->mMtlId];
+	GPUParamsBuf* pGPMaterial = &pGPURsrc->pParamsGPMaterial[pBat->mMtlId];
 	xt_float3 baseClr = pMtl->mBaseColor;
 	pGPMaterial->set("gpBaseColor", baseClr);
 	pGPMaterial->set("gpAlphaLim", alphaLim);
@@ -1039,6 +1126,12 @@ static void begin(const cxColor& clearColor) {
 		glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	}
 
+	if (s_pMdlGPURsrcList) {
+		for (MdlGPURsrcList::Itr itr = s_pMdlGPURsrcList->get_itr(); !itr.end(); itr.next()) {
+			MdlGPURsrc* pRsrc = itr.item();
+			pRsrc->xformUpdateFlg = true;
+		}
+	}
 	if (s_pMdlGPUWkList) {
 		for (MdlGPUWkList::Itr itr = s_pMdlGPUWkList->get_itr(); !itr.end(); itr.next()) {
 			MdlGPUWk* pWk = itr.item();

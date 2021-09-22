@@ -3191,7 +3191,10 @@ namespace OGLSys {
 #	endif
 			GLG.mNumFuncsOCL = okCnt;
 #endif
+
+#if !defined(OGLSYS_WEB)
 			GLG.dbg_msg("OpenCL functions: %d/%d\n", okCnt, allCnt);
+#endif
 		}
 
 		void reset() {

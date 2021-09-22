@@ -5279,6 +5279,7 @@ public:
 	static void destroy(cxMotionWork* pWk);
 };
 
+
 class cxModelWork {
 private:
 	cxModelWork() {}
@@ -5294,6 +5295,7 @@ public:
 	uint32_t* mpHideBits;
 	void* mpParamMem;
 	void* mpExtMem;
+	void* mpGPUWk;
 	float mRenderMask;
 	int mVariation;
 	bool mBoundsValid;
@@ -6173,12 +6175,16 @@ public:
 		void (*releaseModel)(sxModelData* pMdl);
 		void (*prepareTexture)(sxTextureData* pTex);
 		void (*releaseTexture)(sxTextureData* pTex);
+		void (*prepareModelWork)(cxModelWork* pMdlWk);
+		void (*releaseModelWork)(cxModelWork* pMdlWk);
 
 		void reset() {
 			prepareModel = nullptr;
 			releaseModel = nullptr;
 			prepareTexture = nullptr;
 			releaseTexture = nullptr;
+			prepareModelWork = nullptr;
+			releaseModelWork = nullptr;
 		}
 	};
 
