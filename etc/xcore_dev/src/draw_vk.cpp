@@ -910,6 +910,9 @@ void VK_GLB::init_gpu_code() {
 	VkResult vres;
 	mVtxShader = mk_shader("vtx.vert.spv");
 	mPixShader = mk_shader("pix.frag.spv");
+	if (mVtxShader == VK_NULL_HANDLE || mPixShader == VK_NULL_HANDLE) {
+		return;
+	}
 	VkPipelineCacheCreateInfo cacheCrInfo;
 	::memset(&cacheCrInfo, 0, sizeof(VkPipelineCacheCreateInfo));
 	cacheCrInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
@@ -1299,6 +1302,7 @@ void VK_GLB::end() {
 
 void VK_GLB::draw_batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const Draw::Context* pCtx) {
 	if (mode == Draw::DRWMODE_SHADOW_CAST) return;
+	if (mVtxShader == VK_NULL_HANDLE || mPixShader == VK_NULL_HANDLE) return;
 	sxModelData* pMdl = pWk->mpData;
 	if (!pMdl) return;
 	const sxModelData::Batch* pBat = pMdl->get_batch_ptr(ibat);
