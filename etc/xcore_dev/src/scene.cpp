@@ -199,7 +199,7 @@ static void init_font(sxGeometryData* pFontGeo) {
 	pFont->numSyms = nsym;
 	pFont->numPnts = npnt;
 	pFont->numTris = ntri;
-	pFont->pSyms = nxCore::tMem<Draw::Font::Sym>::alloc(pFont->numSyms, "Scn:Font:Syms");
+	pFont->pSyms = nxCore::tMem<Draw::Font::SymInfo>::alloc(pFont->numSyms, "Scn:Font:Syms");
 	pFont->pPnts = nxCore::tMem<xt_float2>::alloc(pFont->numPnts, "Scn:Font:Pnts");
 	pFont->pTris = nxCore::tMem<uint16_t>::alloc(pFont->numTris * 3, "Scn:Font:Tris");
 	if (pFont->pPnts) {
@@ -343,7 +343,7 @@ void reset() {
 		pFont->numPnts = 0;
 	}
 	if (pFont->numSyms > 0) {
-		nxCore::tMem<Draw::Font::Sym>::free(pFont->pSyms, pFont->numSyms);
+		nxCore::tMem<Draw::Font::SymInfo>::free(pFont->pSyms, pFont->numSyms);
 		pFont->pSyms = nullptr;
 		pFont->numSyms = 0;
 	}
@@ -1001,6 +1001,10 @@ int get_screen_height() {
 	return h;
 }
 
+sxView::Mode get_view_mode() {
+	return s_drwCtx.view.mMode;
+}
+
 bool is_rot_view() {
 	return s_drwCtx.view.mMode != sxView::Mode::STANDARD;
 }
@@ -1603,6 +1607,14 @@ void set_quad_defaults(Draw::Quad* pQuad) {
 	}
 	pQuad->gamma = s_quadGamma;
 	pQuad->color.set(1.0f);
+	if (is_rot_view()) {
+		cxMtx rm = get_view_mode_mtx();
+		pQuad->rot[0].set(rm.m[0][0], rm.m[0][1]);
+		pQuad->rot[1].set(rm.m[1][0], rm.m[1][1]);
+	} else {
+		pQuad->rot[0].set(1.0f, 0.0f);
+		pQuad->rot[1].set(0.0f, 1.0f);
+	}
 }
 
 void quad(const xt_float2 pos[4], const xt_float2 tex[4], const cxColor clr, sxTextureData* pTex, cxColor* pClrs) {
@@ -1647,6 +1659,17 @@ float get_font_height() {
 	return 1.0f;
 }
 
+static void set_sym_rot(Draw::Symbol* pSym) {
+	if (is_rot_view()) {
+		cxMtx rm = get_view_mode_mtx();
+		pSym->rot[0].set(rm.m[0][0], rm.m[0][1]);
+		pSym->rot[1].set(rm.m[1][0], rm.m[1][1]);
+	} else {
+		pSym->rot[0].set(1.0f, 0.0f);
+		pSym->rot[1].set(0.0f, 1.0f);
+	}
+}
+
 void symbol(const int sym, const float ox, const float oy, const cxColor clr, const cxColor* pOutClr) {
 	if (!s_pDraw) return;
 	if (!s_pDraw->symbol) return;
@@ -1664,10 +1687,23 @@ void symbol(const int sym, const float ox, const float oy, const cxColor clr, co
 	float fontH = get_font_height();
 	float drwSX = nxCalc::div0(fontW*scrSX, scrW);
 	float drwSY = nxCalc::div0(fontH*scrSY, scrH);
+	Draw::Symbol drwSym;
+	set_sym_rot(&drwSym);
+	drwSym.sym = sym;
 	if (pOutClr) {
-		s_pDraw->symbol(sym, drwOX - nxCalc::rcp0(scrW), drwOY - nxCalc::rcp0(scrH), nxCalc::div0((fontW + 2.0f)*scrSX, scrW), nxCalc::div0((fontH + 2.0f)*scrSY, scrH), *pOutClr);
+		drwSym.ox = drwOX - nxCalc::rcp0(scrW);
+		drwSym.oy = drwOY - nxCalc::rcp0(scrH);
+		drwSym.sx = nxCalc::div0((fontW + 2.0f)*scrSX, scrW);
+		drwSym.sy = nxCalc::div0((fontH + 2.0f)*scrSY, scrH);
+		drwSym.clr = *pOutClr;
+		s_pDraw->symbol(&drwSym);
 	}
-	s_pDraw->symbol(sym, drwOX, drwOY, drwSX, drwSY, clr);
+	drwSym.ox = drwOX;
+	drwSym.oy = drwOY;
+	drwSym.sx = drwSX;
+	drwSym.sy = drwSY;
+	drwSym.clr = clr;
+	s_pDraw->symbol(&drwSym);
 }
 
 void symbol_str(const char* pStr, const float ox, const float oy, const cxColor clr) {
@@ -1689,6 +1725,12 @@ void symbol_str(const char* pStr, const float ox, const float oy, const cxColor 
 	float drwSY = nxCalc::div0(fontH*scrSY, scrH);
 	float symSpc = s_fontSymSpacing;
 	float spcWidth = s_fontSpaceWidth;
+	Draw::Symbol drwSym;
+	set_sym_rot(&drwSym);
+	drwSym.oy = drwOY;
+	drwSym.sx = drwSX;
+	drwSym.sy = drwSY;
+	drwSym.clr = clr;
 	while (true) {
 		int chr = *pStr++;
 		if (chr == 0) break;
@@ -1697,10 +1739,11 @@ void symbol_str(const char* pStr, const float ox, const float oy, const cxColor 
 		} else {
 			int sym = chr - '!';
 			if (uint32_t(sym) >= uint32_t(pFont->numSyms)) return;
-			Draw::Font::Sym* pSym = &pFont->pSyms[sym];
-			//s_pDraw->symbol(sym, drwOX - nxCalc::rcp0(scrW), drwOY - nxCalc::rcp0(scrH), nxCalc::div0((fontW+2.0f)*scrSX, scrW), nxCalc::div0((fontH+2.0f)*scrSY, scrH), cxColor(clr.r, clr.g, clr.b, 0.1f));
-			s_pDraw->symbol(sym, drwOX, drwOY, drwSX, drwSY, clr);
-			drwOX += (pSym->size.x + symSpc)*drwSX;
+			Draw::Font::SymInfo* pInfo = &pFont->pSyms[sym];
+			drwSym.sym = sym;
+			drwSym.ox = drwOX;
+			s_pDraw->symbol(&drwSym);
+			drwOX += (pInfo->size.x + symSpc)*drwSX;
 		}
 	}
 }

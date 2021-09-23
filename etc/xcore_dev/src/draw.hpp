@@ -24,7 +24,7 @@ namespace Draw {
 	};
 
 	struct Font {
-		struct Sym {
+		struct SymInfo {
 			xt_float2 size;
 			int idxOrg;
 			int numTris;
@@ -34,7 +34,7 @@ namespace Draw {
 		int numTris;
 		xt_float2* pPnts;
 		uint16_t* pTris;
-		Sym* pSyms;
+		SymInfo* pSyms;
 	};
 
 	inline float clip_gamma(const float gamma) { return nxCalc::max(gamma, 0.01f); }
@@ -226,6 +226,7 @@ namespace Draw {
 	struct Quad {
 		xt_float2 pos[4];
 		xt_float2 tex[4];
+		xt_float2 rot[2];
 		cxColor color;
 		xt_float3 gamma;
 		float refWidth;
@@ -240,6 +241,16 @@ namespace Draw {
 		void set_gamma_rgb(const float r, const float g, const float b) {
 			gamma.set(clip_gamma(r), clip_gamma(g), clip_gamma(b));
 		}
+	};
+
+	struct Symbol {
+		cxColor clr;
+		xt_float2 rot[2];
+		int sym;
+		float ox;
+		float oy;
+		float sx;
+		float sy;
 	};
 
 	struct Ifc {
@@ -260,8 +271,8 @@ namespace Draw {
 		void (*end)();
 
 		void (*batch)(cxModelWork* pWk, const int ibat, const Mode mode, const Context* pCtx);
-		void (*quad)(Quad* pQuad);
-		void (*symbol)(const int sym, const float ox, const float oy, const float sx, const float sy, const cxColor clr);
+		void (*quad)(const Quad* pQuad);
+		void (*symbol)(const Symbol* pSym);
 	};
 
 	int32_t register_ifc_impl(Ifc* pIfc);

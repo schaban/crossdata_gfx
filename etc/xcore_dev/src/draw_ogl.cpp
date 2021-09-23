@@ -204,8 +204,9 @@ struct ParamLink {
 	GLint QuadVtxPos;
 	GLint QuadVtxTex;
 	GLint QuadVtxClr;
-	GLint FontXform;
 	GLint FontColor;
+	GLint FontXform;
+	GLint FontRot;
 
 	void reset() { ::memset(this, 0xFF, sizeof(*this)); }
 };
@@ -441,8 +442,9 @@ struct GPUProg {
 			PARAM_LINK(QuadVtxPos);
 			PARAM_LINK(QuadVtxTex);
 			PARAM_LINK(QuadVtxClr);
-			PARAM_LINK(FontXform);
 			PARAM_LINK(FontColor);
+			PARAM_LINK(FontXform);
+			PARAM_LINK(FontRot);
 
 			SMP_LINK(Base);
 			SMP_LINK(Bump);
@@ -1890,7 +1892,7 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 	}
 }
 
-void quad(Draw::Quad* pQuad) {
+void quad(const Draw::Quad* pQuad) {
 	if (!pQuad) return;
 	if (pQuad->color.a <= 0.0f) return;
 	GLuint htex = get_tex_handle(pQuad->pTex);
@@ -1904,7 +1906,7 @@ void quad(Draw::Quad* pQuad) {
 	GPUProg* pProg = &s_prg_quad_quad;
 	pProg->use();
 	xt_float4 pos[2];
-	float* pPosSrc = pQuad->pos[0];
+	const float* pPosSrc = pQuad->pos[0];
 	float* pPosDst = pos[0];
 	for (int i = 0; i < 8; ++i) {
 		pPosDst[i] = pPosSrc[i] + 0.5f;
@@ -1927,7 +1929,7 @@ void quad(Draw::Quad* pQuad) {
 	}
 	cxColor clr[4];
 	float* pClrDst = clr[0].ch;
-	float* pClr = pQuad->color.ch;
+	const float* pClr = pQuad->color.ch;
 	if (pQuad->pClrs) {
 		float* pClrSrc = pQuad->pClrs[0].ch;
 		for (int i = 0; i < 4; ++i) {
@@ -1942,6 +1944,13 @@ void quad(Draw::Quad* pQuad) {
 				*pClrDst++ = pClr[j];
 			}
 		}
+	}
+	for (int i = 0; i < 4; ++i) {
+		int offs = i * 2;
+		float x = pPosDst[offs];
+		float y = pPosDst[offs + 1];
+		pPosDst[offs] = x*pQuad->rot[0].x + y*pQuad->rot[1].x;
+		pPosDst[offs + 1] = x*pQuad->rot[0].y + y*pQuad->rot[1].y;
 	}
 	if (HAS_PARAM(QuadVtxPos)) {
 		glUniform4fv(pProg->mParamLink.QuadVtxPos, 2, pos[0]);
@@ -1973,13 +1982,15 @@ void quad(Draw::Quad* pQuad) {
 	}
 }
 
-void symbol(const int sym, const float ox, const float oy, const float sx, const float sy, const cxColor clr) {
+void symbol(const Draw::Symbol* pSym) {
 	Draw::Font* pFont = s_pFont;
 	if (!pFont) return;
+	cxColor clr = pSym->clr;
 	if (clr.a <= 0.0f) return;
 	if (!(s_fontVBO && s_fontIBO)) return;
+	int sym = pSym->sym;
 	if (uint32_t(sym) >= uint32_t(pFont->numSyms)) return;
-	Draw::Font::Sym* pSym = &pFont->pSyms[sym];
+	Draw::Font::SymInfo* pInfo = &pFont->pSyms[sym];
 	set_screen_framebuf();
 	if (clr.a < 1.0f) {
 		set_semi();
@@ -1990,20 +2001,29 @@ void symbol(const int sym, const float ox, const float oy, const float sx, const
 	OGLSys::enable_msaa(true);
 	GPUProg* pProg = &s_prg_font_font;
 	pProg->use();
-	if (HAS_PARAM(FontXform)) {
-		xt_float4 fontXform;
-		fontXform.set(ox*2.0f - 1.0f, oy*2.0f - 1.0f, sx * 2.0f, sy * 2.0f);
-		glUniform4fv(pProg->mParamLink.FontXform, 1, fontXform);
-	}
 	if (HAS_PARAM(FontColor)) {
 		xt_float4 fontClr;
 		fontClr.set(clr.r, clr.g, clr.b, clr.a);
 		glUniform4fv(pProg->mParamLink.FontColor, 1, fontClr);
 	}
+	float ox = pSym->ox;
+	float oy = pSym->oy;
+	float sx = pSym->sx;
+	float sy = pSym->sy;
+	if (HAS_PARAM(FontXform)) {
+		xt_float4 fontXform;
+		fontXform.set(ox*2.0f - 1.0f, oy*2.0f - 1.0f, sx * 2.0f, sy * 2.0f);
+		glUniform4fv(pProg->mParamLink.FontXform, 1, fontXform);
+	}
+	if (HAS_PARAM(FontRot)) {
+		xt_float4 fontRot;
+		fontRot.set(pSym->rot[0].x, pSym->rot[1].x, pSym->rot[0].y, pSym->rot[1].y);
+		glUniform4fv(pProg->mParamLink.FontRot, 1, fontRot);
+	}
 	glBindBuffer(GL_ARRAY_BUFFER, s_fontVBO);
 	pProg->enable_attrs(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_fontIBO);
-	glDrawElements(GL_TRIANGLES, pSym->numTris * 3, GL_UNSIGNED_SHORT, (const void*)(pSym->idxOrg * sizeof(uint16_t)));
+	glDrawElements(GL_TRIANGLES, pInfo->numTris * 3, GL_UNSIGNED_SHORT, (const void*)(pInfo->idxOrg * sizeof(uint16_t)));
 	if (pProg->mVAO) {
 		OGLSys::bind_vao(0);
 	} else {

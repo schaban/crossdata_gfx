@@ -4,5 +4,7 @@ void main() {
 	vec2 scl = gpFontXform.zw;
 	pos *= scl;
 	pos += offs;
-	gl_Position = vec4(pos.x, pos.y, 0.0, 1.0);
+	float x = dot(pos, gpFontRot.xy);
+	float y = dot(pos, gpFontRot.zw);
+	gl_Position = vec4(x, y, 0.0, 1.0);
 }

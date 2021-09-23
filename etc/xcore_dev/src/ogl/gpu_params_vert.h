@@ -19,5 +19,6 @@ uniform vec4 gpQuadVtxTex[2];
 uniform vec4 gpQuadVtxClr[4];
 
 uniform vec4 gpFontXform;
+uniform vec4 gpFontRot;
 
 

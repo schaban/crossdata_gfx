@@ -290,6 +290,7 @@ float get_view_near();
 float get_view_far();
 int get_screen_width();
 int get_screen_height();
+sxView::Mode get_view_mode();
 bool is_rot_view();
 
 bool is_sphere_visible(const cxSphere& sph, const bool exact = true);
