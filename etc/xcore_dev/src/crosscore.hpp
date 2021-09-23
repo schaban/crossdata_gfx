@@ -5707,7 +5707,12 @@ public:
 						Plex* pNextPlex = pPlex->mpNext;
 						destroy_plex(pPlex);
 						if (pPlex == mpHead) {
-							mpHead = nullptr;
+							if (pNextPlex) {
+								mpHead = pNextPlex;
+								mpHead->mpPrev = nullptr;
+							} else {
+								mpHead = nullptr;
+							}
 						} else {
 							if (pPrevPlex) {
 								pPrevPlex->mpNext = pNextPlex;
