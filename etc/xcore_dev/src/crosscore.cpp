@@ -8527,18 +8527,20 @@ int sxGeometryData::Polygon::get_vtx_pnt_id(int vtxIdx) const {
 	int pntIdx = -1;
 	if (ck_vtx_idx(vtxIdx)) {
 		uint8_t* pIdx = get_vtx_lst();
-		int idxSize = mpGeom->get_vtx_idx_size();
-		pIdx += idxSize * vtxIdx;
-		switch (idxSize) {
-			case 1:
-				pntIdx = *pIdx;
-				break;
-			case 2:
-				pntIdx = pIdx[0] | (pIdx[1] << 8);
-				break;
-			case 3:
-				pntIdx = pIdx[0] | (pIdx[1] << 8) | (pIdx[2] << 16);
-				break;
+		if (pIdx) {
+			int idxSize = mpGeom->get_vtx_idx_size();
+			pIdx += idxSize * vtxIdx;
+			switch (idxSize) {
+				case 1:
+					pntIdx = *pIdx;
+					break;
+				case 2:
+					pntIdx = pIdx[0] | (pIdx[1] << 8);
+					break;
+				case 3:
+					pntIdx = pIdx[0] | (pIdx[1] << 8) | (pIdx[2] << 16);
+					break;
+			}
 		}
 	}
 	return pntIdx;
@@ -9481,10 +9483,10 @@ cxColor* decode_dds(sxDDSHead* pDDS, uint32_t* pWidth, uint32_t* pHeight, float 
 				uint32_t maskG = pDDS->mFormat.mMaskG;
 				uint32_t maskB = pDDS->mFormat.mMaskB;
 				uint32_t maskA = pDDS->mFormat.mMaskA;
-				uint32_t shiftR = nxCore::ctz32(maskR);
-				uint32_t shiftG = nxCore::ctz32(maskG);
-				uint32_t shiftB = nxCore::ctz32(maskB);
-				uint32_t shiftA = nxCore::ctz32(maskA);
+				uint32_t shiftR = nxCore::ctz32(maskR) & 0x1F;
+				uint32_t shiftG = nxCore::ctz32(maskG) & 0x1F;
+				uint32_t shiftB = nxCore::ctz32(maskB) & 0x1F;
+				uint32_t shiftA = nxCore::ctz32(maskA) & 0x1F;
 				uint32_t* pEnc32 = (uint32_t*)(pDDS + 1);
 				for (int i = 0; i < n; ++i) {
 					uint32_t enc = pEnc32[i];
@@ -10989,6 +10991,8 @@ void sxCompiledExpression::exec(ExecIfc& ifc) const {
 				break;
 			case eCmp::GE:
 				cmpRes = valA >= valB ? 1.0f : 0.0f;
+				break;
+			default:
 				break;
 			}
 			pStk->push_num(cmpRes);
