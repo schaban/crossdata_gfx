@@ -290,6 +290,8 @@ float get_view_near();
 float get_view_far();
 int get_screen_width();
 int get_screen_height();
+int get_view_mode_width();
+int get_view_mode_height();
 sxView::Mode get_view_mode();
 bool is_rot_view();
 

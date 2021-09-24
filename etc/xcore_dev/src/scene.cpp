@@ -1001,6 +1001,36 @@ int get_screen_height() {
 	return h;
 }
 
+int get_view_mode_width() {
+	int w = 0;
+	sxView::Mode mode = get_view_mode();
+	switch (mode) {
+		case sxView::Mode::ROT_L90:
+		case sxView::Mode::ROT_R90:
+			w = get_screen_height();
+			break;
+		default:
+			w = get_screen_width();
+			break;
+	}
+	return w;
+}
+
+int get_view_mode_height() {
+	int h = 0;
+	sxView::Mode mode = get_view_mode();
+	switch (mode) {
+		case sxView::Mode::ROT_L90:
+		case sxView::Mode::ROT_R90:
+			h = get_screen_width();
+			break;
+		default:
+			h = get_screen_height();
+			break;
+	}
+	return h;
+}
+
 sxView::Mode get_view_mode() {
 	return s_drwCtx.view.mMode;
 }
