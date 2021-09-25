@@ -47,6 +47,12 @@
 #	include <SDL.h>
 #endif
 
+#if defined(OGLSYS_LINUX_INPUT)
+#	include <unistd.h>
+#	include <fcntl.h>
+#	include <linux/input.h>
+#endif
+
 #if !OGLSYS_ES
 #	if defined(OGLSYS_WINDOWS)
 #		if 0
@@ -217,6 +223,11 @@ static struct OGLSysGlb {
 	SDL_GLContext mSDLGLCtx;
 	void(*mpWebLoop)(void*);
 	void* mpWebLoopCtx;
+#endif
+
+#if defined(OGLSYS_LINUX_INPUT)
+	int mRawKbdFD;
+	input_event mRawKbdEvent;
 #endif
 
 	uint64_t mFrameCnt;
@@ -658,7 +669,7 @@ static struct OGLSysGlb {
 
 	void send_input(OGLSysInput* pInp) {
 		if (pInp && mInpHandler) {
-			if (pInp->act != OGLSysInput::ACT_NONE) {
+			if (pInp->act != OGLSysInput::OGLSYS_ACT_NONE) {
 				if (pInp->pressure > 1.0f) {
 					pInp->pressure = 1.0f;
 				}
@@ -848,10 +859,10 @@ static bool wnd_mouse_msg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		GLG.mMouseState.mWheel = wheel;
 
 		OGLSysInput inp;
-		inp.device = OGLSysInput::MOUSE;
+		inp.device = OGLSysInput::OGLSYS_MOUSE;
 		inp.sysDevId = 0;
 		inp.pressure = 1.0f;
-		inp.act = OGLSysInput::ACT_NONE;
+		inp.act = OGLSysInput::OGLSYS_ACT_NONE;
 		inp.id = -1;
 		switch (msg) {
 			case WM_LBUTTONDOWN:
@@ -879,24 +890,24 @@ static bool wnd_mouse_msg(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		inp.absY = float(HIWORD(lParam));
 		switch (msg) {
 			case WM_MOUSEMOVE:
-				if (GLG.mMouseState.ck_now(OGLSysMouseState::BTN_LEFT)) {
+				if (GLG.mMouseState.ck_now(OGLSysMouseState::OGLSYS_BTN_LEFT)) {
 					inp.id = 0;
-					inp.act = OGLSysInput::ACT_DRAG;
+					inp.act = OGLSysInput::OGLSYS_ACT_DRAG;
 				} else {
-					inp.act = OGLSysInput::ACT_HOVER;
+					inp.act = OGLSysInput::OGLSYS_ACT_HOVER;
 				}
 				break;
 			case WM_LBUTTONDOWN:
 			case WM_MBUTTONDOWN:
 			case WM_RBUTTONDOWN:
 			case WM_XBUTTONDOWN:
-				inp.act = OGLSysInput::ACT_DOWN;
+				inp.act = OGLSysInput::OGLSYS_ACT_DOWN;
 				break;
 			case WM_LBUTTONUP:
 			case WM_MBUTTONUP:
 			case WM_RBUTTONUP:
 			case WM_XBUTTONUP:
-				inp.act = OGLSysInput::ACT_UP;
+				inp.act = OGLSysInput::OGLSYS_ACT_UP;
 				break;
 		}
 		GLG.send_input(&inp);
@@ -1709,9 +1720,9 @@ void OGLSysGlb::handle_ogl_ext(const GLubyte* pStr, const int lenStr) {
 static bool xbtn_xlat(const XEvent& evt, OGLSysMouseState::BTN* pBtn) {
 	bool res = true;
 	switch (evt.xbutton.button) {
-		case 1: *pBtn = OGLSysMouseState::BTN_LEFT; break;
-		case 2: *pBtn = OGLSysMouseState::BTN_MIDDLE; break;
-		case 3: *pBtn = OGLSysMouseState::BTN_RIGHT; break;
+		case 1: *pBtn = OGLSysMouseState::OGLSYS_BTN_LEFT; break;
+		case 2: *pBtn = OGLSysMouseState::OGLSYS_BTN_MIDDLE; break;
+		case 3: *pBtn = OGLSysMouseState::OGLSYS_BTN_RIGHT; break;
 		default: res = false; break;
 	}
 	return res;
@@ -1994,6 +2005,76 @@ static void create_const_tex(GLuint* pHandle, uint32_t rgba) {
 	}
 }
 
+static void oglsys_raw_input() {
+#if defined(OGLSYS_LINUX_INPUT)
+	if (GLG.mRawKbdFD >= 0) {
+		size_t readSize = sizeof(input_event);
+		bool done = false;
+		while (!done) {
+			size_t nread = ::read(GLG.mRawKbdFD, &GLG.mRawKbdEvent, readSize);
+			if (nread == readSize) {
+				if (GLG.mRawKbdEvent.type == EV_KEY) {
+					bool* pState = nullptr;
+					int idx = -1;
+					switch (GLG.mRawKbdEvent.code) {
+						case KEY_UP:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_UP;
+							break;
+						case KEY_DOWN:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_DOWN;
+							break;
+						case KEY_LEFT:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_LEFT;
+							break;
+						case KEY_RIGHT:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_RIGHT;
+							break;
+
+						case KEY_TAB:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_TAB;
+							break;
+						case KEY_LEFTSHIFT:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_LSHIFT;
+							break;
+						case KEY_RIGHTSHIFT:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_RSHIFT;
+							break;
+						case KEY_LEFTCTRL:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_LCTRL;
+							break;
+						case KEY_RIGHTCTRL:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_RCTRL;
+						case KEY_ENTER:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_ENTER;
+							break;
+
+						default:
+							break;
+					}
+					if (pState && idx >= 0) {
+						pState[idx] = (GLG.mRawKbdEvent.value != 0);
+					}
+				} else {
+					done = true;
+				}
+			} else {
+				done = true;
+			}
+		}
+	}
+#endif
+}
+
 namespace OGLSys {
 
 	bool s_initFlg = false;
@@ -2016,11 +2097,23 @@ namespace OGLSys {
 		GLG.mWithoutCtx = cfg.withoutCtx;
 		GLG.init_wnd();
 		GLG.init_ogl();
+#if defined(OGLSYS_LINUX_INPUT)
+		GLG.mRawKbdFD = -1;
+		if (cfg.pKbdDevName) {
+			GLG.mRawKbdFD = ::open(cfg.pKbdDevName, O_RDONLY | O_NONBLOCK);
+		}
+#endif
 		s_initFlg = true;
 	}
 
 	void reset() {
 		if (!s_initFlg) return;
+#if defined(OGLSYS_LINUX_INPUT)
+		if (GLG.mRawKbdFD >= 0) {
+			::close(GLG.mRawKbdFD);
+		}
+		GLG.mRawKbdFD = -1;
+#endif
 		GLG.reset_ogl();
 		GLG.reset_wnd();
 		s_initFlg = false;
@@ -2088,14 +2181,14 @@ namespace OGLSys {
 							int32_t inpEvtType = AInputEvent_getType(pInpEvt);
 							int32_t evtHandled = 0;
 							OGLSysInput inp;
-							inp.act = OGLSysInput::ACT_NONE;
+							inp.act = OGLSysInput::OGLSYS_ACT_NONE;
 							if (inpEvtType == AINPUT_EVENT_TYPE_MOTION) {
-								inp.device = OGLSysInput::TOUCH;
+								inp.device = OGLSysInput::OGLSYS_TOUCH;
 								inp.sysDevId = AInputEvent_getDeviceId(pInpEvt);
 								int32_t act = AMotionEvent_getAction(pInpEvt);
 								size_t ntouch = AMotionEvent_getPointerCount(pInpEvt);
 								if (act == AMOTION_EVENT_ACTION_MOVE) {
-									inp.act = OGLSysInput::ACT_DRAG;
+									inp.act = OGLSysInput::OGLSYS_ACT_DRAG;
 									for (int i = 0; i < ntouch; ++i) {
 										inp.id = AMotionEvent_getPointerId(pInpEvt, i);
 										inp.absX = AMotionEvent_getX(pInpEvt, i);
@@ -2107,7 +2200,7 @@ namespace OGLSys {
 										GLG.send_input(&inp);
 									}
 								} else if (act == AMOTION_EVENT_ACTION_DOWN || act == AMOTION_EVENT_ACTION_UP) {
-									inp.act = act == AMOTION_EVENT_ACTION_DOWN ? OGLSysInput::ACT_DOWN : OGLSysInput::ACT_UP;
+									inp.act = act == AMOTION_EVENT_ACTION_DOWN ? OGLSysInput::OGLSYS_ACT_DOWN : OGLSysInput::OGLSYS_ACT_UP;
 									inp.id = AMotionEvent_getPointerId(pInpEvt, 0);
 									inp.absX = AMotionEvent_getX(pInpEvt, 0);
 									inp.absY = AMotionEvent_getY(pInpEvt, 0);
@@ -2115,8 +2208,8 @@ namespace OGLSys {
 									if (inp.id == 0) {
 										GLG.set_mouse_pos(inp.absX, inp.absY);
 										uint32_t mask = 0;
-										if (inp.act == OGLSysInput::ACT_DOWN) {
-											mask = 1 << OGLSysMouseState::BTN_LEFT;
+										if (inp.act == OGLSysInput::OGLSYS_ACT_DOWN) {
+											mask = 1 << OGLSysMouseState::OGLSYS_BTN_LEFT;
 										}
 										GLG.mMouseState.mBtnOld = GLG.mMouseState.mBtnNow;
 										GLG.mMouseState.mBtnNow = mask;
@@ -2264,6 +2357,7 @@ namespace OGLSys {
 		emscripten_set_main_loop(web_loop, 0, 1);
 #else
 		while (true) {
+			oglsys_raw_input();
 			if (pLoop) {
 				pLoop(pLoopCtx);
 			}
@@ -3064,19 +3158,19 @@ namespace OGLSys {
 
 	void set_inp_btn_id(OGLSysInput* pInp, OGLSysMouseState::BTN btn) {
 		switch (btn) {
-			case OGLSysMouseState::BTN_LEFT:
+			case OGLSysMouseState::OGLSYS_BTN_LEFT:
 				pInp->id = 0;
 				break;
-			case OGLSysMouseState::BTN_MIDDLE:
+			case OGLSysMouseState::OGLSYS_BTN_MIDDLE:
 				pInp->id = 1;
 				break;
-			case OGLSysMouseState::BTN_RIGHT:
+			case OGLSysMouseState::OGLSYS_BTN_RIGHT:
 				pInp->id = 2;
 				break;
-			case OGLSysMouseState::BTN_X:
+			case OGLSysMouseState::OGLSYS_BTN_X:
 				pInp->id = 3;
 				break;
-			case OGLSysMouseState::BTN_Y:
+			case OGLSysMouseState::OGLSYS_BTN_Y:
 				pInp->id = 4;
 				break;
 			default:
@@ -3091,15 +3185,15 @@ namespace OGLSys {
 		GLG.mMouseState.mBtnNow &= ~mask;
 		GLG.mMouseState.mBtnNow |= mask;
 		OGLSysInput inp;
-		inp.device = OGLSysInput::MOUSE;
+		inp.device = OGLSysInput::OGLSYS_MOUSE;
 		inp.sysDevId = 0;
 		inp.pressure = 1.0f;
 		inp.absX = absX;
 		inp.absY = absY;
-		inp.act = OGLSysInput::ACT_NONE;
+		inp.act = OGLSysInput::OGLSYS_ACT_NONE;
 		set_inp_btn_id(&inp, btn);
 		if (inp.id != -1) {
-			inp.act = OGLSysInput::ACT_DOWN;
+			inp.act = OGLSysInput::OGLSYS_ACT_DOWN;
 		}
 		if (updateFlg) {
 			GLG.update_mouse_pos(absX, absY);
@@ -3114,15 +3208,15 @@ namespace OGLSys {
 		GLG.mMouseState.mBtnOld = GLG.mMouseState.mBtnNow;
 		GLG.mMouseState.mBtnNow &= ~mask;
 		OGLSysInput inp;
-		inp.device = OGLSysInput::MOUSE;
+		inp.device = OGLSysInput::OGLSYS_MOUSE;
 		inp.sysDevId = 0;
 		inp.pressure = 1.0f;
 		inp.absX = absX;
 		inp.absY = absY;
-		inp.act = OGLSysInput::ACT_NONE;
+		inp.act = OGLSysInput::OGLSYS_ACT_NONE;
 		set_inp_btn_id(&inp, btn);
 		if (inp.id != -1) {
-			inp.act = OGLSysInput::ACT_UP;
+			inp.act = OGLSysInput::OGLSYS_ACT_UP;
 		}
 		if (updateFlg) {
 			GLG.update_mouse_pos(absX, absY);
@@ -3134,17 +3228,17 @@ namespace OGLSys {
 
 	void send_mouse_move(float absX, float absY) {
 		OGLSysInput inp;
-		inp.device = OGLSysInput::MOUSE;
+		inp.device = OGLSysInput::OGLSYS_MOUSE;
 		inp.sysDevId = 0;
 		inp.pressure = 1.0f;
 		inp.absX = absX;
 		inp.absY = absY;
 		inp.id = -1;
-		if (GLG.mMouseState.ck_now(OGLSysMouseState::BTN_LEFT)) {
+		if (GLG.mMouseState.ck_now(OGLSysMouseState::OGLSYS_BTN_LEFT)) {
 			inp.id = 0;
-			inp.act = OGLSysInput::ACT_DRAG;
+			inp.act = OGLSysInput::OGLSYS_ACT_DRAG;
 		} else {
-			inp.act = OGLSysInput::ACT_HOVER;
+			inp.act = OGLSysInput::OGLSYS_ACT_HOVER;
 		}
 		GLG.update_mouse_pos(absX, absY);
 		GLG.send_input(&inp);

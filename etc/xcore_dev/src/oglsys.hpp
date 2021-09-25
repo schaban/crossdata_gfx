@@ -191,15 +191,16 @@ struct OGLSysCfg {
 	bool reduceRes;
 	bool hideSysIcons;
 	bool withoutCtx;
+	const char* pKbdDevName;
 };
 
 struct OGLSysMouseState {
 	enum BTN {
-		BTN_LEFT = 0,
-		BTN_MIDDLE,
-		BTN_RIGHT,
-		BTN_X,
-		BTN_Y
+		OGLSYS_BTN_LEFT = 0,
+		OGLSYS_BTN_MIDDLE,
+		OGLSYS_BTN_RIGHT,
+		OGLSYS_BTN_X,
+		OGLSYS_BTN_Y
 	};
 
 	uint32_t mBtnOld;
@@ -218,16 +219,16 @@ struct OGLSysMouseState {
 
 struct OGLSysInput {
 	enum ACT {
-		ACT_NONE,
-		ACT_DRAG,
-		ACT_HOVER,
-		ACT_DOWN,
-		ACT_UP
+		OGLSYS_ACT_NONE,
+		OGLSYS_ACT_DRAG,
+		OGLSYS_ACT_HOVER,
+		OGLSYS_ACT_DOWN,
+		OGLSYS_ACT_UP
 	};
 
 	enum DEVICE {
-		MOUSE,
-		TOUCH
+		OGLSYS_MOUSE,
+		OGLSYS_TOUCH
 	};
 
 	int device;
