@@ -227,6 +227,7 @@ static struct OGLSysGlb {
 
 #if defined(OGLSYS_LINUX_INPUT)
 	int mRawKbdFD;
+	int mRawKbdMode;
 	input_event mRawKbdEvent;
 #endif
 
@@ -2018,47 +2019,64 @@ static void oglsys_raw_input() {
 					int idx = -1;
 					switch (GLG.mRawKbdEvent.code) {
 						case KEY_UP:
+						case 544:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_UP;
 							break;
 						case KEY_DOWN:
+						case 545:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_DOWN;
 							break;
 						case KEY_LEFT:
+						case 546:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_LEFT;
 							break;
 						case KEY_RIGHT:
+						case 547:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_RIGHT;
 							break;
-
 						case KEY_TAB:
+						case 307:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_TAB;
 							break;
+						case KEY_BACKSPACE:
+							pState = GLG.mKbdState.ctrl;
+							idx = KBD_CTRL_BACK;
+							break;
 						case KEY_LEFTSHIFT:
+						case 310:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_LSHIFT;
 							break;
 						case KEY_RIGHTSHIFT:
+						case 311:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_RSHIFT;
 							break;
 						case KEY_LEFTCTRL:
+						case 312:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_LCTRL;
 							break;
 						case KEY_RIGHTCTRL:
+						case 313:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_RCTRL;
+							break;
 						case KEY_ENTER:
+						case 305:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_ENTER;
 							break;
 
 						default:
+							if (GLG.mRawKbdMode == 1) {
+								GLG.dbg_msg("OdJoy unhandled btn: %d\n", GLG.mRawKbdEvent.code);
+							}
 							break;
 					}
 					if (pState && idx >= 0) {
@@ -2099,8 +2117,27 @@ namespace OGLSys {
 		GLG.init_ogl();
 #if defined(OGLSYS_LINUX_INPUT)
 		GLG.mRawKbdFD = -1;
+		GLG.mRawKbdMode = 0;
 		if (cfg.pKbdDevName) {
 			GLG.mRawKbdFD = ::open(cfg.pKbdDevName, O_RDONLY | O_NONBLOCK);
+			if (GLG.mRawKbdFD >= 0) {
+				const char* pOdJoyCkStr = "-odroidgo2-joypad-";
+				size_t lenOdJoyCkStr = ::strlen(pOdJoyCkStr);
+				size_t lenKbdDevName = ::strlen(cfg.pKbdDevName);
+				if (lenKbdDevName >= lenOdJoyCkStr) {
+					bool foundOdJoy = false;
+					size_t nck = lenKbdDevName - lenOdJoyCkStr + 1;
+					for (size_t i = 0; i < nck; ++i) {
+						if (::memcmp(cfg.pKbdDevName + i, pOdJoyCkStr, lenOdJoyCkStr) == 0) {
+							foundOdJoy = true;
+							break;
+						}
+					}
+					if (foundOdJoy) {
+						GLG.mRawKbdMode = 1;
+					}
+				}
+			}
 		}
 #endif
 		s_initFlg = true;
