@@ -2072,6 +2072,65 @@ static void oglsys_raw_input() {
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_ENTER;
 							break;
+						case KEY_SPACE:
+						case 304:
+							pState = GLG.mKbdState.punct;
+							idx = KBD_PUNCT_SPACE;
+							break;
+						case KEY_F1:
+						case 704:
+							pState = GLG.mKbdState.func;
+							idx = 0;
+							break;
+						case KEY_F2:
+						case 705:
+							pState = GLG.mKbdState.func;
+							idx = 1;
+							break;
+						case KEY_F3:
+						case 706:
+							pState = GLG.mKbdState.func;
+							idx = 2;
+							break;
+						case KEY_F4:
+						case 707:
+							pState = GLG.mKbdState.func;
+							idx = 3;
+							break;
+						case KEY_F5:
+						case 708:
+							pState = GLG.mKbdState.func;
+							idx = 4;
+							break;
+						case KEY_F6:
+						case 709:
+							pState = GLG.mKbdState.func;
+							idx = 5;
+							break;
+						case KEY_F7:
+							pState = GLG.mKbdState.func;
+							idx = 6;
+							break;
+						case KEY_F8:
+							pState = GLG.mKbdState.func;
+							idx = 7;
+							break;
+						case KEY_F9:
+							pState = GLG.mKbdState.func;
+							idx = 8;
+							break;
+						case KEY_F10:
+							pState = GLG.mKbdState.func;
+							idx = 9;
+							break;
+						case KEY_F11:
+							pState = GLG.mKbdState.func;
+							idx = 10;
+							break;
+						case KEY_F12:
+							pState = GLG.mKbdState.func;
+							idx = 11;
+							break;
 
 						default:
 							if (GLG.mRawKbdMode == 1) {
@@ -2361,7 +2420,7 @@ namespace OGLSys {
 									kbdIdx = KBD_CTRL_ENTER;
 									break;
 
-								case 20:
+								case 32:
 									pKbdState = GLG.mKbdState.punct;
 									kbdIdx = KBD_PUNCT_SPACE;
 									break;
