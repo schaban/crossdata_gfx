@@ -88,8 +88,6 @@ android_app* oglsys_get_app();
 #	define OGLSYS_DRM_ES
 #	undef OGLSYS_ES
 #	define OGLSYS_ES 1
-#	include <EGL/egl.h>
-#	include <EGL/eglext.h>
 #	include <GLES/gl.h>
 #	include <GLES/glext.h>
 #	include <GLES2/gl2.h>

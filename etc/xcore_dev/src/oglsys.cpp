@@ -42,6 +42,8 @@
 #	include <gbm.h>
 #	include <xf86drm.h>
 #	include <xf86drmMode.h>
+#	include <EGL/egl.h>
+#	include <EGL/eglext.h>
 #elif defined(OGLSYS_WEB)
 #	include <emscripten.h>
 #	include <SDL.h>
