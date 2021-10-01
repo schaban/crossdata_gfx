@@ -2021,61 +2021,62 @@ static void oglsys_raw_input() {
 					int idx = -1;
 					switch (GLG.mRawKbdEvent.code) {
 						case KEY_UP:
-						case 544:
+						case BTN_DPAD_UP:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_UP;
 							break;
 						case KEY_DOWN:
-						case 545:
+						case BTN_DPAD_DOWN:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_DOWN;
 							break;
 						case KEY_LEFT:
-						case 546:
+						case BTN_DPAD_LEFT:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_LEFT;
 							break;
 						case KEY_RIGHT:
-						case 547:
+						case BTN_DPAD_RIGHT:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_RIGHT;
 							break;
 						case KEY_TAB:
-						case 307:
+						case BTN_NORTH:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_TAB;
 							break;
 						case KEY_BACKSPACE:
+						case BTN_WEST:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_BACK;
 							break;
 						case KEY_LEFTSHIFT:
-						case 310:
+						case BTN_TL:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_LSHIFT;
 							break;
 						case KEY_RIGHTSHIFT:
-						case 311:
+						case BTN_TR:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_RSHIFT;
 							break;
 						case KEY_LEFTCTRL:
-						case 312:
+						case BTN_TL2:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_LCTRL;
 							break;
 						case KEY_RIGHTCTRL:
-						case 313:
+						case BTN_TR2:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_RCTRL;
 							break;
 						case KEY_ENTER:
-						case 305:
+						case BTN_EAST:
 							pState = GLG.mKbdState.ctrl;
 							idx = KBD_CTRL_ENTER;
 							break;
 						case KEY_SPACE:
-						case 304:
+						case BTN_SOUTH:
 							pState = GLG.mKbdState.punct;
 							idx = KBD_PUNCT_SPACE;
 							break;
