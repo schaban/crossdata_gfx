@@ -808,6 +808,10 @@ int32_t atomic_dec(int32_t* p) {
 	auto pA = (std::atomic<int32_t>*)p;
 	return pA->fetch_sub(1) - 1;
 }
+int32_t atomic_add(int32_t* p, const int32_t val) {
+	auto pA = (std::atomic<int32_t>*)p;
+	return pA->fetch_add(val) + val;
+}
 #endif
 
 

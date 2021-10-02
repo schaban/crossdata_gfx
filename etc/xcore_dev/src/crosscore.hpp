@@ -186,9 +186,11 @@ void worker_stop(sxWorker* pWrk);
 #if defined(XD_MSC_ATOMIC)
 inline int32_t atomic_inc(int32_t* p) { return int32_t(_InterlockedIncrement((long*)p)); }
 inline int32_t atomic_dec(int32_t* p) { return int32_t(_InterlockedDecrement((long*)p)); }
+inline int32_t atomic_add(int32_t* p, const int32_t val) { return int32_t(_InterlockedExchangeAdd((long*)p, (long)val)) + val; }
 #else
 int32_t atomic_inc(int32_t* p);
 int32_t atomic_dec(int32_t* p);
+int32_t atomic_add(int32_t* p, const int32_t val);
 #endif
 
 bool is_LE();
