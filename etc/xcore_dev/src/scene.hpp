@@ -20,8 +20,8 @@ struct ScnCfg {
 
 struct ScnObj {
 public:
-	typedef void (*XformFunc)(ScnObj*);
-	typedef void (*ExecFunc)(ScnObj*, const sxJobContext*);
+	typedef void (*MoveFunc)(ScnObj*);
+	typedef void (*ExecFunc)(ScnObj*);
 	typedef void (*DelFunc)(ScnObj*);
 	typedef void (*DrawCallbackFunc)(ScnObj*);
 	typedef void (*BatchCallbackFunc)(ScnObj*, const int);
@@ -45,9 +45,12 @@ public:
 	char* mpName;
 	cxModelWork* mpMdlWk;
 	cxMotionWork* mpMotWk;
-	XformFunc mBeforeBlendFunc;
-	XformFunc mAfterBlendFunc;
-	XformFunc mWorldFunc;
+	const sxJobContext* mpJobCtx;
+	MoveFunc mBeforeMotionFunc;
+	MoveFunc mAfterMotionFunc;
+	MoveFunc mBeforeBlendFunc;
+	MoveFunc mAfterBlendFunc;
+	MoveFunc mWorldFunc;
 	ExecFunc mExecFunc;
 	DelFunc mDelFunc;
 	DrawCallbackFunc mPreOpaqFunc;
@@ -63,6 +66,8 @@ public:
 	bool mDisableShadowRecv;
 	float mObjAdjYOffs;
 	float mObjAdjRadius;
+	int32_t mMotExecSync;
+	bool mSplitMoveReqFlg;
 	int mRoutine[4];
 	int mCounter[4];
 	int32_t mIntWk[SCN_OBJ_SPARE_VARS_NUM];
@@ -127,6 +132,7 @@ public:
 	float get_motion_frame() const;
 	void set_motion_frame(const float frame);
 	void exec_motion(const sxMotionData* pMot, const float frameAdd);
+	void sync_motion();
 	void init_motion_blend(const int duration);
 	void exec_motion_blend();
 	void set_motion_uniform_scl(const float scl);
@@ -137,6 +143,7 @@ public:
 	void update_batch_vilibility(const int ibat);
 
 	void move(const sxMotionData* pMot, const float frameAdd);
+	void move_sub();
 
 	cxMtx get_skel_local_mtx(const int iskl) const;
 	cxMtx get_skel_local_rest_mtx(const int iskl) const;
@@ -255,6 +262,9 @@ void free_local_heaps();
 void purge_local_heaps();
 cxHeap* get_local_heap(const int id);
 cxHeap* get_job_local_heap(const sxJobContext* pJobCtx);
+
+void enable_split_move(const bool flg);
+bool is_split_move_enabled();
 
 void alloc_global_heap(const size_t globalHeapSize);
 void free_global_heap();
@@ -380,8 +390,6 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 
 bool sph_sph_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos, const float staticRadius, cxVec* pAdjPos, const float reflectFactor = 0.5f, const float margin = 0.0f);
 bool sph_cap_adj(const cxVec& newPos, const cxVec& oldPos, float radius, const cxVec& staticPos0, const cxVec& staticPos1, float staticRadius, cxVec* pAdjPos, const float reflectFactor = 0.5f, const float margin = 0.0f);
-
-void copy_prev_world_data();
 
 void exec();
 void visibility();

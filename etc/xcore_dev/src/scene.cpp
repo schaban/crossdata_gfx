@@ -32,6 +32,8 @@ static ObjMap* s_pObjMap = nullptr;
 
 static bool s_scnInitFlg = false;
 
+static bool s_splitMoveFlg = false;
+
 static Draw::Context s_drwCtx;
 static Draw::Context s_drwCtxStk[4];
 static int s_drwCtxSP = 0;
@@ -96,11 +98,22 @@ static void obj_exec_job(const sxJobContext* pCtx) {
 	if (!pJob) return;
 	ScnObj* pObj = (ScnObj*)pJob->mpData;
 	if (!pObj) return;
+	pObj->mpJobCtx = pCtx;
 	if (pObj->mExecFunc) {
-		pObj->mExecFunc(pObj, pCtx);
+		pObj->mExecFunc(pObj);
 	} else {
 		pObj->move(nullptr, 0.0f);
 	}
+}
+
+static void obj_move_job(const sxJobContext* pCtx) {
+	if (!pCtx) return;
+	sxJob* pJob = pCtx->mpJob;
+	if (!pJob) return;
+	ScnObj* pObj = (ScnObj*)pJob->mpData;
+	if (!pObj) return;
+	pObj->mpJobCtx = pCtx;
+	pObj->move_sub();
 }
 
 static void obj_visibility_job(const sxJobContext* pCtx) {
@@ -109,15 +122,19 @@ static void obj_visibility_job(const sxJobContext* pCtx) {
 	if (!pJob) return;
 	ScnObj* pObj = (ScnObj*)pJob->mpData;
 	if (!pObj) return;
+	pObj->mpJobCtx = pCtx;
 	pObj->update_visibility();
 }
 
-static void obj_copy_prev_job(const sxJobContext* pCtx) {
+static void obj_prepare_job(const sxJobContext* pCtx) {
 	if (!pCtx) return;
 	sxJob* pJob = pCtx->mpJob;
 	if (!pJob) return;
 	ScnObj* pObj = (ScnObj*)pJob->mpData;
 	if (pObj) {
+		pObj->mpJobCtx = pCtx;
+		pObj->mMotExecSync = 0;
+		pObj->mSplitMoveReqFlg = false;
 		if (pObj->mpMdlWk) {
 			pObj->mpMdlWk->copy_prev_world_bbox();
 		}
@@ -324,6 +341,8 @@ void init(const ScnCfg& cfg) {
 	s_frameCnt = 0;
 
 	s_sleepMillis = nxApp::get_int_opt("sleep", 0);
+
+	s_splitMoveFlg = false;
 
 	s_scnInitFlg = true;
 }
@@ -753,6 +772,15 @@ cxHeap* get_local_heap(const int id) {
 
 cxHeap* get_job_local_heap(const sxJobContext* pJobCtx) {
 	return pJobCtx ? get_local_heap(pJobCtx->mWrkId) : get_local_heap(0);
+}
+
+
+void enable_split_move(const bool flg) {
+	s_splitMoveFlg = flg;
+}
+
+bool is_split_move_enabled() {
+	return s_splitMoveFlg;
 }
 
 
@@ -2184,13 +2212,16 @@ static void job_queue_alloc(int njob) {
 	}
 }
 
-void copy_prev_world_data() {
+static void prepare_objs_for_exec() {
 	int nobj = get_num_objs();
 	if (nobj < 1) return;
 #if 0
 	for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
 		ScnObj* pObj = itr.item();
 		if (pObj) {
+			pObj->mpJobCtx = nullptr;
+			pObj->mMotExecSync = 0;
+			pObj->mSplitMoveReqFlg = false;
 			if (pObj->mpMdlWk) {
 				pObj->mpMdlWk->copy_prev_world_bbox();
 			}
@@ -2211,7 +2242,7 @@ void copy_prev_world_data() {
 		for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
 			ScnObj* pObj = itr.item();
 			if (pObj) {
-				pObj->mJob.mFunc = obj_copy_prev_job;
+				pObj->mJob.mFunc = obj_prepare_job;
 				nxTask::queue_add(s_pJobQue, &pObj->mJob);
 			}
 		}
@@ -2225,7 +2256,7 @@ void exec() {
 	int nobj = get_num_objs();
 	int njob = nobj;
 	if (njob < 1) return;
-	copy_prev_world_data();
+	prepare_objs_for_exec();
 	job_queue_alloc(njob);
 	if (s_pJobQue) {
 		for (int i = 0; i < SCN_NUM_EXEC_PRIO; ++i) {
@@ -2243,6 +2274,23 @@ void exec() {
 			}
 			nxTask::queue_exec(s_pJobQue, s_pBgd);
 			save_job_cnts(1 + i);
+			if (i == 0 && s_splitMoveFlg && s_pObjList) {
+				nxTask::queue_purge(s_pJobQue);
+				for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+					ScnObj* pObj = itr.item();
+					if (pObj && pObj->mPriority.exec == 0 && pObj->mSplitMoveReqFlg) {
+						pObj->mJob.mFunc = obj_move_job;
+						nxTask::queue_add(s_pJobQue, &pObj->mJob);
+					}
+				}
+				nxTask::queue_exec(s_pJobQue, s_pBgd);
+			}
+		}
+	}
+	for (ObjList::Itr itr = s_pObjList->get_itr(); !itr.end(); itr.next()) {
+		ScnObj* pObj = itr.item();
+		if (pObj) {
+			pObj->mpJobCtx = nullptr;
 		}
 	}
 }
@@ -2477,6 +2525,19 @@ void ScnObj::exec_motion(const sxMotionData* pMot, const float frameAdd) {
 	if (pMot && mpMotWk) {
 		mpMotWk->apply_motion(pMot, frameAdd);
 	}
+	nxSys::atomic_add(&mMotExecSync, 1);
+}
+
+void ScnObj::sync_motion() {
+	if (!s_splitMoveFlg && s_pBgd && s_pBgd->get_active_workers_num() > 1) {
+		int32_t* p = &mMotExecSync;
+		uint32_t cnt = 0;
+		while (true) {
+			int32_t val = nxSys::atomic_add(p, 0);
+			if (val) break;
+			++cnt;
+		}
+	}
 }
 
 void ScnObj::init_motion_blend(const int duration) {
@@ -2621,7 +2682,21 @@ void ScnObj::update_batch_vilibility(const int ibat) {
 }
 
 void ScnObj::move(const sxMotionData* pMot, const float frameAdd) {
+	if (mBeforeMotionFunc) {
+		mBeforeMotionFunc(this);
+	}
 	exec_motion(pMot, frameAdd);
+	if (mAfterMotionFunc) {
+		mAfterMotionFunc(this);
+	}
+	if (mPriority.exec == 0 && s_splitMoveFlg) {
+		mSplitMoveReqFlg = true;
+	} else {
+		move_sub();
+	}
+}
+
+void ScnObj::move_sub() {
 	if (mBeforeBlendFunc) {
 		mBeforeBlendFunc(this);
 	}
