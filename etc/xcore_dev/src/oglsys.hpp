@@ -169,6 +169,7 @@ struct OGLSysIfc {
 	void (*dbg_msg)(const char* pFmt, ...);
 	const char* (*load_glsl)(const char* pPath, size_t* pSize);
 	void (*unload_glsl)(const char* pCode);
+	const char* (*get_opt)(const char* pName);
 
 	OGLSysIfc() {
 		mem_alloc = nullptr;
@@ -176,6 +177,7 @@ struct OGLSysIfc {
 		dbg_msg = nullptr;
 		load_glsl = nullptr;
 		unload_glsl = nullptr;
+		get_opt = nullptr;
 	}
 };
 
@@ -189,7 +191,6 @@ struct OGLSysCfg {
 	bool reduceRes;
 	bool hideSysIcons;
 	bool withoutCtx;
-	const char* pKbdDevName;
 };
 
 struct OGLSysMouseState {

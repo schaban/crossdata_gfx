@@ -731,6 +731,14 @@ static struct OGLSysGlb {
 	}
 #endif
 
+	const char* get_opt(const char* pName) {
+		const char* pOpt = nullptr;
+		if (mIfc.get_opt) {
+			pOpt = mIfc.get_opt(pName);
+		}
+		return pOpt;
+	}
+
 } GLG = {};
 
 #if defined(OGLSYS_WEB)
@@ -2180,17 +2188,18 @@ namespace OGLSys {
 #if defined(OGLSYS_LINUX_INPUT)
 		GLG.mRawKbdFD = -1;
 		GLG.mRawKbdMode = 0;
-		if (cfg.pKbdDevName) {
-			GLG.mRawKbdFD = ::open(cfg.pKbdDevName, O_RDONLY | O_NONBLOCK);
+		const char* pKbdDevName = GLG.get_opt("kbd_dev");
+		if (pKbdDevName) {
+			GLG.mRawKbdFD = ::open(pKbdDevName, O_RDONLY | O_NONBLOCK);
 			if (GLG.mRawKbdFD >= 0) {
 				const char* pOdJoyCkStr = "-odroidgo2-joypad-";
 				size_t lenOdJoyCkStr = ::strlen(pOdJoyCkStr);
-				size_t lenKbdDevName = ::strlen(cfg.pKbdDevName);
+				size_t lenKbdDevName = ::strlen(pKbdDevName);
 				if (lenKbdDevName >= lenOdJoyCkStr) {
 					bool foundOdJoy = false;
 					size_t nck = lenKbdDevName - lenOdJoyCkStr + 1;
 					for (size_t i = 0; i < nck; ++i) {
-						if (::memcmp(cfg.pKbdDevName + i, pOdJoyCkStr, lenOdJoyCkStr) == 0) {
+						if (::memcmp(pKbdDevName + i, pOdJoyCkStr, lenOdJoyCkStr) == 0) {
 							foundOdJoy = true;
 							break;
 						}
