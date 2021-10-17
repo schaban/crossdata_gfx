@@ -2016,8 +2016,8 @@ static void create_const_tex(GLuint* pHandle, uint32_t rgba) {
 	}
 }
 
-static void oglsys_raw_input() {
 #if defined(OGLSYS_LINUX_INPUT)
+static void oglsys_linux_input() {
 	if (GLG.mRawKbdFD >= 0) {
 		size_t readSize = sizeof(input_event);
 		bool done = false;
@@ -2160,8 +2160,9 @@ static void oglsys_raw_input() {
 			}
 		}
 	}
-#endif
 }
+#endif
+
 
 namespace OGLSys {
 
@@ -2464,8 +2465,14 @@ namespace OGLSys {
 		GLG.mpWebLoopCtx = pLoopCtx;
 		emscripten_set_main_loop(web_loop, 0, 1);
 #else
-		while (true) {
-			oglsys_raw_input();
+		bool done = false;
+		while (!done) {
+#			if defined(OGLSYS_LINUX_INPUT)
+			oglsys_linux_input();
+#			endif
+			if (GLG.mKbdState.func[3]) { /* [F4] */
+				done = true;
+			}
 			if (pLoop) {
 				pLoop(pLoopCtx);
 			}
