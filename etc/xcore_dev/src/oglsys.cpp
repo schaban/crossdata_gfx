@@ -268,6 +268,7 @@ static struct OGLSysGlb {
 		PFNGLGETQUERYOBJECTUIVEXTPROC pfnGetQueryObjectuiv;
 		PFNGLGETQUERYOBJECTUI64VEXTPROC pfnGetQueryObjectui64v;
 		PFNGLGETPROGRAMBINARYOESPROC pfnGetProgramBinary;
+		PFNGLPROGRAMBINARYOESPROC pfnProgramBinary;
 		PFNGLDISCARDFRAMEBUFFEREXTPROC pfnDiscardFramebuffer;
 		PFNGLGENVERTEXARRAYSOESPROC pfnGenVertexArrays;
 		PFNGLDELETEVERTEXARRAYSOESPROC pfnDeleteVertexArrays;
@@ -1592,6 +1593,7 @@ void OGLSysGlb::init_ogl() {
 	mExts.pfnGetQueryObjectuiv = (PFNGLGETQUERYOBJECTUIVEXTPROC)eglGetProcAddress("glGetQueryObjectuivEXT");
 	mExts.pfnGetQueryObjectui64v = (PFNGLGETQUERYOBJECTUI64VEXTPROC)eglGetProcAddress("glGetQueryObjectui64vEXT");
 	mExts.pfnGetProgramBinary = (PFNGLGETPROGRAMBINARYOESPROC)eglGetProcAddress("glGetProgramBinaryOES");
+	mExts.pfnProgramBinary = (PFNGLPROGRAMBINARYOESPROC)eglGetProcAddress("glProgramBinaryOES");
 	mExts.pfnDiscardFramebuffer = (PFNGLDISCARDFRAMEBUFFEREXTPROC)eglGetProcAddress("glDiscardFramebufferEXT");
 	mExts.pfnGenVertexArrays = (PFNGLGENVERTEXARRAYSOESPROC)eglGetProcAddress("glGenVertexArraysOES");
 	mExts.pfnDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSOESPROC)eglGetProcAddress("glDeleteVertexArraysOES");
@@ -2742,6 +2744,32 @@ namespace OGLSys {
 		}
 	}
 
+	bool set_prog_bin(GLuint pid, GLenum fmt, const void* pBin, GLsizei len) {
+		bool res = false;
+		if (pid != 0 && pBin && len > 0) {
+#if OGLSYS_ES
+			if (GLG.mExts.progBin && GLG.mExts.pfnProgramBinary) {
+				GLG.mExts.pfnProgramBinary(pid, fmt, pBin, len);
+				GLint status = 0;
+				glGetProgramiv(pid, GL_LINK_STATUS, &status);
+				res = status != GL_FALSE;
+			}
+#elif defined(OGLSYS_APPLE)
+			// TODO
+#elif defined(OGLSYS_WEB)
+			/* no-op */
+#else
+			if (glProgramBinary) {
+				glProgramBinary(pid, fmt, pBin, len);
+				GLint status = 0;
+				glGetProgramiv(pid, GL_LINK_STATUS, &status);
+				res = status != GL_FALSE;
+			}
+#endif
+		}
+		return res;
+	}
+
 	void enable_msaa(const bool flg) {
 		if (!GLG.valid_ogl()) return;
 #if !OGLSYS_ES && !defined(OGLSYS_WEB)
@@ -3402,7 +3430,9 @@ namespace OGLSys {
 #endif
 
 #if !defined(OGLSYS_WEB)
+#	if OGLSYS_CL
 			GLG.dbg_msg("OpenCL functions: %d/%d\n", okCnt, allCnt);
+#	endif
 #endif
 		}
 

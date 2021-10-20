@@ -308,6 +308,7 @@ namespace OGLSys {
 	GLuint link_draw_prog(GLuint sidVert, GLuint sidFrag);
 	void* get_prog_bin(GLuint pid, size_t* pSize, GLenum* pFmt);
 	void free_prog_bin(void* pBin);
+	bool set_prog_bin(GLuint pid, GLenum fmt, const void* pBin, GLsizei len);
 
 	void enable_msaa(const bool flg);
 
