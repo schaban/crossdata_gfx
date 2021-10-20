@@ -13,6 +13,8 @@
 
 DRW_IMPL_BEGIN
 
+static bool s_drwInitFlg = false;
+
 static bool s_useMipmaps = true;
 
 static bool s_useVtxLighting = false;
@@ -21,8 +23,6 @@ static cxResourceManager* s_pRsrcMgr = nullptr;
 
 struct GPUProg;
 static const GPUProg* s_pNowProg = nullptr;
-
-static bool s_drwInitFlg = false;
 
 static int s_shadowSize = 0;
 static GLuint s_shadowFBO = 0;
@@ -40,6 +40,10 @@ static GLuint s_quadIBO = 0;
 static Draw::Font* s_pFont = nullptr;
 static GLuint s_fontVBO = 0;
 static GLuint s_fontIBO = 0;
+
+static bool s_glslEcho = false;
+static const char* s_pGLSLBinSavePath = nullptr;
+static const char* s_pGLSLBinLoadPath = nullptr;
 
 
 static void def_tex_lod_bias() {
@@ -258,7 +262,98 @@ enum VtxFmt {
 	VtxFmt_skin1_vl = VtxFmt_skin1
 };
 
+#define DRW_GBIN_SIG XD_FOURCC('g', 'b', 'i', 'n')
+#define DRW_GBIN_EXT "gbin"
+
+static void save_gpu_prog_bin(const GLuint pid, const char* pVertName, const char* pFragName) {
+	if (!s_pGLSLBinSavePath) return;
+	if (!pid) return;
+	if (!pVertName) return;
+	if (!pFragName) return;
+	size_t size = 0;
+	GLenum fmt = 0;
+	void* pBin = OGLSys::get_prog_bin(pid, &size, &fmt);
+	if (!pBin) return;
+	if (size < 1 || size > 0x1000000) {
+		OGLSys::free_prog_bin(pBin);
+		return;
+	}
+	size_t saveSize = sizeof(uint32_t) * 3 + size;
+	uint32_t* pMem = (uint32_t*)nxCore::mem_alloc(saveSize, "GPUProg:save:mem");
+	if (!pMem) {
+		OGLSys::free_prog_bin(pBin);
+		return;
+	}
+	pMem[0] = DRW_GBIN_SIG;
+	pMem[1] = uint32_t(size);
+	pMem[2] = uint32_t(fmt);
+	::memcpy(pMem + 3, pBin, size);
+	OGLSys::free_prog_bin(pBin);
+	static const char* pExt = DRW_GBIN_EXT;
+	char path[128];
+	char* pPath = path;
+	size_t bufSize = sizeof(path);
+	size_t pathSize = ::strlen(s_pGLSLBinSavePath) + 1
+	                + ::strlen(pVertName) + 1
+	                + ::strlen(pFragName) + 1
+	                + ::strlen(pExt) + 1;
+	if (pathSize > sizeof(path)) {
+		bufSize = pathSize;
+		pPath = (char*)nxCore::mem_alloc(pathSize, "GPUProg:save:path");
+	}
+	if (pPath) {
+		XD_SPRINTF(XD_SPRINTF_BUF(pPath, bufSize), "%s/%s_%s.%s", s_pGLSLBinSavePath, pVertName, pFragName, pExt);
+		nxCore::bin_save(pPath, pMem, saveSize);
+	}
+	if (pPath != path) {
+		nxCore::mem_free(pPath);
+	}
+	nxCore::mem_free(pMem);
+}
+
+static bool load_gpu_prog_bin(const GLuint pid, const char* pVertName, const char* pFragName) {
+	bool res = false;
+	if (!s_pGLSLBinLoadPath) return res;
+	if (!pid) return res;
+	if (!pVertName) return res;
+	if (!pFragName) return res;
+	static const char* pExt = DRW_GBIN_EXT;
+	char path[128];
+	char* pPath = path;
+	size_t bufSize = sizeof(path);
+	size_t pathSize = ::strlen(s_pGLSLBinLoadPath) + 1
+	                + ::strlen(pVertName) + 1
+	                + ::strlen(pFragName) + 1
+	                + ::strlen(pExt) + 1;
+	if (pathSize > sizeof(path)) {
+		bufSize = pathSize;
+		pPath = (char*)nxCore::mem_alloc(pathSize, "GPUProg:load:path");
+	}
+	if (pPath) {
+		XD_SPRINTF(XD_SPRINTF_BUF(pPath, bufSize), "%s/%s_%s.%s", s_pGLSLBinLoadPath, pVertName, pFragName, pExt);
+		size_t fsize = 0;
+		void* pBin = nxCore::bin_load(pPath, &fsize);
+		if (pBin && fsize > 0x10) {
+			uint32_t* pHead = (uint32_t*)pBin;
+			if (pHead[0] == DRW_GBIN_SIG) {
+				GLsizei len = (GLsizei)pHead[1];
+				GLenum fmt = (GLenum)pHead[2];
+				res = OGLSys::set_prog_bin(pid, fmt, (const void*)(pHead + 3), len);
+			}
+		}
+		if (pBin) {
+			nxCore::bin_unload(pBin);
+		}
+	}
+	if (pPath != path) {
+		nxCore::mem_free(pPath);
+	}
+	return res;
+}
+
 struct GPUProg {
+	const char* mpVertName;
+	const char* mpFragName;
 	GLuint mVertSID;
 	GLuint mFragSID;
 	GLuint mProgId;
@@ -382,10 +477,25 @@ struct GPUProg {
 	} mCache;
 
 
-	void init(VtxFmt vfmt, GLuint vertSID, GLuint fragSID) {
+	void init(VtxFmt vfmt, GLuint vertSID, GLuint fragSID, const char* pVertName, const char* pFragName) {
+		mpVertName = pVertName;
+		mpFragName = pFragName;
 		mVertSID = vertSID;
 		mFragSID = fragSID;
-		mProgId = OGLSys::link_draw_prog(mVertSID, mFragSID);
+
+		if (s_pGLSLBinLoadPath) {
+			mProgId = glCreateProgram();
+			if (mProgId) {
+				bool loadRes = load_gpu_prog_bin(mProgId, pVertName, pFragName);
+				if (!loadRes) {
+					glDeleteProgram(mProgId);
+					mProgId = 0;
+				}
+			}
+		} else {
+			mProgId = OGLSys::link_draw_prog(mVertSID, mFragSID);
+		}
+
 		mVtxLink.reset();
 		mParamLink.reset();
 		mSmpLink.reset();
@@ -462,6 +572,8 @@ struct GPUProg {
 			glUseProgram(0);
 
 			mVAO = DRW_USE_VAO ? OGLSys::gen_vao() : 0;
+
+			save_bin();
 		}
 	}
 
@@ -498,6 +610,11 @@ struct GPUProg {
 #else
 		glUseProgram(mProgId);
 #endif
+	}
+
+	void save_bin() {
+		if (!is_valid()) return;
+		save_gpu_prog_bin(mProgId, mpVertName, mpFragName);
 	}
 
 	void enable_attrs(const int minIdx, const size_t vtxSize = 0) const;
@@ -1083,17 +1200,29 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont)
 	rsrcGfxIfc.releaseModel = release_model;
 	s_pRsrcMgr->set_gfx_ifc(rsrcGfxIfc);
 
+	s_glslEcho = nxApp::get_bool_opt("glsl_echo", false);
+	s_pGLSLBinSavePath = nxApp::get_opt("glsl_bin_save");
+	s_pGLSLBinLoadPath = s_pGLSLBinSavePath ? nullptr : nxApp::get_opt("glsl_bin_load");
+
 	s_useVtxLighting = nxApp::get_bool_opt("vl", false);
 
+	if (!s_pGLSLBinLoadPath) {
 #define GPU_SHADER(_name, _kind) s_sdr_##_name##_##_kind = load_shader(#_name "." #_kind);
 #include "ogl/shaders.inc"
 #undef GPU_SHADER
+	}
 
 	int prgCnt = 0;
 	int prgOK = 0;
-#define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.init(VtxFmt_##_vert_name, s_sdr_##_vert_name##_vert, s_sdr_##_frag_name##_frag); ++prgCnt; if (s_prg_##_vert_name##_##_frag_name.is_valid()) {++prgOK;} else { nxCore::dbg_msg("GPUProg init error: %s + %s\n", #_vert_name, #_frag_name); }
+	if (s_glslEcho) {
+		nxCore::dbg_msg("Initializing GPU progs");
+	}
+#define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.init(VtxFmt_##_vert_name, s_sdr_##_vert_name##_vert, s_sdr_##_frag_name##_frag, #_vert_name, #_frag_name); ++prgCnt; if (s_prg_##_vert_name##_##_frag_name.is_valid()) {++prgOK; if (s_glslEcho) { nxCore::dbg_msg("."); } } else { nxCore::dbg_msg("GPUProg init error: %s + %s\n", #_vert_name, #_frag_name); }
 #include "ogl/progs.inc"
 #undef GPU_PROG
+	if (s_glslEcho) {
+		nxCore::dbg_msg("\n");
+	}
 
 	nxCore::dbg_msg("GPU progs: %d/%d\n", prgOK, prgCnt);
 
