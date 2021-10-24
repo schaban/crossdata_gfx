@@ -251,6 +251,8 @@ static struct OGLSysGlb {
 	GLint mDefFBO;
 	GLint mMaxTexSize;
 
+	int mSwapInterval;
+
 	struct DefTexs {
 		GLuint black;
 		GLuint white;
@@ -708,25 +710,36 @@ static struct OGLSysGlb {
 
 	void exec_drm_flip() {
 		if (mpGbmSurf) {
-			bool flipWaitFlg = true;
-			drmEventContext evtCtx = {};
-			evtCtx.version = DRM_EVENT_CONTEXT_VERSION;
-			evtCtx.page_flip_handler = evt_drm_page_flip;
-			gbm_bo* pOldBO = mpGbmBO;
-			mpGbmBO = gbm_surface_lock_front_buffer(mpGbmSurf);
-			uint32_t fbId = prepare_drm_fb();
-			if (drmModePageFlip(mDrmDevFD, mDrmCtrlId, fbId, DRM_MODE_PAGE_FLIP_EVENT, &flipWaitFlg) == 0) {
-				while (flipWaitFlg) {
-					int selRes = select(mDrmDevFD + 1, &mDrmDevFDSet, NULL, NULL, NULL);
-					if (selRes < 0) {
-						break;
+			if (mSwapInterval != 0) {
+				bool flipWaitFlg = true;
+				drmEventContext evtCtx = {};
+				evtCtx.version = DRM_EVENT_CONTEXT_VERSION;
+				evtCtx.page_flip_handler = evt_drm_page_flip;
+				gbm_bo* pOldBO = mpGbmBO;
+				mpGbmBO = gbm_surface_lock_front_buffer(mpGbmSurf);
+				uint32_t fbId = prepare_drm_fb();
+				if (drmModePageFlip(mDrmDevFD, mDrmCtrlId, fbId, DRM_MODE_PAGE_FLIP_EVENT, &flipWaitFlg) == 0) {
+					while (flipWaitFlg) {
+						int selRes = select(mDrmDevFD + 1, &mDrmDevFDSet, NULL, NULL, NULL);
+						if (selRes < 0) {
+							break;
+						}
+						if (FD_ISSET(0, &mDrmDevFDSet)) {
+							break;
+						}
+						drmHandleEvent(mDrmDevFD, &evtCtx);
 					}
-					if (FD_ISSET(0, &mDrmDevFDSet)) {
-						break;
-					}
-					drmHandleEvent(mDrmDevFD, &evtCtx);
+					gbm_surface_release_buffer(mpGbmSurf, pOldBO);
 				}
-				gbm_surface_release_buffer(mpGbmSurf, pOldBO);
+			} else {
+				if (mpDrmConn) {
+					gbm_bo* pOldBO = mpGbmBO;
+					mpGbmBO = gbm_surface_lock_front_buffer(mpGbmSurf);
+					uint32_t fbId = prepare_drm_fb();
+					uint32_t connId = mpDrmConn->connector_id;
+					drmModeSetCrtc(mDrmDevFD, mDrmCtrlId, fbId, 0, 0, &connId, 1, NULL);
+					gbm_surface_release_buffer(mpGbmSurf, pOldBO);
+				}
 			}
 		}
 	}
@@ -1332,6 +1345,7 @@ void OGLSysGlb::reset_wnd() {
 #endif
 
 void OGLSysGlb::init_ogl() {
+	mSwapInterval = 1;
 	if (mWithoutCtx) {
 		return;
 	}
@@ -2538,6 +2552,7 @@ namespace OGLSys {
 	}
 
 	void set_swap_interval(const int ival) {
+		GLG.mSwapInterval = ival;
 #if OGLSYS_ES
 		eglSwapInterval(GLG.mEGL.display, ival);
 #elif defined(OGLSYS_WINDOWS)
