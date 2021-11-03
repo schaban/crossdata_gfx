@@ -13755,7 +13755,7 @@ void cxResourceManager::Pkg::Entry::set_data(sxData* pData) {
 	}
 }
 
-sxGeometryData* cxResourceManager::Pkg::find_geometry(const char* pName) {
+sxGeometryData* cxResourceManager::Pkg::find_geometry(const char* pName) const {
 	sxGeometryData* pGeo = nullptr;
 	if (pName && mpGeoDataMap) {
 		mpGeoDataMap->get(pName, &pGeo);
@@ -13763,7 +13763,7 @@ sxGeometryData* cxResourceManager::Pkg::find_geometry(const char* pName) {
 	return pGeo;
 }
 
-sxImageData* cxResourceManager::Pkg::find_image(const char* pName) {
+sxImageData* cxResourceManager::Pkg::find_image(const char* pName) const {
 	sxImageData* pImg = nullptr;
 	if (pName && mpImgDataMap) {
 		mpImgDataMap->get(pName, &pImg);
@@ -13771,7 +13771,7 @@ sxImageData* cxResourceManager::Pkg::find_image(const char* pName) {
 	return pImg;
 }
 
-sxRigData* cxResourceManager::Pkg::find_rig(const char* pName) {
+sxRigData* cxResourceManager::Pkg::find_rig(const char* pName) const {
 	sxRigData* pRig = nullptr;
 	if (pName && mpRigDataMap) {
 		mpRigDataMap->get(pName, &pRig);
@@ -13779,7 +13779,7 @@ sxRigData* cxResourceManager::Pkg::find_rig(const char* pName) {
 	return pRig;
 }
 
-sxKeyframesData* cxResourceManager::Pkg::find_keyframes(const char* pName) {
+sxKeyframesData* cxResourceManager::Pkg::find_keyframes(const char* pName) const {
 	sxKeyframesData* pKfr = nullptr;
 	if (pName && mpKfrDataMap) {
 		mpKfrDataMap->get(pName, &pKfr);
@@ -13787,7 +13787,7 @@ sxKeyframesData* cxResourceManager::Pkg::find_keyframes(const char* pName) {
 	return pKfr;
 }
 
-sxValuesData* cxResourceManager::Pkg::find_values(const char* pName) {
+sxValuesData* cxResourceManager::Pkg::find_values(const char* pName) const {
 	sxValuesData* pVal = nullptr;
 	if (pName && mpValDataMap) {
 		mpValDataMap->get(pName, &pVal);
@@ -13795,7 +13795,7 @@ sxValuesData* cxResourceManager::Pkg::find_values(const char* pName) {
 	return pVal;
 }
 
-sxExprLibData* cxResourceManager::Pkg::find_expressions(const char* pName) {
+sxExprLibData* cxResourceManager::Pkg::find_expressions(const char* pName) const {
 	sxExprLibData* pExp = nullptr;
 	if (pName && mpExpDataMap) {
 		mpExpDataMap->get(pName, &pExp);
@@ -13803,7 +13803,7 @@ sxExprLibData* cxResourceManager::Pkg::find_expressions(const char* pName) {
 	return pExp;
 }
 
-sxModelData* cxResourceManager::Pkg::find_model(const char* pName) {
+sxModelData* cxResourceManager::Pkg::find_model(const char* pName) const {
 	sxModelData* pMdl = nullptr;
 	if (pName && mpMdlDataMap) {
 		mpMdlDataMap->get(pName, &pMdl);
@@ -13811,7 +13811,7 @@ sxModelData* cxResourceManager::Pkg::find_model(const char* pName) {
 	return pMdl;
 }
 
-sxTextureData* cxResourceManager::Pkg::find_texture(const char* pName) {
+sxTextureData* cxResourceManager::Pkg::find_texture(const char* pName) const {
 	sxTextureData* pTex = nullptr;
 	if (pName && mpTexDataMap) {
 		mpTexDataMap->get(pName, &pTex);
@@ -13819,7 +13819,7 @@ sxTextureData* cxResourceManager::Pkg::find_texture(const char* pName) {
 	return pTex;
 }
 
-sxMotionData* cxResourceManager::Pkg::find_motion(const char* pName) {
+sxMotionData* cxResourceManager::Pkg::find_motion(const char* pName) const {
 	sxMotionData* pMot = nullptr;
 	if (pName && mpMotDataMap) {
 		mpMotDataMap->get(pName, &pMot);
@@ -13827,7 +13827,7 @@ sxMotionData* cxResourceManager::Pkg::find_motion(const char* pName) {
 	return pMot;
 }
 
-sxCollisionData* cxResourceManager::Pkg::find_collision(const char* pName) {
+sxCollisionData* cxResourceManager::Pkg::find_collision(const char* pName) const {
 	sxCollisionData* pCol = nullptr;
 	if (pName && mpColDataMap) {
 		mpColDataMap->get(pName, &pCol);

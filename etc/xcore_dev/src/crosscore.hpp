@@ -6249,23 +6249,23 @@ public:
 		const char* get_name() const { return mpName; }
 		const EntryList* get_list() const { return mpEntries; }
 		EntryList::Itr get_iterator() { return mpEntries->get_itr(); }
-		sxGeometryData* find_geometry(const char* pName);
-		sxImageData* find_image(const char* pName);
-		sxRigData* find_rig(const char* pName);
-		sxKeyframesData* find_keyframes(const char* pName);
-		sxValuesData* find_values(const char* pName);
-		sxExprLibData* find_expressions(const char* pName);
-		sxModelData* find_model(const char* pName);
-		sxTextureData* find_texture(const char* pName);
-		sxMotionData* find_motion(const char* pName);
-		sxCollisionData* find_collision(const char* pName);
+		sxGeometryData* find_geometry(const char* pName) const;
+		sxImageData* find_image(const char* pName) const;
+		sxRigData* find_rig(const char* pName) const;
+		sxKeyframesData* find_keyframes(const char* pName) const;
+		sxValuesData* find_values(const char* pName) const;
+		sxExprLibData* find_expressions(const char* pName) const;
+		sxModelData* find_model(const char* pName) const;
+		sxTextureData* find_texture(const char* pName) const;
+		sxMotionData* find_motion(const char* pName) const;
+		sxCollisionData* find_collision(const char* pName) const;
 		void prepare_gfx();
 		void release_gfx();
-		sxModelData* get_default_model() { return mpDefMdl; }
-		sxGeometryData* get_default_geometry() { return mpDefGeo; }
-		sxRigData* get_default_rig() { return mpDefRig; }
-		sxValuesData* get_default_values() { return mpDefVal; }
-		sxExprLibData* get_default_expressions() { return mpDefExp; }
+		sxModelData* get_default_model() const { return mpDefMdl; }
+		sxGeometryData* get_default_geometry() const { return mpDefGeo; }
+		sxRigData* get_default_rig() const { return mpDefRig; }
+		sxValuesData* get_default_values() const { return mpDefVal; }
+		sxExprLibData* get_default_expressions() const { return mpDefExp; }
 	};
 
 protected:
