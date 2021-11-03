@@ -6291,33 +6291,34 @@ public:
 	Pkg* load_pkg(const char* pName);
 	void unload_pkg(Pkg* pPkg);
 	void unload_all();
-	Pkg* find_pkg(const char* pName);
-	Pkg* find_pkg_for_data(sxData* pData);
-	sxGeometryData* find_geometry_in_pkg(Pkg* pPkg, const char* pGeoName);
-	sxImageData* find_image_in_pkg(Pkg* pPkg, const char* pImgName);
-	sxRigData* find_rig_in_pkg(Pkg* pPkg, const char* pRigName);
-	sxKeyframesData* find_keyframes_in_pkg(Pkg* pPkg, const char* pKfrName);
-	sxValuesData* find_values_in_pkg(Pkg* pPkg, const char* pValName);
-	sxExprLibData* find_expressions_in_pkg(Pkg* pPkg, const char* pExpName);
-	sxModelData* find_model_in_pkg(Pkg* pPkg, const char* pMdlName);
-	sxTextureData* find_texture_in_pkg(Pkg* pPkg, const char* pTexName);
-	sxMotionData* find_motion_in_pkg(Pkg* pPkg, const char* pMotName);
-	sxCollisionData* find_collision_in_pkg(Pkg* pPkg, const char* pColName);
+	Pkg* find_pkg(const char* pName) const;
+	Pkg* find_pkg_for_data(sxData* pData) const;
+	sxGeometryData* find_geometry_in_pkg(Pkg* pPkg, const char* pGeoName) const;
+	sxImageData* find_image_in_pkg(Pkg* pPkg, const char* pImgName) const;
+	sxRigData* find_rig_in_pkg(Pkg* pPkg, const char* pRigName) const;
+	sxKeyframesData* find_keyframes_in_pkg(Pkg* pPkg, const char* pKfrName) const;
+	sxValuesData* find_values_in_pkg(Pkg* pPkg, const char* pValName) const;
+	sxExprLibData* find_expressions_in_pkg(Pkg* pPkg, const char* pExpName) const;
+	sxModelData* find_model_in_pkg(Pkg* pPkg, const char* pMdlName) const;
+	sxTextureData* find_texture_in_pkg(Pkg* pPkg, const char* pTexName) const;
+	sxMotionData* find_motion_in_pkg(Pkg* pPkg, const char* pMotName) const;
+	sxCollisionData* find_collision_in_pkg(Pkg* pPkg, const char* pColName) const;
 
-	sxTextureData* find_texture_for_model(sxModelData* pMdl, const char* pTexName) { return find_texture_in_pkg(find_pkg_for_data(pMdl), pTexName); }
-	sxMotionData* find_motion_for_model(sxModelData* pMdl, const char* pMotName) { return find_motion_in_pkg(find_pkg_for_data(pMdl), pMotName); }
+	sxTextureData* find_texture_for_model(sxModelData* pMdl, const char* pTexName) const { return find_texture_in_pkg(find_pkg_for_data(pMdl), pTexName); }
+	sxMotionData* find_motion_for_model(sxModelData* pMdl, const char* pMotName) const { return find_motion_in_pkg(find_pkg_for_data(pMdl), pMotName); }
+	sxValuesData* find_values_for_model(sxModelData* pMdl, const char* pValName) const { return find_values_in_pkg(find_pkg_for_data(pMdl), pValName); }
 
-	sxModelData* get_pkg_default_model(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->get_default_model() : nullptr; }
-	int get_num_geometries_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mGeoNum : 0; }
-	int get_num_images_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mImgNum : 0; }
-	int get_num_rigs_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mRigNum : 0; }
-	int get_num_keyframes_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mKfrNum : 0; }
-	int get_num_values_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mValNum : 0; }
-	int get_num_expressions_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mExpNum : 0; }
-	int get_num_models_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mMdlNum : 0; }
-	int get_num_textures_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mTexNum : 0; }
-	int get_num_motions_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mMotNum : 0; }
-	int get_num_collisions_in_pkg(Pkg* pPkg) { return contains_pkg(pPkg) ? pPkg->mColNum : 0; }
+	sxModelData* get_pkg_default_model(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->get_default_model() : nullptr; }
+	int get_num_geometries_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mGeoNum : 0; }
+	int get_num_images_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mImgNum : 0; }
+	int get_num_rigs_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mRigNum : 0; }
+	int get_num_keyframes_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mKfrNum : 0; }
+	int get_num_values_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mValNum : 0; }
+	int get_num_expressions_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mExpNum : 0; }
+	int get_num_models_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mMdlNum : 0; }
+	int get_num_textures_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mTexNum : 0; }
+	int get_num_motions_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mMotNum : 0; }
+	int get_num_collisions_in_pkg(Pkg* pPkg) const { return contains_pkg(pPkg) ? pPkg->mColNum : 0; }
 
 	void set_gfx_ifc(const GfxIfc& ifc);
 	void prepare_pkg_gfx(Pkg* pPkg);

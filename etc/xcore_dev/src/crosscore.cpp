@@ -14138,7 +14138,7 @@ void cxResourceManager::unload_all() {
 	}
 }
 
-cxResourceManager::Pkg* cxResourceManager::find_pkg(const char* pName) {
+cxResourceManager::Pkg* cxResourceManager::find_pkg(const char* pName) const {
 	Pkg* pPkg = nullptr;
 	if (pName && mpPkgMap) {
 		mpPkgMap->get(pName, &pPkg);
@@ -14146,7 +14146,7 @@ cxResourceManager::Pkg* cxResourceManager::find_pkg(const char* pName) {
 	return pPkg;
 }
 
-cxResourceManager::Pkg* cxResourceManager::find_pkg_for_data(sxData* pData) {
+cxResourceManager::Pkg* cxResourceManager::find_pkg_for_data(sxData* pData) const {
 	Pkg* pPkg = nullptr;
 	if (pData && mpDataToPkgMap) {
 		char addrKey[XD_RSRC_ADDR_KEY_SIZE];
@@ -14156,7 +14156,7 @@ cxResourceManager::Pkg* cxResourceManager::find_pkg_for_data(sxData* pData) {
 	return pPkg;
 }
 
-sxGeometryData* cxResourceManager::find_geometry_in_pkg(Pkg* pPkg, const char* pGeoName) {
+sxGeometryData* cxResourceManager::find_geometry_in_pkg(Pkg* pPkg, const char* pGeoName) const {
 	sxGeometryData* pGeo = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pGeo = pPkg->find_geometry(pGeoName);
@@ -14164,7 +14164,7 @@ sxGeometryData* cxResourceManager::find_geometry_in_pkg(Pkg* pPkg, const char* p
 	return pGeo;
 }
 
-sxImageData* cxResourceManager::find_image_in_pkg(Pkg* pPkg, const char* pImgName) {
+sxImageData* cxResourceManager::find_image_in_pkg(Pkg* pPkg, const char* pImgName) const {
 	sxImageData* pImg = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pImg = pPkg->find_image(pImgName);
@@ -14172,7 +14172,7 @@ sxImageData* cxResourceManager::find_image_in_pkg(Pkg* pPkg, const char* pImgNam
 	return pImg;
 }
 
-sxRigData* cxResourceManager::find_rig_in_pkg(Pkg* pPkg, const char* pRigName) {
+sxRigData* cxResourceManager::find_rig_in_pkg(Pkg* pPkg, const char* pRigName) const {
 	sxRigData* pRig = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pRig = pPkg->find_rig(pRigName);
@@ -14180,7 +14180,7 @@ sxRigData* cxResourceManager::find_rig_in_pkg(Pkg* pPkg, const char* pRigName) {
 	return pRig;
 }
 
-sxKeyframesData* cxResourceManager::find_keyframes_in_pkg(Pkg* pPkg, const char* pKfrName) {
+sxKeyframesData* cxResourceManager::find_keyframes_in_pkg(Pkg* pPkg, const char* pKfrName) const {
 	sxKeyframesData* pKfr = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pKfr = pPkg->find_keyframes(pKfrName);
@@ -14188,7 +14188,7 @@ sxKeyframesData* cxResourceManager::find_keyframes_in_pkg(Pkg* pPkg, const char*
 	return pKfr;
 }
 
-sxValuesData* cxResourceManager::find_values_in_pkg(Pkg* pPkg, const char* pValName) {
+sxValuesData* cxResourceManager::find_values_in_pkg(Pkg* pPkg, const char* pValName) const {
 	sxValuesData* pVal = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pVal = pPkg->find_values(pValName);
@@ -14196,7 +14196,7 @@ sxValuesData* cxResourceManager::find_values_in_pkg(Pkg* pPkg, const char* pValN
 	return pVal;
 }
 
-sxExprLibData* cxResourceManager::find_expressions_in_pkg(Pkg* pPkg, const char* pExpName) {
+sxExprLibData* cxResourceManager::find_expressions_in_pkg(Pkg* pPkg, const char* pExpName) const {
 	sxExprLibData* pExp = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pExp = pPkg->find_expressions(pExpName);
@@ -14204,7 +14204,7 @@ sxExprLibData* cxResourceManager::find_expressions_in_pkg(Pkg* pPkg, const char*
 	return pExp;
 }
 
-sxModelData* cxResourceManager::find_model_in_pkg(Pkg* pPkg, const char* pMdlName) {
+sxModelData* cxResourceManager::find_model_in_pkg(Pkg* pPkg, const char* pMdlName) const {
 	sxModelData* pMdl = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pMdl = pPkg->find_model(pMdlName);
@@ -14212,7 +14212,7 @@ sxModelData* cxResourceManager::find_model_in_pkg(Pkg* pPkg, const char* pMdlNam
 	return pMdl;
 }
 
-sxTextureData* cxResourceManager::find_texture_in_pkg(Pkg* pPkg, const char* pTexName) {
+sxTextureData* cxResourceManager::find_texture_in_pkg(Pkg* pPkg, const char* pTexName) const {
 	sxTextureData* pTex = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pTex = pPkg->find_texture(pTexName);
@@ -14220,7 +14220,7 @@ sxTextureData* cxResourceManager::find_texture_in_pkg(Pkg* pPkg, const char* pTe
 	return pTex;
 }
 
-sxMotionData* cxResourceManager::find_motion_in_pkg(Pkg* pPkg, const char* pMotName) {
+sxMotionData* cxResourceManager::find_motion_in_pkg(Pkg* pPkg, const char* pMotName) const {
 	sxMotionData* pMot = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pMot = pPkg->find_motion(pMotName);
@@ -14228,7 +14228,7 @@ sxMotionData* cxResourceManager::find_motion_in_pkg(Pkg* pPkg, const char* pMotN
 	return pMot;
 }
 
-sxCollisionData* cxResourceManager::find_collision_in_pkg(Pkg* pPkg, const char* pColName) {
+sxCollisionData* cxResourceManager::find_collision_in_pkg(Pkg* pPkg, const char* pColName) const {
 	sxCollisionData* pCol = nullptr;
 	if (this->contains_pkg(pPkg)) {
 		pCol = pPkg->find_collision(pColName);
