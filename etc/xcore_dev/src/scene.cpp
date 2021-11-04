@@ -1862,7 +1862,7 @@ static bool wall_adj_pnt_in_tri(const cxVec& pnt, const cxVec vtx[3], const cxVe
 
 #define SCN_GLB_MEM_CMN_LOCK 0
 
-bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, const float radius, cxVec* pAdjPos, const float wallSlopeLim) {
+bool wall_adj_base(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, const float radius, cxVec* pAdjPos, const float wallSlopeLim) {
 	if (!pCol) return false;
 	bool res = false;
 	int ntri = pCol->mTriNum;
@@ -2093,6 +2093,26 @@ bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& n
 		glb_mem_free(pTris);
 		glb_mem_free(pStamps);
 #endif
+	}
+	return res;
+}
+
+bool wall_adj(const sxJobContext* pJobCtx, sxCollisionData* pCol, const cxVec& newPos, const cxVec& oldPos, const float radius, cxVec* pAdjPos, const float wallSlopeLim, const float errParam) {
+	bool res = wall_adj_base(pJobCtx, pCol, newPos, oldPos, radius, pAdjPos, wallSlopeLim);
+	if (res && pCol && pAdjPos && errParam >= 0.0f) {
+		cxVec adjPos = *pAdjPos;
+		cxLineSeg seg(oldPos, adjPos);
+		sxCollisionData::NearestHit hit = pCol->nearest_hit(seg);
+		if (hit.count > 0) {
+			cxVec errPos = nxVec::lerp(oldPos, hit.pos, nxCalc::min(errParam, 0.99f));
+			seg.set(oldPos, errPos);
+			hit = pCol->nearest_hit(seg);
+			if (hit.count > 0) {
+				adjPos = oldPos;
+			} else {
+				adjPos = errPos;
+			}
+		}
 	}
 	return res;
 }
@@ -2497,6 +2517,14 @@ sxMotionData* ScnObj::find_motion(const char* pMotName) {
 		pMot = s_pRsrcMgr->find_motion_for_model(get_model_data(), pMotName);
 	}
 	return pMot;
+}
+
+sxValuesData* ScnObj::find_values(const char* pValName) {
+	sxValuesData* pVal = nullptr;
+	if (pValName && s_pRsrcMgr) {
+		pVal = s_pRsrcMgr->find_values_for_model(get_model_data(), pValName);
+	}
+	return pVal;
 }
 
 int ScnObj::get_current_motion_num_frames() const {
