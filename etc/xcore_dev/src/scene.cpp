@@ -921,6 +921,17 @@ uint64_t glb_rng_next() {
 	return r;
 }
 
+float glb_rng_f01() {
+	if (s_pGlbRNGLock) {
+		nxSys::lock_acquire(s_pGlbRNGLock);
+	}
+	float r = nxCore::rng_f01(&s_glbRNG);
+	if (s_pGlbRNGLock) {
+		nxSys::lock_release(s_pGlbRNGLock);
+	}
+	return r;
+}
+
 
 static void update_view() {
 	if (s_viewUpdateFlg) {
@@ -2713,7 +2724,7 @@ void ScnObj::move(const sxMotionData* pMot, const float frameAdd) {
 	if (mBeforeMotionFunc) {
 		mBeforeMotionFunc(this);
 	}
-	exec_motion(pMot, frameAdd);
+	exec_motion(pMot ? pMot : mpMoveMot, frameAdd);
 	if (mAfterMotionFunc) {
 		mAfterMotionFunc(this);
 	}

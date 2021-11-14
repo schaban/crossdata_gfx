@@ -57,6 +57,7 @@ public:
 	DrawCallbackFunc mPostOpaqFunc;
 	BatchCallbackFunc mBatchPreDrawFunc;
 	BatchCallbackFunc mBatchPostDrawFunc;
+	sxMotionData* mpMoveMot;
 	sxValuesData* mpVals;
 	sxJob* mpBatJobs;
 	Priority mPriority;
@@ -143,6 +144,7 @@ public:
 	void update_visibility();
 	void update_batch_vilibility(const int ibat);
 
+	void move(const float frameAdd) { move(nullptr, frameAdd); }
 	void move(const sxMotionData* pMot, const float frameAdd);
 	void move_sub();
 
@@ -281,6 +283,7 @@ void battery_info();
 void glb_rng_reset();
 void glb_rng_seed(const uint64_t seed);
 uint64_t glb_rng_next();
+float glb_rng_f01();
 
 void set_view(const cxVec& pos, const cxVec& tgt, const cxVec& up = cxVec(0.0f, 1.0f, 0.0f));
 void set_view_range(const float znear, const float zfar);
