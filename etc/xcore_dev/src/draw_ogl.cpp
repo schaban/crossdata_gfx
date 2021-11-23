@@ -48,6 +48,8 @@ static bool s_glslEcho = false;
 static const char* s_pGLSLBinSavePath = nullptr;
 static const char* s_pGLSLBinLoadPath = nullptr;
 
+static bool s_glslNoBaseTex = false;
+
 
 static void def_tex_lod_bias() {
 	static bool flg = false;
@@ -99,7 +101,25 @@ static GLuint load_shader(const char* pName) {
 		if (pSrc) {
 			GLenum kind = nxCore::str_ends_with(pName, ".vert") ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
 #if OGLSYS_ES
-			sid = OGLSys::compile_shader_str(pSrc, srcSize, kind);
+			const char* pPreStr = nullptr;
+			if (s_glslNoBaseTex && (kind == GL_FRAGMENT_SHADER)) {
+				if (!nxCore::str_starts_with(pName, "quad")) {
+					pPreStr = "#define DRW_NOBASETEX\n";
+				}
+			}
+			if (pPreStr) {
+				size_t preSize = ::strlen(pPreStr);
+				size_t altSize = preSize + srcSize;
+				char* pAltSrc = (char*)nxCore::mem_alloc(altSize, "glsl:pre+src");
+				if (pAltSrc) {
+					::memcpy(pAltSrc, pPreStr, preSize);
+					::memcpy(pAltSrc + preSize, pSrc, srcSize);
+					sid = OGLSys::compile_shader_str(pAltSrc, altSize, kind);
+					nxCore::mem_free(pAltSrc);
+				}
+			} else {
+				sid = OGLSys::compile_shader_str(pSrc, srcSize, kind);
+			}
 #else
 			const char* pPreStr;
 #	if defined(OGLSYS_WEB)
@@ -110,6 +130,11 @@ static GLuint load_shader(const char* pName) {
 			}
 #	else
 			pPreStr = "#version 120\n";
+			if (s_glslNoBaseTex && (kind == GL_FRAGMENT_SHADER)) {
+				if (!nxCore::str_starts_with(pName, "quad")) {
+					pPreStr = "#version 120\n#define DRW_NOBASETEX\n";
+				}
+			}
 #	endif
 			size_t preSize = ::strlen(pPreStr);
 			size_t altSize = preSize + srcSize;
@@ -1206,6 +1231,8 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont)
 	s_glslEcho = nxApp::get_bool_opt("glsl_echo", false);
 	s_pGLSLBinSavePath = nxApp::get_opt("glsl_bin_save");
 	s_pGLSLBinLoadPath = s_pGLSLBinSavePath ? nullptr : nxApp::get_opt("glsl_bin_load");
+
+	s_glslNoBaseTex = (s_pGLSLBinSavePath || s_pGLSLBinLoadPath) ? false : nxApp::get_bool_opt("nobasetex", false);
 
 	s_useVtxLighting = nxApp::get_bool_opt("vl", false);
 

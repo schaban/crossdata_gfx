@@ -1,7 +1,11 @@
 HALF vec4 sampleBaseMap(HALF vec2 uv) {
+#ifdef DRW_NOBASETEX
+	return vec4(0.5, 0.5, 0.5, 1.0);
+#else
 	HALF vec4 tex = texture2D(smpBase, uv);
 	tex.rgb *= tex.rgb; // gamma 2
 	return tex;
+#endif
 }
 
 HALF vec4 getBaseMap(HALF vec2 uv) {
