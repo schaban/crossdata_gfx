@@ -2,7 +2,9 @@
  * OpenGL system interface
  * Author: Sergey Chaban <sergey.chaban@gmail.com>
  *
- * Copyright 2019 Sergey Chaban
+ * SPDX-License-Identifier: MIT
+ *
+ * Copyright 2019-2021 Sergey Chaban
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
