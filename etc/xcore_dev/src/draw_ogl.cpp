@@ -1217,14 +1217,19 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont)
 	if (s_glslEcho) {
 		nxCore::dbg_msg("Initializing GPU progs");
 	}
+	double prgT0 = nxSys::time_micros();
 #define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.init(VtxFmt_##_vert_name, s_sdr_##_vert_name##_vert, s_sdr_##_frag_name##_frag, #_vert_name, #_frag_name); ++prgCnt; if (s_prg_##_vert_name##_##_frag_name.is_valid()) {++prgOK; if (s_glslEcho) { nxCore::dbg_msg("."); } } else { nxCore::dbg_msg("GPUProg init error: %s + %s\n", #_vert_name, #_frag_name); }
 #include "ogl/progs.inc"
 #undef GPU_PROG
 	if (s_glslEcho) {
 		nxCore::dbg_msg("\n");
 	}
+	double prgDT = nxSys::time_micros() - prgT0;
 
 	nxCore::dbg_msg("GPU progs: %d/%d\n", prgOK, prgCnt);
+	if (s_glslEcho) {
+		nxCore::dbg_msg("GPU progs init time: %.3f seconds\n", prgDT / 1.0e6);
+	}
 
 	glGenBuffers(1, &s_quadVBO);
 	glGenBuffers(1, &s_quadIBO);
