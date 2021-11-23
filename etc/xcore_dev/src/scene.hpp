@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2019-2021 Sergey Chaban <sergey.chaban@gmail.com>
+
 #define SCN_EXEC_PRIO_BITS 3
 #define SCN_NUM_EXEC_PRIO (1 << (SCN_EXEC_PRIO_BITS))
 

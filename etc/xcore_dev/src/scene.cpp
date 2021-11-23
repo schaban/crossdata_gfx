@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2019-2021 Sergey Chaban <sergey.chaban@gmail.com>
+
 #include "crosscore.hpp"
 #include "draw.hpp"
 #include "scene.hpp"

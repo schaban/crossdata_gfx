@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2019-2021 Sergey Chaban <sergey.chaban@gmail.com>
+
 #ifndef DRW_NO_VULKAN
 #	define DRW_NO_VULKAN 0
 #endif
