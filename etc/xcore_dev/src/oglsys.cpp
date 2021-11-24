@@ -2676,8 +2676,7 @@ namespace OGLSys {
 		return pid;
 	}
 
-	bool link_prog_id(const GLuint pid) {
-		bool res = false;
+	void link_prog_id_nock(const GLuint pid) {
 		if (pid) {
 #if !OGLSYS_ES && !defined(OGLSYS_WEB)
 			if (glProgramParameteri) {
@@ -2685,6 +2684,12 @@ namespace OGLSys {
 			}
 #endif
 			glLinkProgram(pid);
+		}
+	}
+
+	bool ck_link_status(const GLuint pid) {
+		bool res = false;
+		if (pid) {
 			GLint status = 0;
 			glGetProgramiv(pid, GL_LINK_STATUS, &status);
 			if (status) {
@@ -2715,6 +2720,15 @@ namespace OGLSys {
 					}
 				}
 			}
+		}
+		return res;
+	}
+
+	bool link_prog_id(const GLuint pid) {
+		bool res = false;
+		if (pid) {
+			link_prog_id_nock(pid);
+			res = ck_link_status(pid);
 		}
 		return res;
 	}
