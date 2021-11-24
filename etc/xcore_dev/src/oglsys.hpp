@@ -306,8 +306,9 @@ namespace OGLSys {
 
 	GLuint compile_shader_str(const char* pSrc, size_t srcSize, GLenum kind);
 	GLuint compile_shader_file(const char* pSrcPath, GLenum kind);
-	GLuint link_prog(const GLuint* pSIDs, const int nSIDs);
 	GLuint link_draw_prog(GLuint sidVert, GLuint sidFrag);
+	GLuint link_prog(const GLuint* pSIDs, const int nSIDs);
+	bool link_prog_id(const GLuint pid);
 	void* get_prog_bin(GLuint pid, size_t* pSize, GLenum* pFmt);
 	void free_prog_bin(void* pBin);
 	bool set_prog_bin(GLuint pid, GLenum fmt, const void* pBin, GLsizei len);

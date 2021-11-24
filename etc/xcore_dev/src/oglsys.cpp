@@ -2660,39 +2660,8 @@ namespace OGLSys {
 						glAttachShader(pid, sid);
 					}
 				}
-#if !OGLSYS_ES && !defined(OGLSYS_WEB)
-				if (glProgramParameteri) {
-					glProgramParameteri(pid, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
-				}
-#endif
-				glLinkProgram(pid);
-				GLint status = 0;
-				glGetProgramiv(pid, GL_LINK_STATUS, &status);
-				if (!status) {
-					GLint infoLen = 0;
-					glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &infoLen);
-					if (infoLen > 0) {
-						char* pInfo = (char*)GLG.mem_alloc(infoLen, "OGLSys:ProgInfo");
-						if (pInfo) {
-							glGetProgramInfoLog(pid, infoLen, &infoLen, pInfo);
-							const int infoBlkSize = 512;
-							char infoBlk[infoBlkSize + 1];
-							infoBlk[infoBlkSize] = 0;
-							int nblk = infoLen / infoBlkSize;
-							for (int i = 0; i < nblk; ++i) {
-								::memcpy(infoBlk, &pInfo[infoBlkSize * i], infoBlkSize);
-								GLG.dbg_msg("%s", infoBlk);
-							}
-							int endSize = infoLen % infoBlkSize;
-							if (endSize) {
-								::memcpy(infoBlk, &pInfo[infoBlkSize * nblk], endSize);
-								infoBlk[endSize] = 0;
-								GLG.dbg_msg("%s", infoBlk);
-							}
-							GLG.mem_free(pInfo);
-							pInfo = nullptr;
-						}
-					}
+				bool linkRes = link_prog_id(pid);
+				if (!linkRes) {
 					for (int i = 0; i < nSIDs; ++i) {
 						GLuint sid = pSIDs[i];
 						if (sid) {
@@ -2705,6 +2674,49 @@ namespace OGLSys {
 			}
 		}
 		return pid;
+	}
+
+	bool link_prog_id(const GLuint pid) {
+		bool res = false;
+		if (pid) {
+#if !OGLSYS_ES && !defined(OGLSYS_WEB)
+			if (glProgramParameteri) {
+				glProgramParameteri(pid, GL_PROGRAM_BINARY_RETRIEVABLE_HINT, GL_TRUE);
+			}
+#endif
+			glLinkProgram(pid);
+			GLint status = 0;
+			glGetProgramiv(pid, GL_LINK_STATUS, &status);
+			if (status) {
+				res = true;
+			} else {
+				GLint infoLen = 0;
+				glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &infoLen);
+				if (infoLen > 0) {
+					char* pInfo = (char*)GLG.mem_alloc(infoLen, "OGLSys:ProgInfo");
+					if (pInfo) {
+						glGetProgramInfoLog(pid, infoLen, &infoLen, pInfo);
+						const int infoBlkSize = 512;
+						char infoBlk[infoBlkSize + 1];
+						infoBlk[infoBlkSize] = 0;
+						int nblk = infoLen / infoBlkSize;
+						for (int i = 0; i < nblk; ++i) {
+							::memcpy(infoBlk, &pInfo[infoBlkSize * i], infoBlkSize);
+							GLG.dbg_msg("%s", infoBlk);
+						}
+						int endSize = infoLen % infoBlkSize;
+						if (endSize) {
+							::memcpy(infoBlk, &pInfo[infoBlkSize * nblk], endSize);
+							infoBlk[endSize] = 0;
+							GLG.dbg_msg("%s", infoBlk);
+						}
+						GLG.mem_free(pInfo);
+						pInfo = nullptr;
+					}
+				}
+			}
+		}
+		return res;
 	}
 
 	void* get_prog_bin(GLuint pid, size_t* pSize, GLenum* pFmt) {
