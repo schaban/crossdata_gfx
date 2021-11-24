@@ -505,11 +505,90 @@ struct GPUProg {
 	} mCache;
 
 
+	void prepare() {
+		mVtxLink.reset();
+		mParamLink.reset();
+		mSmpLink.reset();
+		mCache.reset();
+		if (!is_valid()) return;
+
+		VTX_LINK(Pos);
+		VTX_LINK(Oct);
+		VTX_LINK(RelPosW0);
+		VTX_LINK(OctW1W2);
+		VTX_LINK(Clr);
+		VTX_LINK(Tex);
+		VTX_LINK(Wgt);
+		VTX_LINK(Jnt);
+		VTX_LINK(Id);
+
+		PARAM_LINK(PosBase);
+		PARAM_LINK(PosScale);
+		PARAM_LINK(SkinMtx);
+		PARAM_LINK(SkinMap);
+		PARAM_LINK(World);
+		PARAM_LINK(ViewProj);
+		PARAM_LINK(ViewPos);
+		PARAM_LINK(ScrXform);
+		PARAM_LINK(HemiUp);
+		PARAM_LINK(HemiUpper);
+		PARAM_LINK(HemiLower);
+		PARAM_LINK(HemiParam);
+		PARAM_LINK(SpecLightDir);
+		PARAM_LINK(SpecLightColor);
+		PARAM_LINK(VtxHemiUp);
+		PARAM_LINK(VtxHemiUpper);
+		PARAM_LINK(VtxHemiLower);
+		PARAM_LINK(VtxHemiParam);
+		PARAM_LINK(ShadowMtx);
+		PARAM_LINK(ShadowSize);
+		PARAM_LINK(ShadowCtrl);
+		PARAM_LINK(ShadowFade);
+		PARAM_LINK(BaseColor);
+		PARAM_LINK(SpecColor);
+		PARAM_LINK(SurfParam);
+		PARAM_LINK(BumpParam);
+		PARAM_LINK(AlphaCtrl);
+		PARAM_LINK(BumpPatUV);
+		PARAM_LINK(BumpPatParam);
+		PARAM_LINK(FogColor);
+		PARAM_LINK(FogParam);
+		PARAM_LINK(InvWhite);
+		PARAM_LINK(LClrGain);
+		PARAM_LINK(LClrBias);
+		PARAM_LINK(Exposure);
+		PARAM_LINK(InvGamma);
+		PARAM_LINK(QuadVtxPos);
+		PARAM_LINK(QuadVtxTex);
+		PARAM_LINK(QuadVtxClr);
+		PARAM_LINK(FontColor);
+		PARAM_LINK(FontXform);
+		PARAM_LINK(FontRot);
+
+		SMP_LINK(Base);
+		SMP_LINK(Bump);
+		SMP_LINK(Spec);
+		SMP_LINK(Surf);
+		SMP_LINK(Shadow);
+
+		glUseProgram(mProgId);
+		SET_TEX_UNIT(Base);
+		SET_TEX_UNIT(Bump);
+		SET_TEX_UNIT(Spec);
+		SET_TEX_UNIT(Surf);
+		SET_TEX_UNIT(BumpPat);
+		SET_TEX_UNIT(Shadow);
+		glUseProgram(0);
+
+		mVAO = DRW_USE_VAO ? OGLSys::gen_vao() : 0;
+	}
+
 	void init(VtxFmt vfmt, GLuint vertSID, GLuint fragSID, const char* pVertName, const char* pFragName) {
 		mpVertName = pVertName;
 		mpFragName = pFragName;
 		mVertSID = vertSID;
 		mFragSID = fragSID;
+		mVtxFmt = vfmt;
 
 		if (s_pGLSLBinLoadPath) {
 			mProgId = glCreateProgram();
@@ -524,85 +603,8 @@ struct GPUProg {
 			mProgId = OGLSys::link_draw_prog(mVertSID, mFragSID);
 		}
 
-		mVtxLink.reset();
-		mParamLink.reset();
-		mSmpLink.reset();
-		mCache.reset();
-		mVtxFmt = vfmt;
-
-		if (is_valid()) {
-			VTX_LINK(Pos);
-			VTX_LINK(Oct);
-			VTX_LINK(RelPosW0);
-			VTX_LINK(OctW1W2);
-			VTX_LINK(Clr);
-			VTX_LINK(Tex);
-			VTX_LINK(Wgt);
-			VTX_LINK(Jnt);
-			VTX_LINK(Id);
-
-			PARAM_LINK(PosBase);
-			PARAM_LINK(PosScale);
-			PARAM_LINK(SkinMtx);
-			PARAM_LINK(SkinMap);
-			PARAM_LINK(World);
-			PARAM_LINK(ViewProj);
-			PARAM_LINK(ViewPos);
-			PARAM_LINK(ScrXform);
-			PARAM_LINK(HemiUp);
-			PARAM_LINK(HemiUpper);
-			PARAM_LINK(HemiLower);
-			PARAM_LINK(HemiParam);
-			PARAM_LINK(SpecLightDir);
-			PARAM_LINK(SpecLightColor);
-			PARAM_LINK(VtxHemiUp);
-			PARAM_LINK(VtxHemiUpper);
-			PARAM_LINK(VtxHemiLower);
-			PARAM_LINK(VtxHemiParam);
-			PARAM_LINK(ShadowMtx);
-			PARAM_LINK(ShadowSize);
-			PARAM_LINK(ShadowCtrl);
-			PARAM_LINK(ShadowFade);
-			PARAM_LINK(BaseColor);
-			PARAM_LINK(SpecColor);
-			PARAM_LINK(SurfParam);
-			PARAM_LINK(BumpParam);
-			PARAM_LINK(AlphaCtrl);
-			PARAM_LINK(BumpPatUV);
-			PARAM_LINK(BumpPatParam);
-			PARAM_LINK(FogColor);
-			PARAM_LINK(FogParam);
-			PARAM_LINK(InvWhite);
-			PARAM_LINK(LClrGain);
-			PARAM_LINK(LClrBias);
-			PARAM_LINK(Exposure);
-			PARAM_LINK(InvGamma);
-			PARAM_LINK(QuadVtxPos);
-			PARAM_LINK(QuadVtxTex);
-			PARAM_LINK(QuadVtxClr);
-			PARAM_LINK(FontColor);
-			PARAM_LINK(FontXform);
-			PARAM_LINK(FontRot);
-
-			SMP_LINK(Base);
-			SMP_LINK(Bump);
-			SMP_LINK(Spec);
-			SMP_LINK(Surf);
-			SMP_LINK(Shadow);
-
-			glUseProgram(mProgId);
-			SET_TEX_UNIT(Base);
-			SET_TEX_UNIT(Bump);
-			SET_TEX_UNIT(Spec);
-			SET_TEX_UNIT(Surf);
-			SET_TEX_UNIT(BumpPat);
-			SET_TEX_UNIT(Shadow);
-			glUseProgram(0);
-
-			mVAO = DRW_USE_VAO ? OGLSys::gen_vao() : 0;
-
-			save_bin();
-		}
+		prepare();
+		save_bin();
 	}
 
 	void reset() {
