@@ -231,5 +231,6 @@ GPU_PROG(rigid1, cast_semi)
 
 
 // etc
+GPU_PROG(prim, prim)
 GPU_PROG(quad, quad)
 GPU_PROG(font, font)

@@ -5174,6 +5174,13 @@ XD_NOINLINE cxColor sxHemisphereLight::eval(const cxVec& v) const {
 }
 
 
+void sxPrimVtx::encode_normal(const cxVec& nrm) {
+	xt_float2 oct = nrm.encode_octa();
+	prm.x = oct.x;
+	prm.y = oct.y;
+}
+
+
 namespace nxSH {
 
 void calc_weights(float* pWgt, int order, float s, float scl) {

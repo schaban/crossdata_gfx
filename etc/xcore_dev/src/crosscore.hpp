@@ -242,6 +242,7 @@ inline void mem_bswap_i32(int32_t* pMem) {
 
 struct sxRNG { uint64_t s[2]; };
 
+
 namespace nxCore {
 
 void* mem_alloc(const size_t size, const char* pTag = "XMEM", int alignment = 0x10);
@@ -3625,6 +3626,15 @@ struct sxFog {
 		set_range(10.0f, 1000.0f);
 		set_linear();
 	}
+};
+
+struct sxPrimVtx {
+	xt_float4 pos;
+	xt_float4 clr;
+	xt_float4 tex;
+	xt_float4 prm;
+
+	void encode_normal(const cxVec& nrm);
 };
 
 

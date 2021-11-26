@@ -377,6 +377,12 @@ void set_obj_del_func(const char* pName, ScnObj::DelFunc del);
 cxVec get_obj_world_pos(const char* pName);
 cxVec get_obj_center_pos(const char* pName);
 
+void init_prims(const uint32_t maxVtx);
+void prim_verts(const uint32_t org, const uint32_t num, const sxPrimVtx* pSrc);
+void tris_semi_dsided(const uint32_t vtxOrg, const uint32_t triNum, cxMtx* pMtx, sxTextureData* pTex);
+void tris_semi(const uint32_t vtxOrg, const uint32_t triNum, cxMtx* pMtx, sxTextureData* pTex);
+void sprite_tris(const uint32_t vtxOrg, const uint32_t triNum, sxTextureData* pTex);
+
 void set_ref_scr_size(const float w, const float h);
 float get_ref_scr_width();
 float get_ref_scr_height();

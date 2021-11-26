@@ -37,6 +37,9 @@ static int s_frameBufMode = 0; // 0: def, 1: shadow, 2: screen
 static int s_batDrwCnt = 0;
 static int s_shadowCastCnt = 0;
 
+static GLuint s_primVBO = 0;
+static uint32_t s_maxPrimVtx = 0;
+
 static GLuint s_quadVBO = 0;
 static GLuint s_quadIBO = 0;
 
@@ -49,6 +52,7 @@ static const char* s_pGLSLBinSavePath = nullptr;
 static const char* s_pGLSLBinLoadPath = nullptr;
 
 static bool s_glslNoBaseTex = false;
+static bool s_glslNoFog = false;
 
 
 static void def_tex_lod_bias() {
@@ -102,9 +106,17 @@ static GLuint load_shader(const char* pName) {
 			GLenum kind = nxCore::str_ends_with(pName, ".vert") ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER;
 #if OGLSYS_ES
 			const char* pPreStr = nullptr;
-			if (s_glslNoBaseTex && (kind == GL_FRAGMENT_SHADER)) {
+			if ((s_glslNoBaseTex || s_glslNoFog) && (kind == GL_FRAGMENT_SHADER)) {
 				if (!nxCore::str_starts_with(pName, "quad")) {
-					pPreStr = "#define DRW_NOBASETEX\n";
+					if (s_glslNoBaseTex) {
+						if (s_glslNoFog) {
+							pPreStr = "#define DRW_NOBASETEX\n#define DRW_NOFOG\n";
+						} else {
+							pPreStr = "#define DRW_NOBASETEX\n";
+						}
+					} else if (s_glslNoFog) {
+						pPreStr = "#define DRW_NOFOG\n";
+					}
 				}
 			}
 			if (pPreStr) {
@@ -130,9 +142,17 @@ static GLuint load_shader(const char* pName) {
 			}
 #	else
 			pPreStr = "#version 120\n";
-			if (s_glslNoBaseTex && (kind == GL_FRAGMENT_SHADER)) {
+			if ((s_glslNoBaseTex || s_glslNoFog) && (kind == GL_FRAGMENT_SHADER)) {
 				if (!nxCore::str_starts_with(pName, "quad")) {
-					pPreStr = "#version 120\n#define DRW_NOBASETEX\n";
+					if (s_glslNoBaseTex) {
+						if (s_glslNoFog) {
+							pPreStr = "#version 120\n#define DRW_NOBASETEX\n#define DRW_NOFOG\n";
+						} else {
+							pPreStr = "#version 120\n#define DRW_NOBASETEX\n";
+						}
+					} else if (s_glslNoFog) {
+						pPreStr = "#version 120\n#define DRW_NOFOG\n";
+					}
 				}
 			}
 #	endif
@@ -165,6 +185,7 @@ struct VtxLink {
 	GLint Tex;
 	GLint Wgt;
 	GLint Jnt;
+	GLint Prm;
 	GLint Id;
 
 	static int num_attrs() {
@@ -204,6 +225,7 @@ struct ParamLink {
 	GLint World;
 	GLint ViewProj;
 	GLint ViewPos;
+	GLint InvView;
 	GLint ScrXform;
 	GLint HemiUp;
 	GLint HemiUpper;
@@ -233,6 +255,7 @@ struct ParamLink {
 	GLint LClrBias;
 	GLint Exposure;
 	GLint InvGamma;
+	GLint PrimCtrl;
 	GLint QuadVtxPos;
 	GLint QuadVtxTex;
 	GLint QuadVtxClr;
@@ -281,6 +304,7 @@ enum VtxFmt {
 	VtxFmt_rigid1,
 	VtxFmt_skin0,
 	VtxFmt_skin1,
+	VtxFmt_prim,
 	VtxFmt_quad,
 	VtxFmt_font,
 
@@ -425,6 +449,7 @@ struct GPUProg {
 		CachedParam<xt_mtx> mViewProj;
 		CachedParam<xt_xmtx> mWorld;
 		CachedParam<xt_mtx> mShadowMtx;
+		CachedParam<xt_mtx> mInvView;
 
 		CachedParam<xt_float3> mViewPos;
 
@@ -466,11 +491,14 @@ struct GPUProg {
 		CachedParam<xt_float3> mExposure;
 		CachedParam<xt_float3> mInvGamma;
 
+		CachedParam<xt_float4> mPrimCtrl;
+
 
 		void reset() {
 			mViewProj.reset();
 			mWorld.reset();
 			mShadowMtx.reset();
+			mInvView.reset();
 			mViewPos.reset();
 			mPosBase.reset();
 			mPosScale.reset();
@@ -501,6 +529,7 @@ struct GPUProg {
 			mLClrBias.reset();
 			mExposure.reset();
 			mInvGamma.reset();
+			mPrimCtrl.reset();
 		}
 	} mCache;
 
@@ -520,6 +549,7 @@ struct GPUProg {
 		VTX_LINK(Tex);
 		VTX_LINK(Wgt);
 		VTX_LINK(Jnt);
+		VTX_LINK(Prm);
 		VTX_LINK(Id);
 
 		PARAM_LINK(PosBase);
@@ -528,6 +558,7 @@ struct GPUProg {
 		PARAM_LINK(SkinMap);
 		PARAM_LINK(World);
 		PARAM_LINK(ViewProj);
+		PARAM_LINK(InvView);
 		PARAM_LINK(ViewPos);
 		PARAM_LINK(ScrXform);
 		PARAM_LINK(HemiUp);
@@ -558,6 +589,7 @@ struct GPUProg {
 		PARAM_LINK(LClrBias);
 		PARAM_LINK(Exposure);
 		PARAM_LINK(InvGamma);
+		PARAM_LINK(PrimCtrl);
 		PARAM_LINK(QuadVtxPos);
 		PARAM_LINK(QuadVtxTex);
 		PARAM_LINK(QuadVtxClr);
@@ -663,6 +695,10 @@ struct GPUProg {
 
 	void set_shadow_mtx(const xt_mtx& sm) {
 		mCache.mShadowMtx.set(mParamLink.ShadowMtx, sm);
+	}
+
+	void set_inv_view(const xt_mtx& m) {
+		mCache.mInvView.set(mParamLink.InvView, m);
 	}
 
 	void set_view_pos(const xt_float3& pos) {
@@ -795,6 +831,10 @@ struct GPUProg {
 	void set_inv_gamma(const xt_float3& ig) {
 		mCache.mInvGamma.set(mParamLink.InvGamma, ig);
 	}
+
+	void set_prim_ctrl(const xt_float4& ctrl) {
+		mCache.mPrimCtrl.set(mParamLink.PrimCtrl, ctrl);
+	}
 };
 
 void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
@@ -805,6 +845,7 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			case VtxFmt_skin1: stride = sizeof(sxModelData::VtxSkinShort); break;
 			case VtxFmt_rigid0: stride = sizeof(sxModelData::VtxRigidHalf); break;
 			case VtxFmt_rigid1: stride = sizeof(sxModelData::VtxRigidShort); break;
+			case VtxFmt_prim: stride = sizeof(sxPrimVtx); break;
 			case VtxFmt_quad: stride = sizeof(float); break;
 			case VtxFmt_font: stride = sizeof(xt_float2); break;
 			default: break;
@@ -905,6 +946,27 @@ void GPUProg::enable_attrs(const int minIdx, const size_t vtxSize) const {
 			if (mVtxLink.Tex >= 0) {
 				glEnableVertexAttribArray(mVtxLink.Tex);
 				glVertexAttribPointer(mVtxLink.Tex, 2, GL_FLOAT, GL_FALSE, stride, (const void*)(top + offsetof(sxModelData::VtxRigidShort, tex)));
+			}
+			break;
+
+		case VtxFmt_prim:
+			if (mVtxLink.Pos >= 0) {
+				glEnableVertexAttribArray(mVtxLink.Pos);
+				glVertexAttribPointer(mVtxLink.Pos, 4, GL_FLOAT, GL_FALSE, stride, (const void*)(top + offsetof(sxPrimVtx, pos)));
+			} else {
+				return;
+			}
+			if (mVtxLink.Clr >= 0) {
+				glEnableVertexAttribArray(mVtxLink.Clr);
+				glVertexAttribPointer(mVtxLink.Clr, 4, GL_FLOAT, GL_FALSE, stride, (const void*)(top + offsetof(sxPrimVtx, clr)));
+			}
+			if (mVtxLink.Tex >= 0) {
+				glEnableVertexAttribArray(mVtxLink.Tex);
+				glVertexAttribPointer(mVtxLink.Tex, 4, GL_FLOAT, GL_FALSE, stride, (const void*)(top + offsetof(sxPrimVtx, tex)));
+			}
+			if (mVtxLink.Prm >= 0) {
+				glEnableVertexAttribArray(mVtxLink.Prm);
+				glVertexAttribPointer(mVtxLink.Prm, 4, GL_FLOAT, GL_FALSE, stride, (const void*)(top + offsetof(sxPrimVtx, prm)));
 			}
 			break;
 
@@ -1235,6 +1297,7 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont)
 	s_pGLSLBinLoadPath = s_pGLSLBinSavePath ? nullptr : nxApp::get_opt("glsl_bin_load");
 
 	s_glslNoBaseTex = (s_pGLSLBinSavePath || s_pGLSLBinLoadPath) ? false : nxApp::get_bool_opt("nobasetex", false);
+	s_glslNoFog = (s_pGLSLBinSavePath || s_pGLSLBinLoadPath) ? false : nxApp::get_bool_opt("nofog", false);
 
 	s_useVtxLighting = nxApp::get_bool_opt("vl", false);
 
@@ -1250,9 +1313,57 @@ static void init(int shadowSize, cxResourceManager* pRsrcMgr, Draw::Font* pFont)
 		nxCore::dbg_msg("Initializing GPU progs");
 	}
 	double prgT0 = nxSys::time_micros();
-#define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.init(VtxFmt_##_vert_name, s_sdr_##_vert_name##_vert, s_sdr_##_frag_name##_frag, #_vert_name, #_frag_name); ++prgCnt; if (s_prg_##_vert_name##_##_frag_name.is_valid()) {++prgOK; if (s_glslEcho) { nxCore::dbg_msg("."); } } else { nxCore::dbg_msg("GPUProg init error: %s + %s\n", #_vert_name, #_frag_name); }
-#include "ogl/progs.inc"
-#undef GPU_PROG
+	int linkMode = nxApp::get_int_opt("glsl_link_mode", 0);
+	if (linkMode == 1) {
+#		define GPU_PROG(_vert_name, _frag_name) s_prg_##_vert_name##_##_frag_name.init(VtxFmt_##_vert_name, s_sdr_##_vert_name##_vert, s_sdr_##_frag_name##_frag, #_vert_name, #_frag_name); ++prgCnt; if (s_prg_##_vert_name##_##_frag_name.is_valid()) {++prgOK; if (s_glslEcho) { nxCore::dbg_msg("."); } } else { nxCore::dbg_msg("GPUProg init error: %s + %s\n", #_vert_name, #_frag_name); }
+#		include "ogl/progs.inc"
+#		undef GPU_PROG
+	} else {
+#		define GPU_PROG(_vert_name, _frag_name) ++prgCnt;
+#		include "ogl/progs.inc"
+#		undef GPU_PROG
+		if (prgCnt > 0) {
+			GPUProg** ppProg = (GPUProg**)nxCore::mem_alloc(sizeof(GPUProg*)*prgCnt, "GPUProgsList");
+			if (ppProg) {
+				int iprg = 0;
+#				define GPU_PROG(_vert_name, _frag_name) ppProg[iprg] = &s_prg_##_vert_name##_##_frag_name; ppProg[iprg]->mVtxFmt = VtxFmt_##_vert_name; ppProg[iprg]->mVertSID = s_sdr_##_vert_name##_vert; ppProg[iprg]->mFragSID = s_sdr_##_frag_name##_frag; ppProg[iprg]->mpVertName = #_vert_name; ppProg[iprg]->mpFragName = #_frag_name; ++iprg;
+#				include "ogl/progs.inc"
+#				undef GPU_PROG
+				for (iprg = 0; iprg < prgCnt; ++iprg) {
+					GPUProg* pProg = ppProg[iprg];
+					pProg->mProgId = glCreateProgram();
+					if (pProg->mProgId) {
+						glAttachShader(pProg->mProgId, pProg->mVertSID);
+						glAttachShader(pProg->mProgId, pProg->mFragSID);
+						OGLSys::link_prog_id_nock(pProg->mProgId);
+						if (s_glslEcho) {
+							nxCore::dbg_msg(".");
+						}
+					}
+				}
+				for (iprg = 0; iprg < prgCnt; ++iprg) {
+					GPUProg* pProg = ppProg[iprg];
+					if (pProg->mProgId) {
+						if (OGLSys::ck_link_status(pProg->mProgId)) {
+							pProg->prepare();
+							pProg->save_bin();
+						} else {
+							glDetachShader(pProg->mProgId, pProg->mVertSID);
+							glDetachShader(pProg->mProgId, pProg->mFragSID);
+							glDeleteProgram(pProg->mProgId);
+							pProg->mProgId = 0;
+						}
+					}
+					if (pProg->is_valid()) {
+						++prgOK;
+					} else {
+						nxCore::dbg_msg("GPUProg init error: %s + %s\n", pProg->mpVertName, pProg->mpFragName);
+					}
+				}
+				nxCore::mem_free(ppProg);
+			}
+		}
+	}
 	if (s_glslEcho) {
 		nxCore::dbg_msg("\n");
 	}
@@ -1353,6 +1464,12 @@ static void reset() {
 	if (s_shadowFBO) {
 		glDeleteFramebuffers(1, &s_shadowFBO);
 		s_shadowFBO = 0;
+	}
+
+	if (s_primVBO) {
+		glDeleteBuffers(1, &s_primVBO);
+		s_primVBO = 0;
+		s_maxPrimVtx = 0;
 	}
 
 	if (s_quadIBO) {
@@ -2061,6 +2178,8 @@ static void batch(cxModelWork* pWk, const int ibat, const Draw::Mode mode, const
 void quad(const Draw::Quad* pQuad) {
 	if (!pQuad) return;
 	if (pQuad->color.a <= 0.0f) return;
+	GPUProg* pProg = &s_prg_quad_quad;
+	if (!pProg->is_valid()) return;
 	GLuint htex = get_tex_handle(pQuad->pTex);
 	if (!htex) {
 		htex = OGLSys::get_white_tex();
@@ -2069,7 +2188,6 @@ void quad(const Draw::Quad* pQuad) {
 	set_semi();
 	set_face_cull();
 	OGLSys::enable_msaa(false);
-	GPUProg* pProg = &s_prg_quad_quad;
 	pProg->use();
 	xt_float4 pos[2];
 	const float* pPosSrc = pQuad->pos[0];
@@ -2156,6 +2274,8 @@ void symbol(const Draw::Symbol* pSym) {
 	if (!(s_fontVBO && s_fontIBO)) return;
 	int sym = pSym->sym;
 	if (uint32_t(sym) >= uint32_t(pFont->numSyms)) return;
+	GPUProg* pProg = &s_prg_font_font;
+	if (!pProg->is_valid()) return;
 	Draw::Font::SymInfo* pInfo = &pFont->pSyms[sym];
 	set_screen_framebuf();
 	if (clr.a < 1.0f) {
@@ -2165,7 +2285,6 @@ void symbol(const Draw::Symbol* pSym) {
 	}
 	set_face_cull();
 	OGLSys::enable_msaa(true);
-	GPUProg* pProg = &s_prg_font_font;
 	pProg->use();
 	if (HAS_PARAM(FontColor)) {
 		xt_float4 fontClr;
@@ -2186,6 +2305,9 @@ void symbol(const Draw::Symbol* pSym) {
 		fontRot.set(pSym->rot[0].x, pSym->rot[1].x, pSym->rot[0].y, pSym->rot[1].y);
 		glUniform4fv(pProg->mParamLink.FontRot, 1, fontRot);
 	}
+	if (pProg->mVAO) {
+		OGLSys::bind_vao(pProg->mVAO);
+	}
 	glBindBuffer(GL_ARRAY_BUFFER, s_fontVBO);
 	pProg->enable_attrs(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_fontIBO);
@@ -2196,6 +2318,126 @@ void symbol(const Draw::Symbol* pSym) {
 		pProg->disable_attrs();
 	}
 }
+
+void init_prims(const uint32_t maxVtx) {
+	if (!s_drwInitFlg) return;
+	if (s_primVBO) return;
+	if (maxVtx < 3) return;
+	glGenBuffers(1, &s_primVBO);
+	if (s_primVBO) {
+		glBindBuffer(GL_ARRAY_BUFFER, s_primVBO);
+		glBufferData(GL_ARRAY_BUFFER, maxVtx * sizeof(sxPrimVtx), nullptr, GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		s_maxPrimVtx = maxVtx;
+	}
+}
+
+void prim_verts(const uint32_t org, const uint32_t num, const sxPrimVtx* pSrc) {
+	if (!s_primVBO) return;
+	if (!pSrc) return;
+	if (org >= s_maxPrimVtx || org + num > s_maxPrimVtx) return;
+	glBindBuffer(GL_ARRAY_BUFFER, s_primVBO);
+	GLintptr offs = org * sizeof(sxPrimVtx);
+	GLsizeiptr len = num * sizeof(sxPrimVtx);
+#if 1
+	glBufferSubData(GL_ARRAY_BUFFER, offs, len, pSrc);
+#else
+	void* pDst = glMapBufferRange(GL_ARRAY_BUFFER, offs, len, GL_MAP_WRITE_BIT);
+	if (pDst) {
+		::memcpy(pDst, pSrc, (size_t)len);
+	}
+	glUnmapBuffer(GL_ARRAY_BUFFER);
+#endif
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void prim(const Draw::Prim* pPrim, const Draw::Context* pCtx) {
+	if (!pPrim) return;
+	if (!pCtx) return;
+	if (!s_primVBO) return;
+	GPUProg* pProg = &s_prg_prim_prim;
+	if (!pProg->is_valid()) return;
+	uint32_t vorg = pPrim->vtxOrg;
+	uint32_t vnum = pPrim->vtxNum;
+	if (vorg >= s_maxPrimVtx || vorg + vnum > s_maxPrimVtx) return;
+	GLuint htex = get_tex_handle(pPrim->pTex);
+	if (!htex) {
+		htex = OGLSys::get_white_tex();
+	}
+	set_def_framebuf();
+	OGLSys::enable_msaa(true);
+	if (pPrim->alphaBlend) {
+		set_semi();
+	} else {
+		set_opaq();
+	}
+	if (pPrim->dblSided) {
+		set_dbl_sided();
+	} else {
+		set_face_cull();
+	}
+	pProg->use();
+
+	pProg->set_view_proj(pCtx->view.mViewProjMtx);
+	pProg->set_view_pos(pCtx->view.mPos);
+
+	xt_float4 ctrl;
+	ctrl.fill(0.0f);
+	if (pPrim->type == Draw::PRIMTYPE_SPRITE) {
+		ctrl.x = 1.0f;
+		if (HAS_PARAM(InvView)) {
+			pProg->set_inv_view(pCtx->view.mInvViewMtx);
+		}
+	} else {
+		if (HAS_PARAM(World)) {
+			cxMtx m;
+			if (pPrim->pMtx) {
+				m = *pPrim->pMtx;
+			} else {
+				m.identity();
+			}
+			xt_xmtx wm;
+			wm = nxMtx::xmtx_from_mtx(m);
+			pProg->set_world(wm);
+		}
+		pProg->set_vtx_hemi_upper(pCtx->hemi.mUpper);
+		pProg->set_vtx_hemi_lower(pCtx->hemi.mLower);
+		pProg->set_vtx_hemi_up(pCtx->hemi.mUp);
+		if (HAS_PARAM(VtxHemiParam)) {
+			xt_float3 hparam;
+			hparam.set(pCtx->hemi.mExp, pCtx->hemi.mGain, 0.0f);
+			pProg->set_vtx_hemi_param(hparam);
+		}
+	}
+	pProg->set_prim_ctrl(ctrl);
+
+	pProg->set_fog_color(pCtx->fog.mColor);
+	pProg->set_fog_param(pCtx->fog.mParam);
+
+	pProg->set_inv_white(pCtx->cc.mToneMap.get_inv_white());
+	pProg->set_lclr_gain(pCtx->cc.mToneMap.mLinGain);
+	pProg->set_lclr_bias(pCtx->cc.mToneMap.mLinBias);
+	pProg->set_exposure(pCtx->cc.mExposure);
+	pProg->set_inv_gamma(pCtx->cc.get_inv_gamma());
+
+	if (pProg->mSmpLink.Base >= 0) {
+		glActiveTexture(GL_TEXTURE0 + Draw::TEXUNIT_Base);
+		glBindTexture(GL_TEXTURE_2D, htex);
+	}
+
+	if (pProg->mVAO) {
+		OGLSys::bind_vao(pProg->mVAO);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, s_primVBO);
+	pProg->enable_attrs(0);
+	glDrawArrays(GL_TRIANGLES, vorg, vnum);
+	if (pProg->mVAO) {
+		OGLSys::bind_vao(0);
+	} else {
+		pProg->disable_attrs();
+	}
+}
+
 
 static Draw::Ifc s_ifc;
 
@@ -2209,9 +2451,12 @@ struct DrwInit {
 		s_ifc.get_screen_width = get_screen_width;
 		s_ifc.get_screen_height = get_screen_height;
 		s_ifc.get_shadow_bias_mtx = get_shadow_bias_mtx;
+		s_ifc.init_prims = init_prims;
+		s_ifc.prim_verts = prim_verts;
 		s_ifc.begin = begin;
 		s_ifc.end = end;
 		s_ifc.batch = batch;
+		s_ifc.prim = prim;
 		s_ifc.quad = quad;
 		s_ifc.symbol = symbol;
 		Draw::register_ifc_impl(&s_ifc);

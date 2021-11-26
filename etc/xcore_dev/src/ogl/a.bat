@@ -157,6 +157,11 @@ call :frag cast_opaq.frag f_shadow.glsl+cast_opaq.frag
 call :frag cast_semi.frag f_shadow.glsl+cast_semi.frag
 
 
+rem prims
+call :vert vtx_prim prim.vert f_hemi.glsl+prim.vert
+call :frag prim.frag prim.frag
+
+
 rem screen
 call :vert vtx_quad quad.vert quad.vert
 call :frag quad.frag quad.frag

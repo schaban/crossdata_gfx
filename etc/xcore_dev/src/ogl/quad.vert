@@ -1,6 +1,6 @@
 void getQuadAttrs(float ivtx, out vec2 pos, out vec2 tex, out vec4 clr) {
-	int i0 = int(vtxId / 2.0);
-	int i1 = int(mod(vtxId, 2.0)) * 2;
+	int i0 = int(ivtx / 2.0);
+	int i1 = int(mod(ivtx, 2.0)) * 2;
 #ifdef WEBGL
 	vec4 v = gpQuadVtxPos[i0];
 	float x = 0.0;

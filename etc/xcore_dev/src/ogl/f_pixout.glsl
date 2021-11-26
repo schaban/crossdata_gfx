@@ -37,8 +37,10 @@ HALF vec3 toneMap(HALF vec3 c) {
 HALF vec4 applyCC(HALF vec4 clr) {
 	HALF vec4 c = clr;
 
+#ifndef DRW_NOFOG
 	HALF vec4 cfog = gpFogColor;
 	c.rgb = mix(c.rgb, cfog.rgb, fog() * cfog.a);
+#endif
 
 	c.rgb = toneMap(c.rgb);
 

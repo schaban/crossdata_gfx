@@ -26,6 +26,11 @@ namespace Draw {
 		TEXUNIT_COUNT
 	};
 
+	enum PrimType {
+		PRIMTYPE_POLY = 0,
+		PRIMTYPE_SPRITE = 1
+	};
+
 	struct Font {
 		struct SymInfo {
 			xt_float2 size;
@@ -226,6 +231,16 @@ namespace Draw {
 
 	};
 
+	struct Prim {
+		sxTextureData* pTex;
+		cxMtx* pMtx;
+		uint32_t vtxOrg;
+		uint32_t vtxNum;
+		PrimType type;
+		bool dblSided;
+		bool alphaBlend;
+	};
+
 	struct Quad {
 		xt_float2 pos[4];
 		xt_float2 tex[4];
@@ -262,7 +277,7 @@ namespace Draw {
 			bool needOGLContext;
 		} info;
 
-		void (*init)(int shadowSize, cxResourceManager* pRsrcMgr, Font* pFont);
+		void (*init)(const int shadowSize, cxResourceManager* pRsrcMgr, Font* pFont);
 		void (*reset)();
 
 		int (*get_screen_width)();
@@ -270,10 +285,14 @@ namespace Draw {
 
 		cxMtx (*get_shadow_bias_mtx)();
 
+		void (*init_prims)(const uint32_t maxVtx);
+		void (*prim_verts)(const uint32_t org, const uint32_t num, const sxPrimVtx* pSrc);
+
 		void (*begin)(const cxColor& clearColor);
 		void (*end)();
 
 		void (*batch)(cxModelWork* pWk, const int ibat, const Mode mode, const Context* pCtx);
+		void (*prim)(const Prim* pPrim, const Context* pCtx);
 		void (*quad)(const Quad* pQuad);
 		void (*symbol)(const Symbol* pSym);
 	};

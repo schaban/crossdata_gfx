@@ -1635,6 +1635,63 @@ cxVec get_obj_center_pos(const char* pName) {
 }
 
 
+void init_prims(const uint32_t maxVtx) {
+	if (s_pDraw && s_pDraw->init_prims) {
+		s_pDraw->init_prims(maxVtx);
+	}
+}
+
+void prim_verts(const uint32_t org, const uint32_t num, const sxPrimVtx* pSrc) {
+	if (s_pDraw && s_pDraw->prim_verts) {
+		s_pDraw->prim_verts(org, num, pSrc);
+	}
+}
+
+static void prim_draw(Draw::Prim* pPrim) {
+	if (!pPrim) return;
+	if (s_pDraw && s_pDraw->prim) {
+		Draw::Context* pCtx = &s_drwCtx;
+		s_pDraw->prim(pPrim, pCtx);
+	}
+}
+
+void tris_semi_dsided(const uint32_t vtxOrg, const uint32_t triNum, cxMtx* pMtx, sxTextureData* pTex) {
+	Draw::Prim prim;
+	prim.type = Draw::PRIMTYPE_POLY;
+	prim.pMtx = pMtx;
+	prim.pTex = pTex;
+	prim.vtxOrg = vtxOrg;
+	prim.vtxNum = triNum * 3;
+	prim.alphaBlend = true;
+	prim.dblSided = true;
+	prim_draw(&prim);
+}
+
+void tris_semi(const uint32_t vtxOrg, const uint32_t triNum, cxMtx* pMtx, sxTextureData* pTex) {
+	Draw::Prim prim;
+	prim.type = Draw::PRIMTYPE_POLY;
+	prim.pMtx = pMtx;
+	prim.pTex = pTex;
+	prim.vtxOrg = vtxOrg;
+	prim.vtxNum = triNum * 3;
+	prim.alphaBlend = true;
+	prim.dblSided = false;
+	prim_draw(&prim);
+}
+
+void sprite_tris(const uint32_t vtxOrg, const uint32_t triNum, sxTextureData* pTex) {
+	Draw::Prim prim;
+	prim.type = Draw::PRIMTYPE_SPRITE;
+	prim.pMtx = nullptr;
+	prim.pTex = pTex;
+	prim.vtxOrg = vtxOrg;
+	prim.vtxNum = triNum * 3;
+	prim.alphaBlend = true;
+	prim.dblSided = false;
+	prim_draw(&prim);
+}
+
+
 void set_ref_scr_size(const float w, const float h) {
 	s_refScrW = w;
 	s_refScrH = h;
