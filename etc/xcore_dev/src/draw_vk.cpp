@@ -1064,16 +1064,23 @@ VkShaderModule VK_GLB::mk_shader(const char* pName) {
 		}
 		nxCore::bin_unload(pBin);
 	} else if (pName) {
+		int idx = -1;
 		for (int i = 0; i < XD_ARY_LEN(s_gpu_code); ++i) {
 			if (nxCore::str_eq(s_gpu_code[i].pName, pName)) {
-				nxCore::dbg_msg("vk warning: using built-in GPU code for '%s'.\n", pName);
-				smCrInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-				smCrInfo.pCode = s_gpu_code[i].pCode;
-				smCrInfo.codeSize = s_gpu_code[i].size;
-				VkResult vres = vkCreateShaderModule(mVkDevice, &smCrInfo, mpAllocator, &sm);
-				if (VK_SUCCESS != vres) {
-					nxCore::dbg_msg("Error creating shader module for '%s' from built-in code.\n", pName);
-				}
+				idx = i;
+				break;
+			}
+		}
+		if (idx < 0) {
+			nxCore::dbg_msg("vk warning: cannot find built-in GPU code for '%s'.\n", pName);
+		} else {
+			nxCore::dbg_msg("vk warning: using built-in GPU code for '%s'.\n", pName);
+			smCrInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+			smCrInfo.pCode = s_gpu_code[idx].pCode;
+			smCrInfo.codeSize = s_gpu_code[idx].size;
+			VkResult vres = vkCreateShaderModule(mVkDevice, &smCrInfo, mpAllocator, &sm);
+			if (VK_SUCCESS != vres) {
+				nxCore::dbg_msg("Error creating shader module for '%s' from built-in code.\n", pName);
 			}
 		}
 	}
