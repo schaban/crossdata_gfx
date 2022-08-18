@@ -4,6 +4,10 @@
 
 #if !DRW_NO_VULKAN
 
+#ifndef DRW_VK_HALF_TEST
+#	define DRW_VK_HALF_TEST 0
+#endif
+
 DRW_IMPL_BEGIN
 
 #if defined(OGLSYS_WINDOWS)
@@ -24,7 +28,11 @@ static bool s_useFences = false;
 struct GPUVtx {
 	xt_float3   pos;
 	xt_float3   nrm;
+#if DRW_VK_HALF_TEST
+	xt_half2    tex;
+#else
 	xt_texcoord tex;
+#endif
 	xt_rgba     clr;
 	xt_float4   wgt;
 	xt_int4     idx;
@@ -1121,7 +1129,11 @@ void VK_GLB::init_gpu_code() {
 	static const VkVertexInputAttributeDescription vtxAttrs[] = {
 		{ 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GPUVtx, pos) },
 		{ 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GPUVtx, nrm) },
+#if DRW_VK_HALF_TEST
+		{ 2, 0, VK_FORMAT_R16G16_SFLOAT, offsetof(GPUVtx, tex) },
+#else
 		{ 2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(GPUVtx, tex) },
+#endif
 		{ 3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(GPUVtx, clr) },
 		{ 4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(GPUVtx, wgt) },
 		{ 5, 0, VK_FORMAT_R32G32B32A32_SINT, offsetof(GPUVtx, idx) }
@@ -1262,8 +1274,16 @@ void VK_GLB::mdl_prepare(sxModelData* pMdl) {
 				for (int i = 0; i < npnt; ++i) {
 					pVtx[i].pos = pMdl->get_pnt_pos(i);
 					pVtx[i].nrm = pMdl->get_pnt_nrm(i);
+#if DRW_VK_HALF_TEST
+					xt_texcoord tex = pMdl->get_pnt_tex(i);
+					pVtx[i].tex.set(tex.u, tex.v);
+					cxColor clr = pMdl->get_pnt_clr(i);
+					clr.scl_rgb(0.2f, 0.7f, 0.1f);
+					pVtx[i].clr = clr;
+#else
 					pVtx[i].tex = pMdl->get_pnt_tex(i);
 					pVtx[i].clr = pMdl->get_pnt_clr(i);
+#endif
 					pVtx[i].wgt.fill(0.0f);
 					pVtx[i].idx.fill(0);
 					sxModelData::PntSkin skn = pMdl->get_pnt_skin(i);
